@@ -36,6 +36,9 @@
 
 #include <glib.h>
 
+#define dscuss_htonll(val) (GUINT64_TO_BE (val))
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

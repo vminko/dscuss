@@ -67,7 +67,7 @@ stdio_callback (GIOChannel * io, GIOCondition condition, gpointer data)
   switch (g_io_channel_read_line (io, &line, NULL, NULL, &error))
     {
     case G_IO_STATUS_NORMAL:
-      line[strlen(line) - 1] = '\0';
+      line[strlen (line) - 1] = '\0';
       g_debug ("Sending message '%s'", line);
       msg = dscuss_message_new (line);
       dscuss_send_message (msg);
@@ -104,6 +104,7 @@ on_stop (gpointer data)
   *stop_flag = TRUE;
   return TRUE;
 }
+
 
 int
 main (int argc, char* argv[])

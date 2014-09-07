@@ -38,6 +38,7 @@
 #define DSCUSS_CRYPTO_H
 
 #include <glib.h>
+#include <openssl/sha.h>
 #include "connection.h"
 #include "peer.h"
 
@@ -45,6 +46,11 @@
 extern "C" {
 #endif
 
+/* 512-bit hash digest. */
+typedef struct
+{
+  unsigned char digest[SHA512_DIGEST_LENGTH];
+} DscussHash;
 
 /**
  * Initializes the crypto subsystem.

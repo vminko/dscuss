@@ -185,7 +185,7 @@ on_incoming_connection (GSocketService*    service,
   g_hash_table_insert (peers, peer, NULL);
 
   /**
-   * FIXME: temporarily solution, handshake is not implemented yet
+   * FIXME: temporary solution, handshake is not implemented yet
    */
   on_peer_handshaked (peer, NULL);
 

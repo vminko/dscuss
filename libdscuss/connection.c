@@ -246,7 +246,8 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
     }
   else
     {
-      g_debug ("Writing remaining %ld bytes", ctx->length - ctx->offset);
+      g_debug ("Writing remaining %" G_GSSIZE_FORMAT " bytes",
+               ctx->length - ctx->offset);
       g_output_stream_write_async (out, ctx->buffer + ctx->offset,
                                    ctx->length - ctx->offset,
                                    G_PRIORITY_DEFAULT, connection->cancellable,
@@ -358,7 +359,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
           if (packet_size > DSCUSS_PACKET_MAX_SIZE)
             {
               g_warning ("Protocol violation detected:"
-                         " packet size '%ld' exceeds maximum limit '%d'.",
+                         " packet size '%" G_GSSIZE_FORMAT "' exceeds maximum limit '%d'.",
                          packet_size, DSCUSS_PACKET_MAX_SIZE);
               connection->receive_callback (connection,
                                             NULL,
@@ -387,7 +388,8 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
   else
     {
       /* No. Read remaining data. */
-      g_debug ("Reading remaining %ld bytes", length - connection->read_offset);
+      g_debug ("Reading remaining %" G_GSSIZE_FORMAT " bytes",
+               length - connection->read_offset);
       g_input_stream_read_async (in, connection->read_buf + connection->read_offset,
                                  length - connection->read_offset,
                                  G_PRIORITY_DEFAULT, connection->cancellable,
