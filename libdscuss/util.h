@@ -36,13 +36,29 @@
 
 #include <glib.h>
 
-#define dscuss_htonll(val) (GUINT64_TO_BE (val))
-
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+
+/**
+ * Free the memory pointed to by ptr if ptr is not NULL
+ * and sets the pointer to NULL.
+ *
+ * @param ptr   address of the memory to free.
+ * @param func  function to call to free the memory.
+ */
+#define dscuss_free_non_null(ptr, func) \
+  do { if (ptr != NULL) { func (ptr); ptr = NULL; } \
+     } while(0)
+
+/**
+ * Converts a 64-bit integer value from host to network byte order.
+ *
+ * @param val  a 64-bit integer value in host byte order.
+ */
+#define dscuss_htonll(val) (GUINT64_TO_BE (val))
 
 /**
  * Initializes the utility subsystem. It must be initialized before any other

@@ -88,7 +88,7 @@ struct _DscussPeer
 };
 
 
-/**** SendContext ***********************************************************/
+/**** PeerSendContext ********************************************************/
 
 typedef struct
 {
@@ -96,17 +96,17 @@ typedef struct
   DscussEntity* entity;
   DscussPeerSendCallback callback;
   gpointer user_data;
-} SendContext;
+} PeerSendContext;
 
 
-static SendContext*
-send_context_new (DscussPeer* peer,
-                  DscussEntity* entity,
-                  DscussPeerSendCallback callback,
-                  gpointer user_data)
+static PeerSendContext*
+peer_send_context_new (DscussPeer* peer,
+                       DscussEntity* entity,
+                       DscussPeerSendCallback callback,
+                       gpointer user_data)
 {
   dscuss_entity_ref (entity);
-  SendContext* ctx = g_new0 (SendContext, 1);
+  PeerSendContext* ctx = g_new0 (PeerSendContext, 1);
   ctx->peer = peer;
   ctx->entity = entity;
   ctx->callback = callback;
@@ -116,7 +116,7 @@ send_context_new (DscussPeer* peer,
 
 
 static void
-send_context_free_full (SendContext* ctx, gboolean result)
+peer_send_context_free (PeerSendContext* ctx, gboolean result)
 {
   ctx->callback (ctx->peer,
                  ctx->entity,
@@ -126,14 +126,7 @@ send_context_free_full (SendContext* ctx, gboolean result)
   g_free (ctx);
 }
 
-
-static void
-send_context_free (SendContext* ctx)
-{
-  send_context_free_full (ctx, FALSE);
-}
-
-/**** End of SendContext ****************************************************/
+/**** End of PeerSendContext *************************************************/
 
 
 DscussPeer*
@@ -208,13 +201,13 @@ on_packet_sent (DscussConnection* connection,
                 gboolean result,
                 gpointer user_data)
 {
-  SendContext* ctx = user_data;
+  PeerSendContext* ctx = user_data;
   if (!result)
     g_debug ("Failed to send packet %s to the peer '%s'",
              dscuss_packet_get_description (packet),
              dscuss_peer_get_description (ctx->peer));
   g_free ((gchar*) packet);
-  send_context_free_full (ctx, result);
+  peer_send_context_free (ctx, result);
 }
 
 
@@ -228,10 +221,10 @@ dscuss_peer_send (DscussPeer* peer,
            dscuss_entity_get_description (entity));
   DscussPacket* packet = dscuss_entity_to_packet (entity);
 
-  SendContext* ctx = send_context_new (peer,
-                                       entity,
-                                       callback,
-                                       user_data);
+  PeerSendContext* ctx = peer_send_context_new (peer,
+                                                entity,
+                                                callback,
+                                                user_data);
 
   dscuss_connection_send (peer->connection,
                           packet,

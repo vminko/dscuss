@@ -27,37 +27,23 @@
  * as that of the covered work.
  */
 
-#include <glib.h>
-#include "util.h"
+#include "crypto_hash.h"
 
 
-static gchar* default_data_dir = NULL;
-static gchar* custom_data_dir = NULL;
-
-
-void
-dscuss_util_init (const gchar* data_dir)
+gint
+dscuss_crypto_hash_get_bit (const DscussHash* hash,
+                            guint bit)
 {
-  if (data_dir != NULL && *data_dir)
-    custom_data_dir = g_strdup (data_dir);
+  g_assert (bit < 8 * sizeof (DscussHash));
+  return (((unsigned char *) hash)[bit >> 3] & (1 << (bit & 7))) > 0;
 }
 
 
-void
-dscuss_util_uninit (void)
+guint
+dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash)
 {
-  dscuss_free_non_null (custom_data_dir, g_free);
-  dscuss_free_non_null (default_data_dir, g_free);
-}
-
-
-const gchar*
-dscuss_util_get_data_dir (void)
-{
-  if (custom_data_dir != NULL)
-    return custom_data_dir;
-
-  if (!default_data_dir)
-    default_data_dir = g_build_filename (g_get_home_dir (), ".dscuss", NULL);
-  return default_data_dir;
+  guint hash_count = 0;
+  while ((0 == dscuss_crypto_hash_get_bit (hash, hash_count)))
+    hash_count++;
+  return hash_count;
 }

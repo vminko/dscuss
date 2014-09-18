@@ -38,6 +38,8 @@
 static GSList *peers = NULL;
 
 /* Callbacks for notification of the UI */
+static DscussInitCallback init_callback;
+static gpointer init_data;
 static DscussNewMessageCallback msg_callback;
 static gpointer msg_data;
 static DscussNewUserCallback user_callback;
@@ -98,9 +100,34 @@ peer_connected_cb (DscussPeer* peer,
                                     NULL);
 }
 
+static void
+on_crypto_init_finished (gboolean result,
+                         gpointer user_data)
+{
+  g_debug ("Crypto initialization finished with the result %d",
+           result);
+
+  if (!result)
+    goto error;
+
+  if (!dscuss_network_init (peer_connected_cb , NULL))
+    {
+      g_error ("Error initializing the network subsystem!");
+      goto error;
+    }
+
+  init_callback (result, init_data);
+  return;
+
+error:
+  dscuss_uninit ();
+}
+
 
 gboolean
 dscuss_init (const gchar* data_dir,
+             DscussInitCallback init_callback_,
+             gpointer init_data_,
              DscussNewMessageCallback msg_callback_,
              gpointer msg_data_,
              DscussNewUserCallback user_callback_,
@@ -108,6 +135,15 @@ dscuss_init (const gchar* data_dir,
              DscussNewOperationCallback oper_callback_,
              gpointer oper_data_)
 {
+  init_callback = init_callback_;
+  init_data = init_data_;
+  msg_callback = msg_callback_;
+  msg_data = msg_data_;
+  user_callback = user_callback_;
+  user_data = user_data_;
+  oper_callback = oper_callback_;
+  oper_data = oper_data_;
+
   dscuss_util_init (data_dir);
 
   if (!dscuss_config_init ())
@@ -116,26 +152,13 @@ dscuss_init (const gchar* data_dir,
       goto error;
     }
 
-  if (!dscuss_network_init (peer_connected_cb , NULL))
-    {
-      g_error ("Error initializing the network subsystem!");
-      goto error;
-    }
-
-  if (!dscuss_crypto_init ())
+  if (!dscuss_crypto_init (on_crypto_init_finished, NULL))
     {
       g_error ("Error initializing the crypto subsystem!");
       goto error;
     }
 
   /* TBD: establish database connection */
-
-  msg_callback = msg_callback_;
-  msg_data = msg_data_;
-  user_callback = user_callback_;
-  user_data = user_data_;
-  oper_callback = oper_callback_;
-  oper_data = oper_data_;
 
   return TRUE;
 
@@ -148,15 +171,29 @@ error:
 void
 dscuss_uninit ()
 {
-  if (peers)
-    g_slist_free_full (peers, (GDestroyNotify) dscuss_peer_free);
+  g_debug ("Uninitializing Dscuss");
+
+  if (peers != NULL)
+    {
+      g_slist_free_full (peers, (GDestroyNotify) dscuss_peer_free);
+      peers = NULL;
+    }
 
   dscuss_crypto_uninit ();
   dscuss_network_uninit ();
   dscuss_config_uninit ();
   dscuss_util_uninit ();
-  while (g_main_context_pending(NULL))
-    g_main_context_iteration(NULL, TRUE);
+  while (g_main_context_pending (NULL))
+    g_main_context_iteration (NULL, TRUE);
+
+  init_callback = NULL;
+  init_data = NULL;
+  msg_callback = NULL;
+  msg_data = NULL;
+  user_callback = NULL;
+  user_data = NULL;
+  oper_callback = NULL;
+  oper_data = NULL;
 }
 
 

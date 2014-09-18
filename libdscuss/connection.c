@@ -83,7 +83,7 @@ struct _DscussConnection
 };
 
 
-/**** SendContext ***********************************************************/
+/**** ConnectionSendContext **************************************************/
 
 typedef struct
 {
@@ -93,16 +93,16 @@ typedef struct
   const gchar* buffer;
   gssize length;
   gssize offset;
-} SendContext;
+} ConnectionSendContext;
 
 
-static SendContext*
-send_context_new (DscussConnection* connection,
-                  const DscussPacket* packet,
-                  DscussConnectionSendCallback callback,
-                  gpointer user_data)
+static ConnectionSendContext*
+connecion_send_context_new (DscussConnection* connection,
+                            const DscussPacket* packet,
+                            DscussConnectionSendCallback callback,
+                            gpointer user_data)
 {
-  SendContext* ctx = g_new0 (SendContext, 1);
+  ConnectionSendContext* ctx = g_new0 (ConnectionSendContext, 1);
   ctx->connection = connection;
   ctx->callback = callback;
   ctx->user_data = user_data;
@@ -114,7 +114,7 @@ send_context_new (DscussConnection* connection,
 
 
 static void
-send_context_free_full (SendContext* ctx, gboolean result)
+connection_send_context_free_full (ConnectionSendContext* ctx, gboolean result)
 {
   ctx->callback (ctx->connection,
                  (const DscussPacket*) ctx->buffer,
@@ -125,12 +125,12 @@ send_context_free_full (SendContext* ctx, gboolean result)
 
 
 static void
-send_context_free (SendContext* ctx)
+connecion_send_context_free (ConnectionSendContext* ctx)
 {
-  send_context_free_full (ctx, FALSE);
+  connection_send_context_free_full (ctx, FALSE);
 }
 
-/**** End of SendContext ****************************************************/
+/**** End of ConnectionSendContext *******************************************/
 
 
 static void
@@ -168,7 +168,8 @@ dscuss_connection_free (DscussConnection* connection)
     }
   g_io_stream_close (G_IO_STREAM (connection->socket_connection), NULL, NULL);
   g_object_unref (connection->socket_connection);
-  g_queue_free_full (connection->oqueue, (GDestroyNotify) send_context_free);
+  g_queue_free_full (connection->oqueue,
+                     (GDestroyNotify) connecion_send_context_free);
   g_free (connection);
   g_debug ("Connection successfully freed");
 }
@@ -177,22 +178,12 @@ dscuss_connection_free (DscussConnection* connection)
 const gchar*
 dscuss_connection_get_description (DscussConnection* connection)
 {
-  if (connection->socket_connection == NULL)
-    g_debug ("DEBUG1 null");
   GSocketAddress* sockaddr =
     g_socket_connection_get_remote_address (connection->socket_connection,
                                             NULL);
-  if (sockaddr == NULL)
-    g_debug ("DEBUG2 null");
-  if (!G_IS_INET_SOCKET_ADDRESS (sockaddr))
-    g_debug ("DEBUG3 not inet");
 
   GInetAddress* addr =
     g_inet_socket_address_get_address (G_INET_SOCKET_ADDRESS(sockaddr));
-  if (addr == NULL)
-    g_debug ("DEBUG4 null");
-  if (!G_IS_INET_ADDRESS (addr))
-    g_debug ("DEBUG5 not inet");
   gchar* addr_str = g_inet_address_to_string (addr);
   guint16 port =
     g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS(sockaddr));
@@ -200,7 +191,6 @@ dscuss_connection_get_description (DscussConnection* connection)
               DSCUSS_CONNECTION_DESCRIPTION_MAX_LEN,
               "%s:%d", addr_str, port);
   g_free (addr_str);
-  //g_object_unref (addr);
   g_object_unref (sockaddr);
   return description_buf;
 }
@@ -210,7 +200,7 @@ static void
 ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
 {
   GOutputStream* out = G_OUTPUT_STREAM (source);
-  SendContext* ctx = user_data;
+  ConnectionSendContext* ctx = user_data;
   DscussConnection* connection = ctx->connection;
   GError* error = NULL;
   gssize nwrote;
@@ -230,7 +220,7 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
       g_error_free (error);
 
       g_assert (!g_queue_remove (connection->oqueue, ctx));
-      send_context_free_full (ctx, FALSE);
+      connection_send_context_free_full (ctx, FALSE);
       return;
     }
 
@@ -241,7 +231,7 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
     {
       g_debug ("Packet successfully written");
       g_assert (g_queue_remove (connection->oqueue, ctx));
-      send_context_free_full (ctx, TRUE);
+      connection_send_context_free_full (ctx, TRUE);
       send_head_packet (connection);
     }
   else
@@ -260,7 +250,7 @@ static void
 send_head_packet (DscussConnection* connection)
 {
   GOutputStream* out = NULL;
-  SendContext* ctx = NULL;
+  ConnectionSendContext* ctx = NULL;
 
   g_assert (connection->oqueue);
 
@@ -287,10 +277,10 @@ dscuss_connection_send (DscussConnection* connection,
   g_debug ("Sending packet %s",
            dscuss_packet_get_description (packet));
 
-  SendContext* ctx = send_context_new (connection,
-                                       packet,
-                                       callback,
-                                       user_data);
+  ConnectionSendContext* ctx = connecion_send_context_new (connection,
+                                                           packet,
+                                                           callback,
+                                                           user_data);
   g_queue_push_tail (connection->oqueue, ctx);
 
   /* Start processing the queue if it was empty. */

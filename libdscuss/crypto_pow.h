@@ -28,19 +28,17 @@
  */
 
 /**
- * @file crypto.h  Defines API of the crypto subsystem.
- * @brief The crypto subsystem includes public key cryptography (ECDSA),
- * hashing and symmetric encryption. Based on OpenSSL.
+ * @file crypto_pow.h  Defines the functions for initialization proof-of-work.
  */
 
 
-#ifndef DSCUSS_CRYPTO_H
-#define DSCUSS_CRYPTO_H
+#ifndef DSCUSS_CRYPTO_POW_H
+#define DSCUSS_CRYPTO_POW_H
 
 #include <glib.h>
-#include "connection.h"
-#include "crypto_ecc.h"
-#include "peer.h"
+#include <openssl/sha.h>
+#include "util.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,53 +46,50 @@ extern "C" {
 
 
 /**
- * Callback to notify that initialization of the crypto subsystem is finished.
+ * Callback to notify that initialization of the proof-of-work is finished.
  *
  * @param result      @c TRUE if initialization was successful,
  *                    or @c FALSE otherwise.
+ * @param proof       proof-of-work if @a result is @c TRUE, @c 0 otherwise.
  * @param user_data   The user data.
  */
-typedef void (*DscussCryptoInitCallback)(gboolean result,
-                                         gpointer user_data);
+typedef void (*DscussCryptoPowInitCallback)(gboolean result,
+                                            guint64 proof,
+                                            gpointer user_data);
 
 /**
- * Initializes the crypto subsystem.
+ * Initializes proof-of-work (PoW) for the crypto subsystem.
  *
- * Initializes the private key and proof-of-work. @a dscuss_crypto_uninit
- * should be called if @c TRUE was passed to the callback.
+ * Reads PoW from the PoW-file or generates a new one if there is no such file.
  *
+ * @param pubkey     Public key to find proof for.
+ * @param filename   Name of the file to read from or to store to if it does
+ *                   not exist.
  * @param callback   The function to be called when initialization
  *                   is finished.
- * @param user_data  Additional data to be passed to the callback.
+ * @param user_data  Additional data to be passed to @a callback.
  *
- * @return @c TRUE if initialization started successfully (init result will be
+ * @return @c TRUE if initialization started successfully (the proof will be
  *         passes to the callback),
  *         or @c FALSE otherwise (callback will not be called at all).
  */
 gboolean
-dscuss_crypto_init (DscussCryptoInitCallback callback,
-                    gpointer user_data);
+dscuss_crypto_pow_init (const DscussPublicKey* pubkey,
+                        const gchar* filename,
+                        DscussCryptoPowInitCallback callback,
+                        gpointer user_data);
 
 /**
- * Destroys the crypto subsystem.
+ * Uninitializes proof-of-work.
  *
- * Frees allocated memory. Stops finding PoW if it's still is progress.
+ * Stops finding PoW if it hasn't been found yet and frees allocated memory.
  */
 void
-dscuss_crypto_uninit ();
-
-/**
- * Returns the user's private key. Should only be called when crypto
- * is initialized.
- *
- * @return The user's private key.
- */
-DscussPrivateKey*
-dscuss_crypto_get_privkey ();
+dscuss_crypto_pow_uninit ();
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* DSCUSS_CRYPTO_H */
+#endif /* DSCUSS_CRYPTO_POW_H */

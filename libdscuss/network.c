@@ -66,7 +66,7 @@ static guint timeout_id = 0;
 /* Function to call when a new peer connects. */
 static DscussNewPeerCallback new_peer_callback;
 
-/* User data to pass to new_peer_callback. */
+/* User data to pass to @c new_peer_callback. */
 static gpointer new_peer_data;
 
 /* Handler of the incoming connection signal. */
@@ -424,13 +424,16 @@ error:
 void
 dscuss_network_uninit (void)
 {
-  g_source_remove (timeout_id);
+  g_debug ("Uninitializing the network subsystem");
 
-  if (peers != NULL)
-    g_hash_table_destroy (peers);
+  if (timeout_id != 0)
+    {
+      g_source_remove (timeout_id);
+      timeout_id = 0;
+    }
 
-  if (client != NULL)
-    g_object_unref (client);
+  dscuss_free_non_null (peers, g_hash_table_destroy);
+  dscuss_free_non_null (client, g_object_unref);
 
   if (service != NULL)
     {
@@ -438,9 +441,13 @@ dscuss_network_uninit (void)
         g_signal_handler_disconnect (service, incoming_handler);
       g_socket_service_stop (service);
       g_object_unref (service);
+      service = NULL;
     }
 
   if (peer_addresses != NULL)
-    g_slist_free_full (peer_addresses, g_free);
+    {
+      g_slist_free_full (peer_addresses, g_free);
+      peer_addresses = NULL;
+    }
 
 }

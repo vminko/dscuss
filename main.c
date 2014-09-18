@@ -37,26 +37,6 @@
 #define PROG_VERSION "proof-of-concept"
 
 
-void
-on_new_message (DscussMessage* msg, gpointer user_data)
-{
-  g_printf ("New message received: '%s'.\n",
-            dscuss_message_get_description (msg));
-  dscuss_entity_unref ((DscussEntity*) msg);
-}
-
-void
-on_new_user (DscussUser* user, gpointer user_data)
-{
-  g_printf ("New user received.\n");
-}
-
-void
-on_new_operation (DscussOperation* oper, gpointer user_data)
-{
-  g_printf ("New operation received.\n");
-}
-
 static gboolean
 stdio_callback (GIOChannel * io, GIOCondition condition, gpointer data)
 {
@@ -97,9 +77,64 @@ stdio_callback (GIOChannel * io, GIOCondition condition, gpointer data)
 }
 
 
+static void
+start_handling_input ()
+{
+  GIOChannel *stdio = NULL;
+  stdio = g_io_channel_unix_new (fileno (stdin));
+  g_io_add_watch (stdio, G_IO_IN, stdio_callback, NULL);
+  g_io_channel_unref (stdio);
+}
+
+
+static void
+on_init_finished (gboolean result, gpointer user_data)
+{
+  gboolean* stop_flag = user_data;
+
+  if (result)
+    {
+      g_printf ("Initialization is finished successfully.\n"
+                "Your input will be handled from now on.\n");
+      start_handling_input ();
+    }
+  else
+    {
+      g_printf ("Initialization failed. Quitting...\n");
+      *stop_flag = TRUE;
+    }
+}
+
+
+static void
+on_new_message (DscussMessage* msg, gpointer user_data)
+{
+  g_printf ("New message received: '%s'.\n",
+            dscuss_message_get_description (msg));
+  dscuss_entity_unref ((DscussEntity*) msg);
+}
+
+
+static void
+on_new_user (DscussUser* user, gpointer user_data)
+{
+  g_printf ("New user received.\n");
+}
+
+
+static void
+on_new_operation (DscussOperation* oper, gpointer user_data)
+{
+  g_printf ("New operation received.\n");
+}
+
+
 static gboolean
 on_stop (gpointer data)
 {
+  /* Do NOT call any glib function from the signal handler.
+   * Let glib finish its current iteration instead and
+   * free all the resources after that. */
   gboolean* stop_flag = data;
   *stop_flag = TRUE;
   return TRUE;
@@ -121,7 +156,6 @@ main (int argc, char* argv[])
         &opt_config_dir_arg, "Directory with config files to use", NULL },
       { NULL}
     };
-  GIOChannel *stdio = NULL;
   gboolean stop_requested = FALSE;
 
   g_set_prgname (argv[0]);
@@ -148,7 +182,9 @@ main (int argc, char* argv[])
   g_unix_signal_add (SIGINT, on_stop, &stop_requested);
   g_unix_signal_add (SIGHUP, on_stop, &stop_requested);
 
+  g_printf ("Initializing the system, this can take a while.\n");
   if (!dscuss_init (opt_config_dir_arg,
+                    on_init_finished, &stop_requested,
                     on_new_message, NULL,
                     on_new_user, NULL,
                     on_new_operation, NULL))
@@ -156,10 +192,6 @@ main (int argc, char* argv[])
       g_error ("Failed to initialize the Dscuss system.\n");
       return 1;
     }
-
-  stdio = g_io_channel_unix_new (fileno (stdin));
-  g_io_add_watch (stdio, G_IO_IN, stdio_callback, NULL);
-  g_io_channel_unref (stdio);
 
   while (!stop_requested)
       dscuss_iterate ();

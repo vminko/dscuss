@@ -27,37 +27,53 @@
  * as that of the covered work.
  */
 
+/**
+ * @file crypto_pow.h  API of the hash functions (SHA-512).
+ */
+
+
+#ifndef DSCUSS_CRYPTO_HASH_H
+#define DSCUSS_CRYPTO_HASH_H
+
 #include <glib.h>
-#include "util.h"
+#include <openssl/sha.h>
 
 
-static gchar* default_data_dir = NULL;
-static gchar* custom_data_dir = NULL;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
-void
-dscuss_util_init (const gchar* data_dir)
+/* 512-bit hash digest. */
+typedef struct
 {
-  if (data_dir != NULL && *data_dir)
-    custom_data_dir = g_strdup (data_dir);
+  unsigned char digest[SHA512_DIGEST_LENGTH];
+} DscussHash;
+
+
+/**
+ * Read value of the specified bit in hash.
+ *
+ * @param hash  Hash to read bit from.
+ * @param hash  Number of the bit to read.
+ * @return      The value of the bit: 0 or 1.
+ */
+gint
+dscuss_crypto_hash_get_bit (const DscussHash* hash,
+                            guint bit);
+
+/**
+ * Count the leading zero bits in hash.
+ *
+ * @param hash  Hash to count leading zeros in.
+ * @return      The number of leading zeros.
+ */
+guint
+dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash);
+
+
+#ifdef __cplusplus
 }
+#endif
 
-
-void
-dscuss_util_uninit (void)
-{
-  dscuss_free_non_null (custom_data_dir, g_free);
-  dscuss_free_non_null (default_data_dir, g_free);
-}
-
-
-const gchar*
-dscuss_util_get_data_dir (void)
-{
-  if (custom_data_dir != NULL)
-    return custom_data_dir;
-
-  if (!default_data_dir)
-    default_data_dir = g_build_filename (g_get_home_dir (), ".dscuss", NULL);
-  return default_data_dir;
-}
+#endif /* DSCUSS_CRYPTO_HASH_H */

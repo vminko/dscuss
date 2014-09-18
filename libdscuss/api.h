@@ -50,6 +50,15 @@ typedef gpointer DscussOperation;
 
 
 /**
+ * Callback used for notification that initialization is finished.
+ *
+ * @param result      The result of initialization (@c TRUE if success).
+ * @param user_data   The user data.
+ */
+typedef void (*DscussInitCallback)(gboolean result,
+                                   gpointer user_data);
+
+/**
  * Callback used for notification about incoming messages.
  *
  * @param msg         The message received.
@@ -85,20 +94,25 @@ typedef void (*DscussNewOperationCallback)(DscussOperation* oper,
  * @param data_dir      Path to the directory containing data files.
  *                      If @c NULL, the default directory will be used
  *                      (@c ~/.dscuss).
+ * @param init_callback The function to be called when initialization is
+ *                      finished.
+ * @param init_data     Additional data to be passed to the @a init_callback.
  * @param msg_callback  The function to be called when a new message is
  *                      received.
- * @param msg_data      Additional data to be passed to the @msg_callback.
+ * @param msg_data      Additional data to be passed to the @a msg_callback.
  * @param user_callback The function to be called when a new user is
  *                      received.
- * @param user_data     Additional data to be passed to the @user_callback.
+ * @param user_data     Additional data to be passed to the @a user_callback.
  * @param oper_callback The function to be called when a new operation is
  *                      received.
- * @param oper_data     Additional data to be passed to the @oper_callback.
+ * @param oper_data     Additional data to be passed to the @a oper_callback.
  *
  * @return @c TRUE in case of success, or @c FALSE on error.
  */
 gboolean
 dscuss_init (const gchar* data_dir,
+             DscussInitCallback init_callback,
+             gpointer init_data,
              DscussNewMessageCallback msg_callback,
              gpointer msg_data,
              DscussNewUserCallback user_callback,

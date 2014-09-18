@@ -89,11 +89,8 @@ dscuss_config_uninit (void)
     }
    */
 
-  if (key_file != NULL)
-    g_key_file_free (key_file);
-
-  if (conf_filename != NULL)
-    g_free (conf_filename);
+  dscuss_free_non_null (key_file, g_key_file_free);
+  dscuss_free_non_null (conf_filename, g_free);
 }
 
 
