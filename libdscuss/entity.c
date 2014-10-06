@@ -46,12 +46,6 @@ struct _DscussEntity
    * Reference counter.
    */
   guint ref_count;
-
-  /**
-   * Packet containing this entity.
-   * Used for memory usage optimization.
-   */
-  DscussPacket* packet;
 };
 
 
@@ -83,14 +77,6 @@ dscuss_entity_get_description (const DscussEntity* entity)
     default:
       g_assert_not_reached ();
     }
-}
-
-
-void
-on_packet_freed (gpointer user_data)
-{
-  DscussEntity* entity = user_data;
-  entity->packet = NULL;
 }
 
 

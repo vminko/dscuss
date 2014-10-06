@@ -30,6 +30,7 @@
 #include "config.h"
 #include "network.h"
 #include "crypto.h"
+#include "db.h"
 #include "util.h"
 #include "api.h"
 
@@ -112,7 +113,7 @@ on_crypto_init_finished (gboolean result,
 
   if (!dscuss_network_init (peer_connected_cb , NULL))
     {
-      g_error ("Error initializing the network subsystem!");
+      g_critical ("Error initializing the network subsystem!");
       goto error;
     }
 
@@ -148,17 +149,21 @@ dscuss_init (const gchar* data_dir,
 
   if (!dscuss_config_init ())
     {
-      g_error ("Error initializing the configuration subsystem!");
+      g_critical ("Error initializing the configuration subsystem!");
+      goto error;
+    }
+
+  if (!dscuss_db_init ())
+    {
+      g_critical ("Error initializing the database subsystem!");
       goto error;
     }
 
   if (!dscuss_crypto_init (on_crypto_init_finished, NULL))
     {
-      g_error ("Error initializing the crypto subsystem!");
+      g_critical ("Error initializing the crypto subsystem!");
       goto error;
     }
-
-  /* TBD: establish database connection */
 
   return TRUE;
 
@@ -179,6 +184,7 @@ dscuss_uninit ()
       peers = NULL;
     }
 
+  dscuss_db_uninit ();
   dscuss_crypto_uninit ();
   dscuss_network_uninit ();
   dscuss_config_uninit ();

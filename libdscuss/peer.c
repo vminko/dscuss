@@ -82,6 +82,15 @@ struct _DscussPeer
   gpointer receive_data;
 
   /**
+   * Hash of expected packet types in the following format
+   * [type_id -> type_context]
+   * where @c type_id is a @a DscussPacketType,
+   * and @c type_context is a @a gpointer to arbitrary data for handling
+   * packet if this type (maybe @c NULL if no context required).
+   */
+  GHashTable* expected_types;
+
+  /**
    * Peer ID (hash of its public key)..
    */
   // TBD: id;
@@ -127,110 +136,6 @@ peer_send_context_free (PeerSendContext* ctx, gboolean result)
 }
 
 /**** End of PeerSendContext *************************************************/
-
-
-DscussPeer*
-dscuss_peer_new (GSocketConnection* socket_connection,
-                 DscussPeerDisconnectCallback disconn_callback,
-                 gpointer disconn_data,
-                 DscussPeerHandshakeCallback handshake_callback,
-                 gpointer handshake_data)
-{
-  DscussPeer* peer = g_new0 (DscussPeer, 1);
-  peer->connection = dscuss_connection_new (socket_connection);
-  peer->disconn_callback = disconn_callback;
-  peer->disconn_data = disconn_data;
-  peer->handshake_callback = handshake_callback;
-  peer->handshake_data = handshake_data;
-  peer->receive_callback = NULL;
-  peer->receive_data = NULL;
-  return peer;
-}
-
-
-static void
-dscuss_peer_free_full (DscussPeer* peer,
-                       DscussPeerDisconnectReason reason,
-                       gpointer reason_data)
-{
-  if (peer == NULL)
-    return;
-
-  peer->disconn_callback (peer,
-                          reason,
-                          NULL,
-                          peer->disconn_data);
-
-  dscuss_connection_free (peer->connection);
-  g_free (peer);
-  g_debug ("Peer successfully freed");
-}
-
-
-void
-dscuss_peer_free (DscussPeer* peer)
-{
-  dscuss_peer_free_full (peer,
-                         DSCUSS_PEER_DISCONNECT_REASON_CLOSED,
-                         NULL);
-}
-
-
-const gchar*
-dscuss_peer_get_description (DscussPeer* peer)
-{
-  /* TBD */
-  g_snprintf (description_buf, 
-              DSCUSS_PEER_DESCRIPTION_MAX_LEN,
-              "%s",
-              "TBD: show peer's id");
-  return description_buf;
-}
-
-
-const gchar*
-dscuss_peer_get_connecton_description (DscussPeer* peer)
-{
-  return dscuss_connection_get_description (peer->connection);
-}
-
-
-void
-on_packet_sent (DscussConnection* connection,
-                const DscussPacket* packet,
-                gboolean result,
-                gpointer user_data)
-{
-  PeerSendContext* ctx = user_data;
-  if (!result)
-    g_debug ("Failed to send packet %s to the peer '%s'",
-             dscuss_packet_get_description (packet),
-             dscuss_peer_get_description (ctx->peer));
-  g_free ((gchar*) packet);
-  peer_send_context_free (ctx, result);
-}
-
-
-void
-dscuss_peer_send (DscussPeer* peer,
-                  DscussEntity* entity,
-                  DscussPeerSendCallback callback,
-                  gpointer user_data)
-{
-  g_debug ("Sending entity '%s'",
-           dscuss_entity_get_description (entity));
-  DscussPacket* packet = dscuss_entity_to_packet (entity);
-
-  PeerSendContext* ctx = peer_send_context_new (peer,
-                                                entity,
-                                                callback,
-                                                user_data);
-
-  dscuss_connection_send (peer->connection,
-                          packet,
-                          on_packet_sent,
-                          ctx);
-}
 
 
 void
@@ -280,7 +185,158 @@ on_new_packet (DscussConnection* connection,
     default:
       g_assert_not_reached ();
     }
+}
 
+
+DscussPeer*
+dscuss_peer_new (GSocketConnection* socket_connection,
+                 gboolean is_incoming,
+                 DscussPeerDisconnectCallback disconn_callback,
+                 gpointer disconn_data,
+                 DscussPeerHandshakeCallback handshake_callback,
+                 gpointer handshake_data)
+{
+  DscussPeer* peer = g_new0 (DscussPeer, 1);
+  peer->connection = dscuss_connection_new (socket_connection,
+                                            is_incoming);
+  peer->disconn_callback = disconn_callback;
+  peer->disconn_data = disconn_data;
+  peer->handshake_callback = handshake_callback;
+  peer->handshake_data = handshake_data;
+  peer->receive_callback = NULL;
+  peer->receive_data = NULL;
+  peer->expected_types = g_hash_table_new_full (g_direct_hash,
+                                                g_direct_equal,
+                                                NULL,
+                                                NULL);
+
+  dscuss_connection_set_receive_callback (peer->connection,
+                                          on_new_packet,
+                                          peer);
+
+  if (dscuss_connection_is_incoming (peer->connection))
+    {
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_HELLO),
+                           NULL);
+    }
+  else
+    {
+      /*DscussPacket* packet = dscuss_packet_hello_new (PubKey,
+                                                      RegDate,
+                                                      NickName,
+                                                      Interests,
+                                                      );
+      dscuss_connection_send (peer->connection,
+                              packet,
+                              on_hello_sent,
+                              peer);*/
+    }
+
+  return peer;
+}
+
+
+/*
+on_hello_sent (DscussConnection* connection,
+               const DscussPacket* packet,
+               gboolean result,
+               gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  g_hash_table_insert (peer->expected_types,
+                       DSCUSS_PACKET_TYPE_HELLO,
+                       NULL);
+}*/
+
+
+static void
+dscuss_peer_free_full (DscussPeer* peer,
+                       DscussPeerDisconnectReason reason,
+                       gpointer reason_data)
+{
+  if (peer == NULL)
+    return;
+
+  peer->disconn_callback (peer,
+                          reason,
+                          NULL,
+                          peer->disconn_data);
+
+  dscuss_connection_free (peer->connection);
+  g_hash_table_destroy (peer->expected_types);
+  g_free (peer);
+  g_debug ("Peer successfully freed");
+}
+
+
+void
+dscuss_peer_free (DscussPeer* peer)
+{
+  dscuss_peer_free_full (peer,
+                         DSCUSS_PEER_DISCONNECT_REASON_CLOSED,
+                         NULL);
+}
+
+
+const gchar*
+dscuss_peer_get_description (DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  /* TBD */
+  g_snprintf (description_buf, 
+              DSCUSS_PEER_DESCRIPTION_MAX_LEN,
+              "%s",
+              "TBD: show peer's id");
+  return description_buf;
+}
+
+
+const gchar*
+dscuss_peer_get_connecton_description (DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  return dscuss_connection_get_description (peer->connection);
+}
+
+
+void
+on_packet_sent (DscussConnection* connection,
+                const DscussPacket* packet,
+                gboolean result,
+                gpointer user_data)
+{
+  PeerSendContext* ctx = user_data;
+  if (!result)
+    g_debug ("Failed to send packet %s to the peer '%s'",
+             dscuss_packet_get_description (packet),
+             dscuss_peer_get_description (ctx->peer));
+  g_free ((gchar*) packet);
+  peer_send_context_free (ctx, result);
+}
+
+
+void
+dscuss_peer_send (DscussPeer* peer,
+                  DscussEntity* entity,
+                  DscussPeerSendCallback callback,
+                  gpointer user_data)
+{
+  g_assert (peer != NULL);
+  g_assert (entity != NULL);
+  g_debug ("Sending entity '%s'",
+           dscuss_entity_get_description (entity));
+  DscussPacket* packet = dscuss_entity_to_packet (entity);
+
+  PeerSendContext* ctx = peer_send_context_new (peer,
+                                                entity,
+                                                callback,
+                                                user_data);
+
+  dscuss_connection_send (peer->connection,
+                          packet,
+                          on_packet_sent,
+                          ctx);
 }
 
 
@@ -289,6 +345,7 @@ dscuss_peer_set_receive_callback (DscussPeer* peer,
                                   DscussPeerReceiveCallback callback,
                                   gpointer user_data)
 {
+  g_assert (peer != NULL);
   peer->receive_callback = callback;
   peer->receive_data = user_data;
   dscuss_connection_set_receive_callback (peer->connection,

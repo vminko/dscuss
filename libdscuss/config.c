@@ -32,14 +32,14 @@
 #include "util.h"
 
 
-static GKeyFile *key_file = NULL;
-static gchar *conf_filename = NULL;
+static GKeyFile* key_file = NULL;
+static gchar* conf_filename = NULL;
 
 
 gboolean
 dscuss_config_init (void)
 {
-  GError *error = NULL;
+  GError* error = NULL;
 
   conf_filename = g_build_filename (dscuss_util_get_data_dir (),
                                      "config", NULL);
@@ -95,11 +95,11 @@ dscuss_config_uninit (void)
 
 
 gint
-dscuss_config_get_integer (const gchar *group,
-                           const gchar *param,
+dscuss_config_get_integer (const gchar* group,
+                           const gchar* param,
                            gint default_value)
 {
-  GError *error = NULL;
+  GError* error = NULL;
   gint res = 0;
 
   if (key_file == NULL)

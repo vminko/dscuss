@@ -39,7 +39,7 @@
 #include "crypto_pow.h"
 
 #define SALT "dscuss-proof-of-work"
-#define REQUIRED_ZERO_NUM 30
+#define REQUIRED_ZERO_NUM 20
 
 
 typedef struct PowFindContext PowFindContext;
@@ -266,7 +266,7 @@ on_pow_found (gboolean find_result,
     {
       if (g_unlink (tmp_filename) != 0)
         {
-          g_error ("Failed to remove temporary file '%s'", tmp_filename);
+          g_critical ("Failed to remove temporary file '%s'", tmp_filename);
           result = FALSE;
         }
     }
@@ -275,7 +275,7 @@ on_pow_found (gboolean find_result,
     {
       if (!pow_write (filename, proof))
         {
-          g_error ("Failed to write proof-of-work to '%s'", filename);
+          g_critical ("Failed to write proof-of-work to '%s'", filename);
           result = FALSE;
         }
     }
@@ -380,10 +380,10 @@ pow_start_finding (const DscussPublicKey* pubkey,
     {
       if (!pow_read (tmp_filename, &start_from))
         {
-          g_error ("Failed to read current progress of finding proof-of-work"
-                   " from '%s'. Remove this file if you want to start finding"
-                   " proof-of-work from scratch.",
-                   tmp_filename);
+          g_critical ("Failed to read current progress of finding"
+                      " proof-of-work from '%s'. Remove this file if you want"
+                      " to start finding proof-of-work from scratch.",
+                      tmp_filename);
           goto error;
         }
     }
@@ -478,9 +478,10 @@ dscuss_crypto_pow_init (const DscussPublicKey* pubkey,
       g_debug ("Using proof-of-work from the file '%s'", filename);
       if (!pow_read (filename, &proof))
         {
-          g_error ("Failed to read proof-of-work from '%s'."
-                   " If you want to generate a new proof-of-work, remove this file.",
-                   filename);
+          g_critical ("Failed to read proof-of-work from '%s'."
+                      " If you want to generate a new proof-of-work,"
+                      " remove this file.",
+                      filename);
           return FALSE;
         }
       else

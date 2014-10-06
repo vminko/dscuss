@@ -27,55 +27,64 @@
  * as that of the covered work.
  */
 
+/**
+ * @file db.h  Defines API of the database subsystem.
+ */
+
+
+#ifndef DSCUSS_DB_H
+#define DSCUSS_DB_H
+
 #include <glib.h>
-#include "packet.h"
 
-
-#define DSCUSS_PACKET_DESCRIPTION_MAX_LEN 120
-
-static gchar description_buf[DSCUSS_PACKET_DESCRIPTION_MAX_LEN];
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /**
- * Packet is a unit of raw data for communication between peers.
- * All packet data must be stored in network byte order.
+ * Initializes the database subsystem.
+ *
+ * Opens connection with the database. Creates a new database if it does not
+ * exist.
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
  */
-struct _DscussPacket
-{
-  /* Every packet must start with a header */
-  DscussPacketHeader header;
+gboolean
+dscuss_db_init ();
 
-  /* Below may be located packet body,
-   * which depends on header.type
-   */
-};
+/**
+ * Destroys the database subsystem.
+ *
+ * Frees allocated memory. Closes connection with the database.
+ */
+void
+dscuss_db_uninit ();
+
+/**
+ * Store a user in the database.
+ *
+ * @param user  user to store
+ *
+ * @return @c TRUE on success, @c FALSE on error.
+ */
+//gboolean
+//dscuss_db_put_user (const DscussUser* user);
+
+/**
+ * Fetch a user from the database.
+ *
+ * @param id  hash of the user's public key.
+ *
+ * @return the fetched user
+ *         or @c NULL if there is no such user in the database.
+ */
+//DscussUser*
+//dscuss_db_get_user (const DscussHash* id);
 
 
-DscussPacketType
-dscuss_packet_get_type (const DscussPacket* packet)
-{
-  g_assert (packet != NULL);
-  return g_ntohs (packet->header.type);
+#ifdef __cplusplus
 }
+#endif
 
-
-gssize
-dscuss_packet_get_size (const DscussPacket* packet)
-{
-  g_assert (packet != NULL);
-  return g_ntohs (packet->header.size);
-}
-
-
-const gchar*
-dscuss_packet_get_description (const DscussPacket* packet)
-{
-  g_assert (packet != NULL);
-  g_snprintf (description_buf, 
-              DSCUSS_PACKET_DESCRIPTION_MAX_LEN,
-              "type %d, size %" G_GSSIZE_FORMAT,
-              dscuss_packet_get_type (packet),
-              dscuss_packet_get_size (packet));
-  return description_buf;
-}
-
+#endif /* DSCUSS_DB_H */

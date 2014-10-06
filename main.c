@@ -189,7 +189,7 @@ main (int argc, char* argv[])
                     on_new_user, NULL,
                     on_new_operation, NULL))
     {
-      g_error ("Failed to initialize the Dscuss system.\n");
+      g_critical ("Failed to initialize the Dscuss system.\n");
       return 1;
     }
 

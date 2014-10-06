@@ -187,14 +187,14 @@ dscuss_crypto_ecc_private_key_init (const gchar* filename)
       privkey = dscuss_crypto_ecc_private_key_new ();
       if (privkey == NULL)
         {
-          g_error ("Failed to generate new private key.");
+          g_critical ("Failed to generate new private key.");
           return NULL;
         }
       if (!dscuss_crypto_ecc_private_key_write (privkey,
                                                 filename))
         {
-          g_error ("Failed to write the new private key to '%s'.",
-                   filename);
+          g_critical ("Failed to write the new private key to '%s'.",
+                      filename);
           dscuss_crypto_ecc_private_key_free (privkey);
           return NULL;
         }
@@ -205,9 +205,10 @@ dscuss_crypto_ecc_private_key_init (const gchar* filename)
       privkey = dscuss_crypto_ecc_private_key_read (filename);
       if (privkey == NULL)
         {
-          g_error ("Failed to read private key from '%s'."
-                   " If you want to generate a new private key, remove this file.",
-                   filename);
+          g_critical ("Failed to read private key from '%s'."
+                      " If you want to generate a new private key,"
+                      " remove this file.",
+                      filename);
           return NULL;
         }
     }

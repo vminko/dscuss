@@ -52,6 +52,7 @@ dscuss_packet_message_new (const DscussMessage* msg)
 {
   DscussPacketMessage* pckt_msg = NULL;
 
+  g_assert (msg != NULL);
   const gchar* cont = dscuss_message_get_content (msg);
   gsize size = sizeof (DscussPacketHeader) + strlen (cont) + 1;
   pckt_msg = g_malloc (size);
@@ -66,7 +67,7 @@ dscuss_packet_message_new (const DscussMessage* msg)
 DscussMessage*
 dscuss_packet_message_to_message (const DscussPacketMessage* pckt_msg)
 {
-  g_assert (pckt_msg);
+  g_assert (pckt_msg != NULL);
 
   gssize size = g_ntohs (pckt_msg->header.size);
   gssize type = g_ntohs (pckt_msg->header.type);

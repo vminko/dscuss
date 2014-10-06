@@ -144,6 +144,8 @@ typedef void (*DscussPeerReceiveCallback)(DscussPeer* peer,
  *
  * @param socket_connection   Socket connection, which will be used for
  *                            receiving and transmitting data.
+ * @param is_incoming         @c TRUE if @a socket_connection is incoming,
+ *                            @c FALSE otherwise.
  * @param disconn_callback    Function to call when peer gets disconnected from
  *                            us.
  * @param disconn_data        User data to pass to disconn_callback.
@@ -155,6 +157,7 @@ typedef void (*DscussPeerReceiveCallback)(DscussPeer* peer,
  */
 DscussPeer*
 dscuss_peer_new (GSocketConnection* socket_connection,
+                 gboolean is_incoming,
                  DscussPeerDisconnectCallback disconn_callback,
                  gpointer disconn_data,
                  DscussPeerHandshakeCallback handshake_callback,

@@ -103,11 +103,14 @@ typedef void (*DscussConnectionReceiveCallback)(DscussConnection* connection,
  *
  * @param socket_connection Socket connection, which will be used for
  *                          receiving and transmitting data.
+ * @param is_incoming       @c TRUE if @a socket_connection is incoming,
+ *                          @c FALSE otherwise.
  *
  * @return New connection handle.
  */
 DscussConnection*
-dscuss_connection_new (GSocketConnection* socket_connection);
+dscuss_connection_new (GSocketConnection* socket_connection,
+                       gboolean is_incoming);
 
 /**
  * Frees all memory allocated by a connection. Closes the socket
@@ -154,6 +157,16 @@ void
 dscuss_connection_set_receive_callback (DscussConnection* connection,
                                         DscussConnectionReceiveCallback callback,
                                         gpointer user_data);
+
+/**
+ * Shows if connection is incoming.
+ *
+ * @param connection Connection to get parameter value of.
+ *
+ * @return @c TRUE if connection is incoming, @c FALSE otherwise.
+ */
+gboolean
+dscuss_connection_is_incoming (DscussConnection* connection);
 
 
 #ifdef __cplusplus

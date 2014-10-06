@@ -83,7 +83,7 @@ dscuss_crypto_init (DscussCryptoInitCallback callback,
   g_free (privkey_filename);
   if (privkey == NULL)
     {
-      g_error ("Failed to initialize private key.");
+      g_critical ("Failed to initialize private key.");
       goto error;
     }
 
@@ -97,7 +97,7 @@ dscuss_crypto_init (DscussCryptoInitCallback callback,
   g_free (pow_filename);
   if (!result)
     {
-      g_error ("Failed to initialize proof-of-work.");
+      g_critical ("Failed to initialize proof-of-work.");
       goto error;
     }
 

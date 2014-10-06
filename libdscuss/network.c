@@ -54,7 +54,7 @@ static GSocketClient* client = NULL;
 /* Service for establishing incoming connections. */
 static GSocketService* service = NULL;
 
-/* Hash of connected peersin the following format
+/* Hash of connected peers in the following format
  * [peer -> associated_address]
  * where associated_address is a remote host address from the peer_addresses,
  * which may be NULL in case of incoming connection. */
@@ -176,6 +176,7 @@ on_incoming_connection (GSocketService*    service,
 
   g_object_ref (socket_connection);
   DscussPeer* peer = dscuss_peer_new (socket_connection,
+                                      TRUE,
                                       on_disconnect,
                                       NULL,
                                       on_peer_handshaked,
@@ -336,6 +337,7 @@ dscuss_network_establish_outgoing_connections (gpointer user_data)
             {
               g_debug ("Successfully connected to '%s'", address);
               DscussPeer* peer = dscuss_peer_new (socket_connection,
+                                                  FALSE,
                                                   on_disconnect,
                                                   NULL,
                                                   on_peer_handshaked,
@@ -361,19 +363,22 @@ dscuss_network_establish_outgoing_connections (gpointer user_data)
 static gboolean
 dscuss_network_start_connecting_to_hosts (void)
 {
-  gint connect_timeout = dscuss_config_get_integer ("network",
-                                                    "connect_timeout",
-                                                    DSCUSS_NETWORK_DEFAULT_CLIENT_CONNECT_TIMEOUT);
+  gint connect_timeout =
+   dscuss_config_get_integer ("network",
+                              "connect_timeout",
+                              DSCUSS_NETWORK_DEFAULT_CLIENT_CONNECT_TIMEOUT);
   if (connect_timeout <= 0)
     {
-      g_error ("Invalid value of the 'connect_timeout' parameter from the 'network' group: %d",
-               connect_timeout);
+      g_critical ("Invalid value of the 'connect_timeout' parameter from"
+                  " the 'network' group: %d",
+                  connect_timeout);
       return FALSE;
     }
   client = g_socket_client_new ();
-  timeout_id = g_timeout_add_seconds (connect_timeout,
-                                      dscuss_network_establish_outgoing_connections,
-                                      NULL);
+  timeout_id =
+   g_timeout_add_seconds (connect_timeout,
+                          dscuss_network_establish_outgoing_connections,
+                          NULL);
   return TRUE;
 }
 
@@ -389,25 +394,26 @@ dscuss_network_init (DscussNewPeerCallback new_peer_callback_,
                                          DSCUSS_NETWORK_DEFAULT_PORT);
   if (port <= 0 || port > 65535)
     {
-      g_error ("Invalid value of the 'port' parameter from the 'network' group: %d",
-               port);
+      g_critical ("Invalid value of the 'port' parameter from"
+                  " the 'network' group: %d",
+                  port);
       goto error;
     }
   if (!dscuss_network_start_listening (port))
     {
-      g_error ("Could not start listening incoming connections on port %d",
-               DSCUSS_NETWORK_DEFAULT_PORT);
+      g_critical ("Could not start listening incoming connections on port %d",
+                  DSCUSS_NETWORK_DEFAULT_PORT);
       goto error;
     }
   if (!dscuss_network_read_addresses (DSCUSS_NETWORK_ADDR_FILE_NAME))
     {
-      g_error ("Could not read host addresses from '%s'",
-               DSCUSS_NETWORK_ADDR_FILE_NAME);
+      g_critical ("Could not read host addresses from '%s'",
+                  DSCUSS_NETWORK_ADDR_FILE_NAME);
       goto error;
     }
   if (!dscuss_network_start_connecting_to_hosts ())
     {
-      g_error ("Could not start connecting to hosts");
+      g_critical ("Could not start connecting to hosts");
       goto error;
     }
 

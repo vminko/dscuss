@@ -52,6 +52,11 @@ struct _DscussConnection
   GSocketConnection* socket_connection;
 
   /**
+   * @c TRUE if connection is incoming, @c FALSE otherwise.
+   */
+  gboolean is_incoming;
+
+  /**
    * Cancel async operations on close.
    */
   GCancellable *cancellable;
@@ -142,10 +147,12 @@ read_packet (DscussConnection* connection);
 
 
 DscussConnection*
-dscuss_connection_new (GSocketConnection* socket_connection)
+dscuss_connection_new (GSocketConnection* socket_connection,
+                       gboolean is_incoming)
 {
   DscussConnection* connection = g_new0 (DscussConnection, 1);
   connection->socket_connection = socket_connection;
+  connection->is_incoming = is_incoming;
   connection->cancellable = g_cancellable_new ();
   connection->receive_callback = NULL;
   connection->receive_data = NULL;
@@ -178,6 +185,8 @@ dscuss_connection_free (DscussConnection* connection)
 const gchar*
 dscuss_connection_get_description (DscussConnection* connection)
 {
+  g_assert (connection != NULL);
+
   GSocketAddress* sockaddr =
     g_socket_connection_get_remote_address (connection->socket_connection,
                                             NULL);
@@ -252,6 +261,7 @@ send_head_packet (DscussConnection* connection)
   GOutputStream* out = NULL;
   ConnectionSendContext* ctx = NULL;
 
+  g_assert (connection != NULL);
   g_assert (connection->oqueue);
 
   if (! g_queue_is_empty (connection->oqueue))
@@ -274,6 +284,7 @@ dscuss_connection_send (DscussConnection* connection,
                         DscussConnectionSendCallback callback,
                         gpointer user_data)
 {
+  g_assert (connection != NULL);
   g_debug ("Sending packet %s",
            dscuss_packet_get_description (packet));
 
@@ -393,6 +404,7 @@ read_packet (DscussConnection* connection)
 {
   GInputStream* in = NULL;
 
+  g_assert (connection != NULL);
   g_debug ("Trying to read from the connection '%s'",
             dscuss_connection_get_description (connection));
   in = g_io_stream_get_input_stream (G_IO_STREAM (connection->socket_connection));
@@ -409,7 +421,16 @@ dscuss_connection_set_receive_callback (DscussConnection* connection,
                                         DscussConnectionReceiveCallback callback,
                                         gpointer user_data)
 {
+  g_assert (connection != NULL);
   connection->receive_callback = callback;
   connection->receive_data = user_data;
   read_packet (connection);
+}
+
+
+gboolean
+dscuss_connection_is_incoming (DscussConnection* connection)
+{
+  g_assert (connection != NULL);
+  return connection->is_incoming;
 }
