@@ -32,11 +32,12 @@
 #include "crypto.h"
 #include "db.h"
 #include "util.h"
+#include "topic.h"
 #include "api.h"
 
 
 /* List of connected peers. */
-static GSList *peers = NULL;
+static GSList* peers = NULL;
 
 /* Callbacks for notification of the UI */
 static DscussInitCallback init_callback;
@@ -146,6 +147,7 @@ dscuss_init (const gchar* data_dir,
   oper_data = oper_data_;
 
   dscuss_util_init (data_dir);
+  dscuss_topic_cache_init ();
 
   if (!dscuss_config_init ())
     {
@@ -188,6 +190,7 @@ dscuss_uninit ()
   dscuss_crypto_uninit ();
   dscuss_network_uninit ();
   dscuss_config_uninit ();
+  dscuss_topic_cache_uninit ();
   dscuss_util_uninit ();
   while (g_main_context_pending (NULL))
     g_main_context_iteration (NULL, TRUE);

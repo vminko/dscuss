@@ -300,7 +300,7 @@ on_pow_found (gboolean find_result,
 static gboolean
 pow_find (gpointer user_data)
 {
-  PowFindContext* ctx = (PowFindContext*)user_data;
+  PowFindContext* ctx = (PowFindContext*) user_data;
   guint probes = 0;
 
   for (;
@@ -438,7 +438,7 @@ pow_return_context_free (PowReturnContext* ctx)
 static gboolean
 pow_return (gpointer user_data)
 {
-  PowReturnContext* ctx = (PowReturnContext*)user_data;
+  PowReturnContext* ctx = (PowReturnContext*) user_data;
   init_callback (ctx->result,
                  ctx->proof,
                  init_data);

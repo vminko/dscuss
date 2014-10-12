@@ -169,7 +169,7 @@ on_new_packet (DscussConnection* connection,
 
     case DSCUSS_PACKET_TYPE_MSG:
       g_debug ("This is a DscussPacketMessage");
-      DscussPacketMessage* pckt_msg = (DscussPacketMessage*)packet;
+      DscussPacketMessage* pckt_msg = (DscussPacketMessage*) packet;
       DscussMessage* msg = dscuss_packet_message_to_message (pckt_msg);
       peer->receive_callback (peer,
                               (DscussEntity*) msg,

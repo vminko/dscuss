@@ -343,7 +343,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
 
   gssize length = (connection->read_offset < sizeof (DscussPacketHeader)) ?
                    sizeof (DscussPacketHeader) :
-                   dscuss_packet_get_size ((DscussPacket*)connection->read_buf);
+                   dscuss_packet_get_size ((DscussPacket*) connection->read_buf);
 
   g_assert_cmpint (nread, <=, length - connection->read_offset);
 
@@ -355,12 +355,13 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
       if (length == sizeof (DscussPacketHeader))
         {
           g_debug ("Packet header successfully read: %s",
-                   dscuss_packet_get_description ((DscussPacket*)connection->read_buf));
-          gssize packet_size = dscuss_packet_get_size ((DscussPacket*)connection->read_buf);
+                   dscuss_packet_get_description ((DscussPacket*) connection->read_buf));
+          gssize packet_size = dscuss_packet_get_size ((DscussPacket*) connection->read_buf);
           if (packet_size > DSCUSS_PACKET_MAX_SIZE)
             {
               g_warning ("Protocol violation detected:"
-                         " packet size '%" G_GSSIZE_FORMAT "' exceeds maximum limit '%d'.",
+                         " packet size '%" G_GSSIZE_FORMAT "' exceeds"
+                         " maximum limit '%d'.",
                          packet_size, DSCUSS_PACKET_MAX_SIZE);
               connection->receive_callback (connection,
                                             NULL,
@@ -381,7 +382,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
         }
       g_debug ("Whole packet successfully read");
       connection->receive_callback (connection,
-                                    (DscussPacket*)connection->read_buf,
+                                    (DscussPacket*) connection->read_buf,
                                     TRUE,
                                     connection->receive_data);
       read_packet (connection);

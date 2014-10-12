@@ -237,34 +237,34 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
   GDataInputStream* data_in = NULL;
   gchar* line;
   gchar* path;
-  gsize length = -1;
   gboolean res = TRUE;
 
   path = g_build_filename (dscuss_util_get_data_dir (), addr_file_name, NULL);
   file = g_file_new_for_path (path);
-  g_free (path);
 
   file_in = g_file_read (file, NULL, &error);
-  if (file_in == NULL)
+  if (error != NULL)
     {
-      g_warning ("%s", error->message);
+      g_critical ("Failed to open file '%s': %s",
+                  path, error->message);
       g_error_free (error);
       g_object_unref (file);
+      g_free (path);
       return FALSE;
     }
   
-  data_in = g_data_input_stream_new ((GInputStream*)file_in);
+  data_in = g_data_input_stream_new ((GInputStream*) file_in);
   error = NULL;
   while (TRUE)
     {
       line = g_data_input_stream_read_line_utf8 (G_DATA_INPUT_STREAM (data_in),
-                                                 &length,
+                                                 NULL,
                                                  NULL,
                                                  &error);
-      g_assert_no_error (error);
       if (error != NULL)
         {
-          g_warning ("%s", error->message);
+          g_warning ("Failed to read address string from '%s': %s",
+                     path, error->message);
           g_error_free (error);
           res = FALSE;
           break;
@@ -275,9 +275,12 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
 
       if (dscuss_network_validate_address (line))
         {
-          if (g_slist_find (peer_addresses, line) != NULL)
+          if (g_slist_find_custom (peer_addresses,
+                                   line,
+                                   (GCompareFunc) g_strcmp0) != NULL)
             {
               g_warning ("Duplicated peer address: '%s'!", line);
+              g_free (line);
             }
           else
             {
@@ -294,6 +297,7 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
   g_object_unref (data_in);
   g_object_unref (file_in);
   g_object_unref (file);
+  g_free (path);
   return res;
 }
 

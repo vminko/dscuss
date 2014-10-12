@@ -27,53 +27,47 @@
  * as that of the covered work.
  */
 
-#include <string.h>
+/**
+ * @file subscriptions.h  Provides API for managing topics, to which the user
+ * is subscribed.
+ */
+
+#ifndef DSCUSS_SUBSCRIPTIONS_H
+#define DSCUSS_SUBSCRIPTIONS_H
+
 #include <glib.h>
-#include "packet_message.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /**
- * This packet is used for transferring message entities between peers.
- * All data in a packet must be stored in network byte order.
- * Can be freed by g_free (packet)
+ * Initializes the subscriptions.
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
  */
-struct _DscussPacketMessage
-{
-  /* Packet type will be DSCUSS_PACKET_TYPE_MSG */
-  DscussPacketHeader header;
+gboolean
+dscuss_subscriptions_init (void);
 
-  /* After this struct, the remaining bytes are the actual message in
-   * plaintext */
-};
+/**
+ * Uninitializes the subscriptions.
+ */
+void
+dscuss_subscriptions_uninit (void);
+
+/**
+ * Returns the list of subscriptions.
+ *
+ * @return The list of topics, which the user is subscribed to.
+ */
+const GSList*
+dscuss_subscriptions_get (void);
 
 
-DscussPacketMessage*
-dscuss_packet_message_new (const DscussMessage* msg)
-{
-  DscussPacketMessage* pckt_msg = NULL;
-
-  g_assert (msg != NULL);
-  const gchar* cont = dscuss_message_get_content (msg);
-  gsize size = sizeof (DscussPacketHeader) + strlen (cont) + 1;
-  pckt_msg = g_malloc (size);
-  pckt_msg->header.type = g_htons (DSCUSS_PACKET_TYPE_MSG);
-  pckt_msg->header.size = g_htons (size);
-  g_stpcpy ((char*) pckt_msg + sizeof (DscussPacketHeader), cont);
-
-  return pckt_msg;
+#ifdef __cplusplus
 }
+#endif
 
 
-DscussMessage*
-dscuss_packet_message_to_message (const DscussPacketMessage* pckt_msg)
-{
-  g_assert (pckt_msg != NULL);
-
-  gssize size = g_ntohs (pckt_msg->header.size);
-  gssize type = g_ntohs (pckt_msg->header.type);
-
-  g_assert (type == DSCUSS_PACKET_TYPE_MSG);
-  g_assert (*((char*) pckt_msg + size) == '\0');
-
-  return dscuss_message_new ((char*) pckt_msg + sizeof (DscussPacketHeader));
-}
+#endif /* DSCUSS_SUBSCRIPTIONS_H */

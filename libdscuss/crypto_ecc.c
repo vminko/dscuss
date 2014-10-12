@@ -55,14 +55,14 @@ dscuss_crypto_ecc_private_key_new ()
 
   EC_KEY_set_asn1_flag (eckey, OPENSSL_EC_NAMED_CURVE);
 
-  return (DscussPrivateKey*)eckey;
+  return (DscussPrivateKey*) eckey;
 }
 
 
 void
 dscuss_crypto_ecc_private_key_free (DscussPrivateKey* privkey)
 {
-  EC_KEY_free ((EC_KEY*)privkey);
+  EC_KEY_free ((EC_KEY*) privkey);
 }
 
 
@@ -71,7 +71,7 @@ dscuss_crypto_ecc_private_key_write (const DscussPrivateKey* privkey,
                                      const gchar* filename)
 {
   gboolean result = FALSE;
-  EC_KEY* eckey = (EC_KEY*)privkey;
+  EC_KEY* eckey = (EC_KEY*) privkey;
   BIO* bio = NULL;
   gsize keylen;
   gchar *keystr = NULL;
@@ -171,7 +171,7 @@ out:
   if (keystr != NULL)
     g_free (keystr);
 
-  return (DscussPrivateKey*)eckey;
+  return (DscussPrivateKey*) eckey;
 }
 
 
@@ -222,7 +222,7 @@ dscuss_crypto_ecc_private_key_get_public (const DscussPrivateKey* privkey)
 {
   g_assert (privkey != NULL);
 
-  return EC_KEY_get0_public_key ((const EC_KEY*)privkey);
+  return EC_KEY_get0_public_key ((const EC_KEY*) privkey);
 }
 
 

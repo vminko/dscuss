@@ -118,7 +118,7 @@ dscuss_db_init ()
                         "  FOREIGN KEY (message_id) REFERENCES message(id))") ||
       !db_sqlite3_exec ("CREATE TABLE IF NOT EXISTS  tag ("
                         "  id              INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        "  name            TEXT NOT NULL)") ||
+                        "  name            TEXT NOT NULL UNIQUE)") ||
       !db_sqlite3_exec ("CREATE TABLE IF NOT EXISTS  message_tag ("
                         "  tag_id          INTEGER NOT NULL,"
                         "  message_id      BLOB NOT NULL,"

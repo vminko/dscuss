@@ -164,7 +164,7 @@ dscuss_peer_new (GSocketConnection* socket_connection,
                  gpointer handshake_data);
 
 /**
- * Frees all memory allocated by the peer. Closes connection with the peer.
+ * Frees all memory allocated by the peer. Closes connection with the node.
  *
  * @param connection A connection whose memory is going to be freed.
  */

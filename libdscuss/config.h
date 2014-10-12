@@ -51,7 +51,7 @@ gboolean
 dscuss_config_init (void);
 
 /**
- * Unitializes the configuration subsystem.
+ * Uninitializes the configuration subsystem.
  */
 void
 dscuss_config_uninit (void);
