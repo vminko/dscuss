@@ -27,10 +27,12 @@
  * as that of the covered work.
  */
 
+#include <string.h>
 #include <glib.h>
 #include "config.h"
+#include "header.h"
 #include "packet.h"
-#include "packet_message.h"
+#include "message.h"
 #include "util.h"
 #include "connection.h"
 #include "peer.h"
@@ -140,7 +142,7 @@ peer_send_context_free (PeerSendContext* ctx, gboolean result)
 
 void
 on_new_packet (DscussConnection* connection,
-               const DscussPacket* packet,
+               DscussPacket* packet,
                gboolean result,
                gpointer user_data)
 {
@@ -168,9 +170,24 @@ on_new_packet (DscussConnection* connection,
       break;
 
     case DSCUSS_PACKET_TYPE_MSG:
-      g_debug ("This is a DscussPacketMessage");
-      DscussPacketMessage* pckt_msg = (DscussPacketMessage*) packet;
-      DscussMessage* msg = dscuss_packet_message_to_message (pckt_msg);
+      g_debug ("This is a Message packet");
+
+      gchar* payload = NULL;
+      gssize payload_size = 0;
+
+      dscuss_packet_get_payload (packet,
+                                 (const gchar**) &payload,
+                                 &payload_size);
+
+      if (payload[payload_size - 1] != '\0')
+        {
+          g_warning ("Malformed Message packet payload, fixing '\\0'.");
+          payload[payload_size - 1] = '\0';
+        }
+
+      /* Payload of the message packet is the actual message in
+       * plaintext */
+      DscussMessage* msg = dscuss_message_new (payload);
       peer->receive_callback (peer,
                               (DscussEntity*) msg,
                               TRUE,
@@ -185,6 +202,7 @@ on_new_packet (DscussConnection* connection,
     default:
       g_assert_not_reached ();
     }
+  dscuss_packet_free (packet);
 }
 
 
@@ -209,10 +227,6 @@ dscuss_peer_new (GSocketConnection* socket_connection,
                                                 g_direct_equal,
                                                 NULL,
                                                 NULL);
-
-  dscuss_connection_set_receive_callback (peer->connection,
-                                          on_new_packet,
-                                          peer);
 
   if (dscuss_connection_is_incoming (peer->connection))
     {
@@ -311,7 +325,7 @@ on_packet_sent (DscussConnection* connection,
     g_debug ("Failed to send packet %s to the peer '%s'",
              dscuss_packet_get_description (packet),
              dscuss_peer_get_description (ctx->peer));
-  g_free ((gchar*) packet);
+  dscuss_packet_free ((DscussPacket*) packet);
   peer_send_context_free (ctx, result);
 }
 
@@ -322,17 +336,47 @@ dscuss_peer_send (DscussPeer* peer,
                   DscussPeerSendCallback callback,
                   gpointer user_data)
 {
+  DscussPacket* packet = NULL;
+  DscussMessage* msg = NULL;
+
   g_assert (peer != NULL);
   g_assert (entity != NULL);
   g_debug ("Sending entity '%s'",
            dscuss_entity_get_description (entity));
-  DscussPacket* packet = dscuss_entity_to_packet (entity);
+
+  /* FIXME: use actual signatures */
+  struct DscussSignature signature;
+  memset (&signature, 0, sizeof (struct DscussSignature));
+
+  switch (dscuss_entity_get_type (entity))
+    {
+    case DSCUSS_ENTITY_TYPE_USER:
+      g_assert_not_reached ();
+      /* TBD */
+      break;
+
+    case DSCUSS_ENTITY_TYPE_MSG:
+      msg = (DscussMessage*) entity;
+      const gchar* msg_text = dscuss_message_get_content (msg);
+      packet = dscuss_packet_full (DSCUSS_PACKET_TYPE_MSG,
+                                   msg_text,
+                                   strlen (msg_text) + 1,
+                                   &signature);
+      break;
+
+    case DSCUSS_ENTITY_TYPE_OPER:
+      /* TBD */
+      g_assert_not_reached ();
+      break;
+
+    default:
+      g_assert_not_reached ();
+    }
 
   PeerSendContext* ctx = peer_send_context_new (peer,
                                                 entity,
                                                 callback,
                                                 user_data);
-
   dscuss_connection_send (peer->connection,
                           packet,
                           on_packet_sent,
@@ -346,6 +390,12 @@ dscuss_peer_set_receive_callback (DscussPeer* peer,
                                   gpointer user_data)
 {
   g_assert (peer != NULL);
+  if (peer->receive_callback != NULL ||
+      peer->receive_data != NULL)
+    {
+      g_warning ("Attempt to override DscussPeerReceiveCallback");
+      return;
+    }
   peer->receive_callback = callback;
   peer->receive_data = user_data;
   dscuss_connection_set_receive_callback (peer->connection,

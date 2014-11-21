@@ -38,6 +38,7 @@ static gchar* custom_data_dir = NULL;
 void
 dscuss_util_init (const gchar* data_dir)
 {
+  g_debug ("Initializing utils.");
   if (data_dir != NULL && *data_dir)
     custom_data_dir = g_strdup (data_dir);
 }
@@ -46,6 +47,7 @@ dscuss_util_init (const gchar* data_dir)
 void
 dscuss_util_uninit (void)
 {
+  g_debug ("Uninitializing utils.");
   dscuss_free_non_null (custom_data_dir, g_free);
   dscuss_free_non_null (default_data_dir, g_free);
 }

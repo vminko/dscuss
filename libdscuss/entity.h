@@ -35,7 +35,7 @@
 #define DSCUSS_ENTITY_H
 
 #include <glib.h>
-#include "packet.h"
+#include "crypto.h"
 
 
 #ifdef __cplusplus
@@ -87,16 +87,6 @@ dscuss_entity_get_type (const DscussEntity* entity);
  */
 const gchar*
 dscuss_entity_get_description (const DscussEntity* entity);
-
-/**
- * Convert an entity to a packet containing this entity.
- *
- * @param entity  Entity to encapsulate in packet.
- *
- * @return Newly created packet.
- */
-DscussPacket*
-dscuss_entity_to_packet (const DscussEntity* entity);
 
 /**
  * Increases the reference count of an entity.

@@ -85,7 +85,7 @@ dscuss_topic_cache_init ()
 void
 dscuss_topic_cache_uninit ()
 {
-  g_debug ("Uninitializing topic cahce.");
+  g_debug ("Uninitializing topic cache.");
   dscuss_free_non_null (topic_regex, g_regex_unref);
   dscuss_free_non_null (tag_extr_regex, g_regex_unref);
   dscuss_free_non_null (tag_valid_regex, g_regex_unref);
@@ -113,7 +113,7 @@ dscuss_topic_new (const gchar* topic_str)
   while (g_match_info_matches (match_info))
     {
       gchar* tag = g_match_info_fetch (match_info, 0);
-      g_debug ("Found the following tag: '%s'\n", tag);
+      g_debug ("Found the following tag: '%s'", tag);
 
       if (topic_find_tag (topic, tag, NULL))
         {
@@ -149,7 +149,7 @@ dscuss_topic_to_string (const DscussTopic* topic)
 {
   g_assert (topic != NULL);
 
-  return g_strjoinv (", ", (gchar**) topic->pdata);
+  return g_strjoinv (", ", (gchar**) ((GPtrArray*)topic)->pdata);
 }
 
 

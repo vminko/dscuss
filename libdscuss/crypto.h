@@ -40,7 +40,6 @@
 #include <glib.h>
 #include "connection.h"
 #include "crypto_ecc.h"
-#include "peer.h"
 
 #ifdef __cplusplus
 extern "C" {

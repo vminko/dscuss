@@ -31,7 +31,6 @@
 #include <gio/gio.h>
 #include "config.h"
 #include "packet.h"
-#include "packet_message.h"
 #include "util.h"
 #include "connection.h"
 
@@ -59,7 +58,7 @@ struct _DscussConnection
   /**
    * Cancel async operations on close.
    */
-  GCancellable *cancellable;
+  GCancellable* cancellable;
 
   /**
    * Called when @c socket_connection receives new entities.
@@ -77,7 +76,12 @@ struct _DscussConnection
   GQueue* oqueue;
 
   /**
-   * Buffer for reading packets.
+   * Header of the packet to Buffer for reading packet data.
+   */
+  DscussHeader* header;
+
+  /**
+   * Buffer for reading packet data.
    */
   gchar read_buf[DSCUSS_PACKET_MAX_SIZE];
 
@@ -95,7 +99,8 @@ typedef struct
   DscussConnection* connection;
   DscussConnectionSendCallback callback;
   gpointer user_data;
-  const gchar* buffer;
+  const DscussPacket* packet;
+  gchar* buffer;
   gssize length;
   gssize offset;
 } ConnectionSendContext;
@@ -111,8 +116,11 @@ connecion_send_context_new (DscussConnection* connection,
   ctx->connection = connection;
   ctx->callback = callback;
   ctx->user_data = user_data;
-  ctx->buffer = (const gchar *) packet;
-  ctx->length = dscuss_packet_get_size (packet);
+  ctx->packet = packet;
+  dscuss_packet_serialize (packet,
+                           &ctx->buffer,
+                           &ctx->length);
+  g_debug ("DEBUG send_cont_new %" G_GSSIZE_FORMAT, ctx->length);
   ctx->offset = 0;
   return ctx;
 }
@@ -122,9 +130,10 @@ static void
 connection_send_context_free_full (ConnectionSendContext* ctx, gboolean result)
 {
   ctx->callback (ctx->connection,
-                 (const DscussPacket*) ctx->buffer,
+                 ctx->packet,
                  result,
                  ctx->user_data);
+  g_free (ctx->buffer);
   g_free (ctx);
 }
 
@@ -157,6 +166,7 @@ dscuss_connection_new (GSocketConnection* socket_connection,
   connection->receive_callback = NULL;
   connection->receive_data = NULL;
   connection->oqueue = g_queue_new ();
+  connection->header = NULL;
   connection->read_offset = 0;
   return connection;
 }
@@ -177,6 +187,8 @@ dscuss_connection_free (DscussConnection* connection)
   g_object_unref (connection->socket_connection);
   g_queue_free_full (connection->oqueue,
                      (GDestroyNotify) connecion_send_context_free);
+  if (connection->header != NULL)
+    dscuss_header_free (connection->header);
   g_free (connection);
   g_debug ("Connection successfully freed");
 }
@@ -219,7 +231,8 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
     {
       if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         {
-          g_debug ("Could not read from the connection: operation was cancelled");
+          g_debug ("Could not write to the connection:"
+                   " operation was cancelled");
           g_error_free (error);
           return;
         }
@@ -268,7 +281,7 @@ send_head_packet (DscussConnection* connection)
     {
       ctx = g_queue_peek_head (connection->oqueue);
       g_debug ("Writing packet %s to the connection '%s'",
-               dscuss_packet_get_description ((const DscussPacket*) ctx->buffer),
+               dscuss_packet_get_description (ctx->packet),
                dscuss_connection_get_description (connection));
       out = g_io_stream_get_output_stream (G_IO_STREAM (connection->socket_connection));
       g_output_stream_write_async (out, ctx->buffer, ctx->length,
@@ -310,6 +323,8 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
   GError* error = NULL;
   gssize nread;
 
+          g_debug ("read_cb CALLED");
+
   nread = g_input_stream_read_finish (in, res, &error);
   if (nread == -1)
     {
@@ -332,7 +347,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
   if (nread == 0)
     {
       g_debug ("Could not read from the connection '%s':"
-               "connection was closed",
+               " connection was closed",
                dscuss_connection_get_description (connection));
       connection->receive_callback (connection,
                                     NULL,
@@ -341,9 +356,9 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
       return;
     }
 
-  gssize length = (connection->read_offset < sizeof (DscussPacketHeader)) ?
-                   sizeof (DscussPacketHeader) :
-                   dscuss_packet_get_size ((DscussPacket*) connection->read_buf);
+  gssize length = (connection->read_offset < dscuss_header_get_size ()) ?
+                   dscuss_header_get_size () :
+                   dscuss_header_get_packet_size (connection->header);
 
   g_assert_cmpint (nread, <=, length - connection->read_offset);
 
@@ -352,11 +367,14 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
   if (connection->read_offset == length)
     {
       /* Yes! Did we request just header? */
-      if (length == sizeof (DscussPacketHeader))
+      if (length == dscuss_header_get_size ())
         {
+          if (connection->header != NULL)
+            dscuss_header_free (connection->header);
+          connection->header = dscuss_header_deserialize (connection->read_buf);
           g_debug ("Packet header successfully read: %s",
-                   dscuss_packet_get_description ((DscussPacket*) connection->read_buf));
-          gssize packet_size = dscuss_packet_get_size ((DscussPacket*) connection->read_buf);
+                   dscuss_header_get_description (connection->header));
+          gssize packet_size = dscuss_header_get_packet_size (connection->header);
           if (packet_size > DSCUSS_PACKET_MAX_SIZE)
             {
               g_warning ("Protocol violation detected:"
@@ -369,20 +387,32 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                                             connection->receive_data);
               return;
             }
-          if (packet_size > sizeof (DscussPacketHeader))
+          if (packet_size > dscuss_header_get_size ())
             {
               /* Receive the packet body */
               g_input_stream_read_async (in,
-                                         connection->read_buf + sizeof (DscussPacketHeader),
-                                         packet_size - sizeof (DscussPacketHeader),
+                                         connection->read_buf + dscuss_header_get_size (),
+                                         packet_size - dscuss_header_get_size (),
                                          G_PRIORITY_DEFAULT, connection->cancellable,
                                          istream_read_cb, connection);
               return;
             }
         }
       g_debug ("Whole packet successfully read");
+      DscussPacket* packet =
+        dscuss_packet_deserialize (connection->header,
+                                   connection->read_buf + dscuss_header_get_size ());
+      if (packet == NULL)
+        {
+          g_warning ("Protocol violation detected: invalid packet");
+          connection->receive_callback (connection,
+                                        NULL,
+                                        FALSE,
+                                        connection->receive_data);
+          return;
+        }
       connection->receive_callback (connection,
-                                    (DscussPacket*) connection->read_buf,
+                                    packet,
                                     TRUE,
                                     connection->receive_data);
       read_packet (connection);
@@ -406,12 +436,14 @@ read_packet (DscussConnection* connection)
   GInputStream* in = NULL;
 
   g_assert (connection != NULL);
-  g_debug ("Trying to read from the connection '%s'",
-            dscuss_connection_get_description (connection));
+  g_debug ("Trying to read from the connection '%s' %" G_GSSIZE_FORMAT,
+            dscuss_connection_get_description (connection),
+            dscuss_header_get_size ()
+            );
   in = g_io_stream_get_input_stream (G_IO_STREAM (connection->socket_connection));
   connection->read_offset = 0;
   g_input_stream_read_async (in, connection->read_buf,
-                             sizeof (DscussPacketHeader),
+                             dscuss_header_get_size (),
 			     G_PRIORITY_DEFAULT, connection->cancellable,
 			     istream_read_cb, connection);
 }
@@ -423,6 +455,12 @@ dscuss_connection_set_receive_callback (DscussConnection* connection,
                                         gpointer user_data)
 {
   g_assert (connection != NULL);
+  if (connection->receive_callback != NULL ||
+      connection->receive_data != NULL)
+    {
+      g_warning ("Attempt to override DscussConnectionReceiveCallback");
+      return;
+    }
   connection->receive_callback = callback;
   connection->receive_data = user_data;
   read_packet (connection);

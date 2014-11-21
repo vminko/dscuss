@@ -28,16 +28,15 @@
  */
 
 /**
- * @file packet.h  Packet is a blob of data for reading from and writing to
- *                 socket connections.
- * @brief Provides routines for converting entities to raw data and vice
- *        versa.
+ * @file packet.h  Packet is a unit of raw data for communication between peers.
  */
 
 #ifndef DSCUSS_PACKET_H
 #define DSCUSS_PACKET_H
 
 #include <glib.h>
+#include "header.h"
+#include "crypto_ecc.h"
 
 
 #ifdef __cplusplus
@@ -47,7 +46,6 @@ extern "C" {
 /**
  * Maximum size of a packet.
  */
-
 #define DSCUSS_PACKET_MAX_SIZE 65535
 
 /**
@@ -68,11 +66,21 @@ typedef enum
    */
   DSCUSS_PACKET_TYPE_OPER,
   /*
-   * TBD
+   * Used for introducing users during handshake.
    */
   DSCUSS_PACKET_TYPE_HELLO,
+  /*
+   * TBD
+   */
   DSCUSS_PACKET_TYPE_GET,
   DSCUSS_PACKET_TYPE_END,
+
+  /*
+   * Used for checking packet type validity.
+   * Must be the last type in the list.
+   * If you need to add a new type, add it above this one.
+   */
+  DSCUSS_PACKET_TYPE_LAST_TYPE,
 
 } DscussPacketType;
 
@@ -82,50 +90,140 @@ typedef enum
 typedef struct _DscussPacket DscussPacket;
 
 /**
- * Header is what every packet stars with.
+ * Create new packet with no signature specified.
+ * Such packet must be explicitly signed after creation.
+ *
+ * @param type          Packet type.
+ * @param payload       Payload of the packet.
+ * @param payload_size  Size of @a payload.
+ *
+ * @return  The newly created packet with empty signature.
  */
-typedef struct
-{
-  /* A DscussPacketType in NBO */
-  guint16 type;
-
-  /* Size of the whole packet in NBO (in bytes) */
-  guint16 size;
-} DscussPacketHeader;
+DscussPacket*
+dscuss_packet_new (DscussPacketType type,
+                   const gchar* payload,
+                   gssize payload_size);
 
 /**
- * Returns packet type in HBO.
+ * Create new packet with known signature.
+ *
+ * @param type          Packet type.
+ * @param payload       Payload of the packet.
+ * @param payload_size  Size of @a payload.
+ * @param signature     Signature of the packet.
+ *
+ * @return  The newly created packet.
+ */
+DscussPacket*
+dscuss_packet_full (DscussPacketType type,
+                    const gchar* payload,
+                    gssize payload_size,
+                    const struct DscussSignature* signature);
+
+/**
+ * Destroy a packet (free allocated memory).
+ *
+ * @param  The packet to free.
+ */
+void
+dscuss_packet_free (DscussPacket* packet);
+
+/**
+ * Convert a packet to raw data, which can be transmitted via network.
+ *
+ * @param packet  Packet to serialize.
+ * @param data    Where to store address of the serialized packet.
+ * @param size    @a data size (output parameter).
+ */
+void
+dscuss_packet_serialize (const DscussPacket* packet,
+                         gchar** data,
+                         gssize* size);
+
+/**
+ * Create packet from raw data and header.
+ * Parse signature, check packet type and size, etc.
+ *
+ * @param header  Packet header (defines packet type and size).
+ * @param data    Packet data (payload and signature).
+ *
+ * @return  A new packet.
+ */
+DscussPacket*
+dscuss_packet_deserialize (const DscussHeader* header,
+                           const gchar* data);
+
+/**
+ * Return packet type.
  *
  * @param packet  Packet to get type of.
  *
- * @return Packet type.
+ * @return  Packet type.
  */
 DscussPacketType
 dscuss_packet_get_type (const DscussPacket* packet);
 
 /**
- * Returns full packet size (including header and body) 
+ * Return full packet size (including header and body)
  *
  * @param packet  Packet to get size of.
  *
- * @return Packet size in HBO.
+ * @return  Packet size.
  */
 gssize
 dscuss_packet_get_size (const DscussPacket* packet);
 
 /**
- * Composes a one-line text description of a packet.
+ * Get payload of a packet.
+ *
+ * @param packet  Packet to get payload.
+ * @param payload Where to store address of the payload.
+ * @param size    @a payload size (output parameter).
+ */
+void
+dscuss_packet_get_payload (const DscussPacket* packet,
+                           const gchar** payload,
+                           gssize* size);
+
+/**
+ * Get packet signature.
+ *
+ * @param packet  Packet to get signature from.
+ *
+ * @return  The signature of the packet.
+ */
+const struct DscussSignature*
+dscuss_packet_get_signature (const DscussPacket* packet);
+
+/**
+ * Compose a one-line text description of a packet.
  *
  * @param packet  Packet to compose description for.
  *
- * @return Text description of the packet.
+ * @return  Text description of the packet.
  */
 const gchar*
 dscuss_packet_get_description (const DscussPacket* packet);
 
 /**
- * Use g_free to destroy a packet.
+ * Sign a packet.
+ *
+ * @param packet   Packet to sign.
+ * @param privkey  Private key to use for signing.
  */
+void
+dscuss_packet_sign (DscussPacket* packet,
+                    DscussPrivateKey* privkey);
+
+/**
+ * Verify signature of a packet.
+ *
+ * @param packet  Packet to verify.
+ * @param pubkey  Public key to use for verification.
+ */
+gboolean
+dscuss_packet_verify (const DscussPacket* packet,
+                      const DscussPublicKey* pubkey);
 
 
 #ifdef __cplusplus

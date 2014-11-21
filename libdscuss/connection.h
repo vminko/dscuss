@@ -39,7 +39,7 @@
 
 #include <glib.h>
 #include <gio/gio.h>
-#include "entity.h"
+#include "packet.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,7 +94,7 @@ typedef void (*DscussConnectionSendCallback)(DscussConnection* connection,
  * @param user_data  The user data.
  */
 typedef void (*DscussConnectionReceiveCallback)(DscussConnection* connection,
-                                                const DscussPacket* packet,
+                                                DscussPacket* packet,
                                                 gboolean result,
                                                 gpointer user_data);
 

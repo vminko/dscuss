@@ -29,7 +29,7 @@
 
 #include <glib.h>
 #include "entity.h"
-#include "packet_message.h"
+#include "message.h"
 
 
 /**
@@ -68,30 +68,6 @@ dscuss_entity_get_description (const DscussEntity* entity)
 
     case DSCUSS_ENTITY_TYPE_MSG:
       return dscuss_message_get_description ((DscussMessage*) entity);
-
-    case DSCUSS_ENTITY_TYPE_OPER:
-      /* TBD */
-      g_assert_not_reached ();
-      break;
-
-    default:
-      g_assert_not_reached ();
-    }
-}
-
-
-DscussPacket*
-dscuss_entity_to_packet (const DscussEntity* entity)
-{
-  switch (entity->type)
-    {
-    case DSCUSS_ENTITY_TYPE_USER:
-      g_assert_not_reached ();
-      /* TBD */
-      break;
-
-    case DSCUSS_ENTITY_TYPE_MSG:
-      return (DscussPacket*) dscuss_packet_message_new ((DscussMessage*) entity);
 
     case DSCUSS_ENTITY_TYPE_OPER:
       /* TBD */

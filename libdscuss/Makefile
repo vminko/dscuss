@@ -5,8 +5,9 @@ LIB = libdscuss.a
 .PHONY: all clean
 
 $(LIB): api.o network.o connection.o util.o config.o entity.o message.o\
-        packet.o packet_message.o peer.o crypto.o crypto_hash.o crypto_ecc.o\
-	crypto_pow.o db.o topic.o subscriptions.o
+        header.o packet.o peer.o\
+        crypto.o crypto_hash.o crypto_ecc.o crypto_pow.o\
+        db.o topic.o subscriptions.o
 	ar rcs $@ $^
 
 -include $(SRC:%.c=%.d)

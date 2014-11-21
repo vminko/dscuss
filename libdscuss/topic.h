@@ -47,7 +47,7 @@ extern "C" {
 /**
  * Handle for a topic.
  */
-typedef GPtrArray DscussTopic;
+typedef void DscussTopic;
 
 /**
  * Initializes topic cache. The cache contains regular expressions used for

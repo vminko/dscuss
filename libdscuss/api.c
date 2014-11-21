@@ -33,6 +33,7 @@
 #include "db.h"
 #include "util.h"
 #include "topic.h"
+#include "subscriptions.h"
 #include "api.h"
 
 
@@ -155,6 +156,12 @@ dscuss_init (const gchar* data_dir,
       goto error;
     }
 
+  if (!dscuss_subscriptions_init ())
+    {
+      g_critical ("Error initializing the user's subscriptions.");
+      goto error;
+    }
+
   if (!dscuss_db_init ())
     {
       g_critical ("Error initializing the database subsystem!");
@@ -189,6 +196,7 @@ dscuss_uninit ()
   dscuss_db_uninit ();
   dscuss_crypto_uninit ();
   dscuss_network_uninit ();
+  dscuss_subscriptions_uninit ();
   dscuss_config_uninit ();
   dscuss_topic_cache_uninit ();
   dscuss_util_uninit ();

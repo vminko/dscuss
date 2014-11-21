@@ -149,9 +149,15 @@ dscuss_crypto_ecc_private_key_read (const gchar* filename)
     }
 
   bio = BIO_new (BIO_s_mem ());
+  if (bio == NULL)
+    {
+      g_warning ("Failed to create new BIO");
+      goto out;
+    }
+
   if (BIO_write (bio, keystr, keylen) <= 0)
     {
-      g_warning ("Failed to read EC key to  BIO");
+      g_warning ("Failed to write EC key to BIO");
       goto out;
     }
 
@@ -261,7 +267,7 @@ dscuss_crypto_ecc_public_key_to_der (const DscussPublicKey* pubkey,
 
   if (i2d_EC_PUBKEY_bio (bio, eckey) != 1)
     {
-      g_warning ("Failed to write public key to BIO");
+      g_warning ("Failed to encode public key into DER format");
       goto out;
     }
 
@@ -285,3 +291,127 @@ out:
   return result;
 }
 
+
+DscussPublicKey*
+dscuss_crypto_ecc_public_key_from_der (const gchar* digest,
+                                       gsize digest_len)
+{
+  BIO* bio = NULL;
+  EC_KEY* eckey = NULL;
+  DscussPublicKey* pubkey = NULL;
+
+  g_assert (digest != NULL);
+
+  bio = BIO_new (BIO_s_mem ());
+  if (bio == NULL)
+    {
+      g_warning ("Failed to create new BIO");
+      goto out;
+    }
+
+  if (BIO_write (bio, digest, digest_len) <= 0)
+    {
+      g_warning ("Failed to write serialized EC key to BIO");
+      goto out;
+    }
+
+  if (!d2i_EC_PUBKEY_bio (bio, &eckey))
+    {
+      g_warning ("Failed to decode public key from DER format");
+      goto out;
+    }
+
+  pubkey = EC_POINT_dup (EC_KEY_get0_public_key ((const EC_KEY*) eckey),
+                         EC_KEY_get0_group ((const EC_KEY*) eckey));
+  if (pubkey == NULL)
+    {
+      g_warning ("Failed to extract EC_POINT from EC_KEY");
+      goto out;
+    }
+
+out:
+  if (bio != NULL)
+    BIO_free_all (bio);
+
+  if (eckey != NULL)
+    EC_KEY_free (eckey);
+
+  return pubkey;
+}
+
+
+gssize
+dscuss_crypto_ecc_signature_size ()
+{
+  return DSCUSS_CRYPTO_SIGNATURE_SIZE;
+}
+
+
+gboolean
+dscuss_crypto_ecc_sign (const gchar* digest,
+                        gsize digest_len,
+                        DscussPrivateKey* privkey,
+                        struct DscussSignature* signature)
+{
+  guint buf_len;
+
+  g_assert (digest != NULL);
+  g_assert (privkey != NULL);
+  g_assert (signature != NULL);
+
+  if (!ECDSA_sign (0, /* ignored */
+                   (unsigned char*) digest,
+                   (int) digest_len,
+                   (unsigned char*) signature,
+                   &buf_len,
+                   privkey))
+  {
+    g_warning ("Failed to generate EC signature");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+gboolean
+dscuss_crypto_ecc_verify (const gchar* digest,
+                          gsize digest_len,
+                          const DscussPublicKey* pubkey,
+                          const struct DscussSignature* signature)
+{
+  EC_KEY* eckey = NULL;
+  gint res = 0;
+
+  g_assert (digest != NULL);
+  g_assert (pubkey != NULL);
+  g_assert (signature != NULL);
+
+  eckey = EC_KEY_new_by_curve_name (NID_secp224r1);
+  if (eckey == NULL)
+    {
+      g_warning ("Failed to create new EC key");
+      return FALSE;
+    }
+  if (!EC_KEY_set_public_key(eckey, pubkey))
+    {
+      g_warning ("Failed to set public key for private key");
+      EC_KEY_free (eckey);
+      return FALSE;
+    }
+
+  res = ECDSA_verify (0, /* ignored */
+                      (const unsigned char*)digest,
+                      (int)digest_len,
+                      (unsigned char*) signature,
+                      sizeof (struct DscussSignature),
+                      eckey);
+  if (res == -1)
+  {
+    g_warning ("Failed to verify ECDSA signature!");
+  }
+
+  EC_KEY_free (eckey);
+
+  return (res == 1);
+}

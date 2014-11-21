@@ -28,7 +28,7 @@
  */
 
 /**
- * @file crypto_pow.h  Elliptic curve cryptography with OpenSSL.
+ * @file crypto_ecc.h  Elliptic curve cryptography with OpenSSL.
  */
 
 
@@ -45,8 +45,18 @@ extern "C" {
 #endif
 
 
+// Depends on CURVE, use ECDSA_sign to calculate it.
+#define DSCUSS_CRYPTO_SIGNATURE_SIZE 64
+
+
 typedef EC_KEY DscussPrivateKey;
 typedef EC_POINT DscussPublicKey;
+
+/* DER-encoded ECDSA signature. */
+struct DscussSignature
+{
+  gchar s[DSCUSS_CRYPTO_SIGNATURE_SIZE];
+};
 
 
 /**
@@ -122,6 +132,51 @@ gboolean
 dscuss_crypto_ecc_public_key_to_der (const DscussPublicKey* pubkey,
                                      gchar** digest,
                                      gsize* digest_len);
+
+/**
+ * Decodes a public key from DER format.
+ *
+ * @param digest     Address of the serialized key.
+ * @param digest_len Length of the @a digest.
+ *
+ * @return Decoded public key or @c NULL on error.
+ */
+DscussPublicKey*
+dscuss_crypto_ecc_public_key_from_der (const gchar* digest,
+                                       gsize digest_len);
+
+/**
+ * Sign a digest.
+ *
+ * @param digest     Address of the digest to sign.
+ * @param digest_len Length of the @a digest.
+ * @param privkey    Private key to use for signing.
+ * @param signature  Where to write the signature (output parameter).
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_ecc_sign (const gchar* digest,
+                        gsize digest_len,
+                        DscussPrivateKey* privkey,
+                        struct DscussSignature* signature);
+
+/**
+ * Verify a signature.
+ *
+ * @param digest     Address of the digest to verify.
+ * @param digest_len Length of the @a digest.
+ * @param pubkey     Public key of the signer.
+ * @param signature  Signature to verify.
+ *
+ * @return @c TRUE if signature is valid, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_ecc_verify (const gchar* digest,
+                          gsize digest_len,
+                          const DscussPublicKey* pubkey,
+                          const struct DscussSignature* signature);
+
 
 #ifdef __cplusplus
 }

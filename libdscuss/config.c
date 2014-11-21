@@ -46,12 +46,12 @@ dscuss_config_init (void)
 
   if (g_file_test (conf_filename, G_FILE_TEST_EXISTS)) 
     {
-      g_debug ("Using config file '%s'\n", conf_filename);
+      g_debug ("Using config file '%s'", conf_filename);
       key_file = g_key_file_new ();
       if (!g_key_file_load_from_file (key_file, conf_filename,
                                       G_KEY_FILE_KEEP_COMMENTS, &error))
         {
-          g_warning ("Couldn't read '%s' : %s\n",
+          g_warning ("Couldn't read '%s' : %s",
                      conf_filename, error->message);
           g_error_free (error);
           goto error;
@@ -59,7 +59,7 @@ dscuss_config_init (void)
     }
   else
     {
-      g_debug ("Config file '%s' not found\n", conf_filename);
+      g_debug ("Config file '%s' not found", conf_filename);
     }
 
   return TRUE;
@@ -82,7 +82,7 @@ dscuss_config_uninit (void)
     {
       if (!g_key_file_save_to_file (key_file, conf_filename, &error))
         {
-          g_warning ("Couldn't save settings to '%s' : %s\n",
+          g_warning ("Couldn't save settings to '%s' : %s",
                      conf_filename, error->message);
           g_error_free (error);
         }
@@ -108,7 +108,7 @@ dscuss_config_get_integer (const gchar* group,
   res = g_key_file_get_integer (key_file, group, param, &error);
   if (error)
     {
-      g_debug ("Couldn't get integer value of the key '%s' of the group '%s' : %s\n",
+      g_debug ("Couldn't get integer value of the key '%s' of the group '%s' : %s",
                param, group, error->message);
       g_error_free (error);
       return default_value;

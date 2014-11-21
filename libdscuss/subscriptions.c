@@ -50,6 +50,8 @@ dscuss_subscriptions_init (void)
   GError* error = NULL;
   gboolean res = TRUE;
 
+  g_debug ("Initializing subscriptions.");
+
   path = g_build_filename (dscuss_util_get_data_dir (), "subscriptions", NULL);
   file = g_file_new_for_path (path);
 
@@ -95,6 +97,7 @@ dscuss_subscriptions_init (void)
           g_warning ("Malformed line in the subscriptions file: '%s'."
                      " Ignoring it.", line);
           g_free (line);
+          continue;
         }
 
       if (g_slist_find_custom (topics,
@@ -104,12 +107,13 @@ dscuss_subscriptions_init (void)
           g_warning ("Duplicated topic in the subscriptions file: '%s'!",
                      line);
           dscuss_topic_free (topic);
-          g_free (line);
         }
       else
         {
           topics = g_slist_append (topics, topic);
         }
+
+      g_free (line);
     }
 
   g_object_unref (data_in);
@@ -127,6 +131,7 @@ dscuss_subscriptions_init (void)
 void
 dscuss_subscriptions_uninit (void)
 {
+  g_debug ("Uninitializing subscriptions.");
   if (topics != NULL)
     {
       g_slist_free_full (topics, (GDestroyNotify) dscuss_topic_free);
