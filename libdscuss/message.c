@@ -70,7 +70,7 @@ dscuss_message_new (const gchar* content)
 void
 dscuss_message_free (DscussMessage* msg)
 {
-  g_assert (msg);
+  g_assert (msg != NULL);
   g_free (msg->content);
   g_free (msg);
 }
@@ -79,7 +79,7 @@ dscuss_message_free (DscussMessage* msg)
 const gchar*
 dscuss_message_get_description (const DscussMessage* msg)
 {
-  g_assert (msg);
+  g_assert (msg != NULL);
   g_snprintf (description_buf, 
               DSCUSS_MESSAGE_DESCRIPTION_MAX_LEN,
               "%s",

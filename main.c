@@ -31,10 +31,95 @@
 #include <glib.h>
 #include <glib-unix.h>
 #include <glib/gprintf.h>
+#include <glib/gstdio.h>
 #include "libdscuss/dscuss.h"
 
-#define PROG_NAME "Dscuss"
-#define PROG_VERSION "proof-of-concept"
+#define PROG_NAME        "Dscuss"
+#define PROG_VERSION     "proof-of-concept"
+#define DEFAULT_DATA_DIR ".dscuss"
+#define DEFAULT_LOGFILE_NAME "dscuss.log"
+
+static FILE* log_file = 0;
+static gchar* log_file_name = NULL;
+
+
+/* TBD: move logging to a separate file. */
+
+static void
+log_handler (const gchar* log_domain,
+             GLogLevelFlags log_level,
+             const gchar* message,
+             gpointer user_data)
+{
+  GDateTime* datetime = NULL;
+  gchar* log_level_str = NULL;
+  gchar* datetime_str = NULL;
+
+  g_assert (log_file != NULL);
+
+  datetime = g_date_time_new_now_local ();
+  datetime_str = g_date_time_format (datetime, "%F %T");
+  g_date_time_unref (datetime);
+
+  switch (log_level)
+    {
+    case G_LOG_LEVEL_DEBUG:
+      log_level_str = "DEBUG";
+      break;
+
+    case G_LOG_LEVEL_INFO:
+      log_level_str = "INFO";
+      break;
+
+    case G_LOG_LEVEL_MESSAGE:
+      log_level_str = "INFO";
+      break;
+
+    case G_LOG_LEVEL_WARNING:
+      log_level_str = "WARNING";
+      break;
+
+    case G_LOG_LEVEL_CRITICAL:
+      log_level_str = "CRITICAL";
+      break;
+
+    case G_LOG_LEVEL_ERROR:
+      log_level_str = "ERROR";
+      break;
+
+    default:
+      log_level_str = "UNKNOWN";
+      break;
+    }
+
+  g_fprintf (log_file, "<%s> %s: %s\n", datetime_str, log_level_str, message);
+  g_free (datetime_str);
+}
+
+
+static gboolean
+logger_init (const gchar* log_file_name)
+{
+  log_file = g_fopen (log_file_name, "a");
+  if (log_file == NULL)
+    return FALSE;
+
+  g_log_set_handler (NULL,
+                     G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL
+                       | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE | G_LOG_LEVEL_DEBUG,
+                     log_handler,
+                     NULL);
+
+  return TRUE;
+}
+
+
+static void
+logger_uninit (void)
+{
+  if (log_file != NULL)
+    fclose (log_file);
+}
 
 
 static gboolean
@@ -162,8 +247,10 @@ main (int argc, char* argv[])
   g_set_application_name (PROG_NAME);
 
   opt_context = g_option_context_new ("");
-  g_option_context_set_summary (opt_context, PROG_NAME " - decentralized forum.");
-  g_option_context_set_description (opt_context, "Please report bugs to <vitaly.minko@gmail.com>.");
+  g_option_context_set_summary (opt_context,
+                                PROG_NAME " - decentralized forum.");
+  g_option_context_set_description (opt_context,
+                                    "Please report bugs to <vitaly.minko@gmail.com>.");
   g_option_context_add_main_entries (opt_context, opt_entries, NULL);
   if (!g_option_context_parse (opt_context, &argc, &argv, &error))
     {
@@ -177,6 +264,24 @@ main (int argc, char* argv[])
     g_printf ("%s %s.\n", PROG_NAME, PROG_VERSION);
     return 0;
   }
+
+  if (!opt_config_dir_arg)
+    opt_config_dir_arg = g_build_filename (g_get_home_dir (),
+                                           DEFAULT_DATA_DIR,
+                                           NULL);
+  if (g_mkdir_with_parents (opt_config_dir_arg, 0700) != 0)
+    {
+      g_printerr ("Failed to create data directory '%s'.\n",
+                  opt_config_dir_arg);
+      return 1;
+    }
+  log_file_name = g_build_filename (opt_config_dir_arg,
+                                    DEFAULT_LOGFILE_NAME, NULL);
+  if (!logger_init (log_file_name))
+    {
+      g_printerr ("Failed to initialize to logging subsystem.\n");
+      goto uninit;
+    }
 
   g_unix_signal_add (SIGTERM, on_stop, &stop_requested);
   g_unix_signal_add (SIGINT, on_stop, &stop_requested);
@@ -196,7 +301,19 @@ main (int argc, char* argv[])
   while (!stop_requested)
       dscuss_iterate ();
 
+uninit:
   dscuss_uninit ();
+  logger_uninit ();
+  if (log_file_name != NULL)
+    {
+      g_free (log_file_name);
+      log_file_name = NULL;
+    }
+  if (opt_config_dir_arg != NULL)
+    {
+      g_free (opt_config_dir_arg);
+      opt_config_dir_arg = NULL;
+    }
 
   return 0;
 }

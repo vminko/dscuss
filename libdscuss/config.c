@@ -102,6 +102,9 @@ dscuss_config_get_integer (const gchar* group,
   GError* error = NULL;
   gint res = 0;
 
+  g_assert (group != NULL);
+  g_assert (param != NULL);
+
   if (key_file == NULL)
     return default_value;
   
@@ -116,4 +119,3 @@ dscuss_config_get_integer (const gchar* group,
 
   return res;
 }
-
