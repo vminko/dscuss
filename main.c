@@ -34,10 +34,22 @@
 #include <glib/gstdio.h>
 #include "libdscuss/dscuss.h"
 
-#define PROG_NAME        "Dscuss"
-#define PROG_VERSION     "proof-of-concept"
-#define DEFAULT_DATA_DIR ".dscuss"
+#define PROG_NAME            "Dscuss"
+#define PROG_VERSION         "proof-of-concept"
+#define DEFAULT_DATA_DIR     ".dscuss"
 #define DEFAULT_LOGFILE_NAME "dscuss.log"
+
+
+struct DscussCommand
+{
+  const gchar* command;
+  gboolean (*action) (const gchar* arguments);
+  const gchar* helptext;
+};
+
+static gboolean do_help (const gchar* args);
+
+/**** Start of logging *******************************************************/
 
 static FILE* log_file = 0;
 static gchar* log_file_name = NULL;
@@ -121,29 +133,149 @@ logger_uninit (void)
     fclose (log_file);
 }
 
+/**** End of logging *********************************************************/
+
+/**
+ * TBD
+static int
+do_publish_msg (const char *msg)
+{
+  char *category;
+
+  if (NULL == strstr (msg, " "))
+    {
+      fprintf (stderr, _("Syntax: /msg CATEGORY MESSAGE"));
+      return GNUNET_OK;
+    }
+  category = GNUNET_strdup (msg);
+  strstr (category, " ")[0] = '\0';
+  msg += strlen (category) + 1;
+  GNUNET_DSCUSS_publish_message (ctx,
+				 category,
+				 NULL,
+				 msg);
+  GNUNET_free (category);
+  return GNUNET_OK;
+
+  g_debug ("Sending message '%s'", line);
+  msg = dscuss_message_new (line);
+  dscuss_send_message (msg);
+  dscuss_entity_unref ((DscussEntity*) msg);
+  g_free (line);
+}
+*/
+
 
 static gboolean
-stdio_callback (GIOChannel * io, GIOCondition condition, gpointer data)
+do_unknown (const gchar* msg)
 {
-  gchar *line = NULL;
+  g_printf ("Unknown command `%s'\n", msg);
+  return TRUE;
+}
+
+
+static gboolean
+do_quit (const gchar* args)
+{
+  return FALSE;
+}
+
+
+/**
+ * List of supported commands. The order matters!
+ */
+static struct DscussCommand commands[] = {
+ /**
+  * TBD
+  {"/msg", &do_publish_msg,
+   gettext_noop ("Use `/msg category message' to publish a message in the"
+		 " specified category")},
+  {"/list_category", &do_list_category,
+   gettext_noop ("Use `/list_category category_uri' to list head messages in a"
+		 " category")},
+  {"/list_thread", &do_list_thread,
+   gettext_noop ("Use `/list_thread head_id' to list all messages in a"
+		 " thread")},
+  {"/subscribe", &do_subscribe,
+   gettext_noop ("Use `/subscribe category' to subscribe to a category")},
+  {"/list_subscriptions", &do_list_subscriptions,
+   gettext_noop ("Use `/list_subscriptions' to list all categories you are"
+		 " subscribed to")},
+  {"/unsubscribe", &do_unsubscribe,
+   gettext_noop ("Use `/unsubscribe category' to unsubscribe from a category")},
+  */
+  {"/quit", &do_quit,
+   "Use `/quit' to terminate " PROG_NAME "."},
+  {"/help", &do_help,
+   "Use `/help command' to get help for a specific command."},
+  /* The following two commands must be last! */
+  {"",      &do_unknown, NULL},
+  {NULL, NULL, NULL},
+};
+
+
+static gboolean
+do_help (const gchar* args)
+{
+  int i = 0;
+
+  while ((NULL != args) &&
+	 (0 != strlen (args)) && (commands[i].action != &do_help))
+    {
+      if (0 ==
+	  g_ascii_strncasecmp (&args[1],
+                               &commands[i].command[1],
+                               strlen (args) - 1))
+	{
+	  g_printf ("%s\n", commands[i].helptext);
+	  return TRUE;
+	}
+      i++;
+    }
+
+  i = 0;
+  fprintf (stdout, "Available commands:");
+  while (commands[i].action != &do_help)
+    {
+      g_printf (" %s", commands[i].command);
+      i++;
+    }
+  g_printf ("\n%s\n", commands[i].helptext);
+  return TRUE;
+}
+
+
+static gboolean
+stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
+{
+  gchar* line = NULL;
   DscussMessage* msg = NULL;
-  GError *error = NULL;
+  GError* error = NULL;
+  gboolean* stop_flag = data;
+  guint i = 0;
+  gboolean res = FALSE;
+  
+  g_assert (stop_flag);
 
   switch (g_io_channel_read_line (io, &line, NULL, NULL, &error))
     {
     case G_IO_STATUS_NORMAL:
       line[strlen (line) - 1] = '\0';
-      g_debug ("Sending message '%s'", line);
-      msg = dscuss_message_new (line);
-      dscuss_send_message (msg);
-      dscuss_entity_unref ((DscussEntity*) msg);
+      i = 0;
+      while ((NULL != commands[i].command) &&
+             (0 != g_ascii_strncasecmp (commands[i].command,
+                                        line,
+                                        strlen (commands[i].command))))
+        i++;
+      res = commands[i].action (&line[strlen (commands[i].command)]);
       g_free (line);
-      return TRUE;
+      if (!res)
+        *stop_flag = TRUE;
+      return res;
 
     case G_IO_STATUS_ERROR:
       g_printerr ("IO error: %s\n", error->message);
       g_error_free (error);
-
       return FALSE;
 
     case G_IO_STATUS_EOF:
@@ -163,11 +295,11 @@ stdio_callback (GIOChannel * io, GIOCondition condition, gpointer data)
 
 
 static void
-start_handling_input ()
+start_handling_input (gboolean* stop_flag)
 {
-  GIOChannel *stdio = NULL;
+  GIOChannel* stdio = NULL;
   stdio = g_io_channel_unix_new (fileno (stdin));
-  g_io_add_watch (stdio, G_IO_IN, stdio_callback, NULL);
+  g_io_add_watch (stdio, G_IO_IN, stdio_callback, stop_flag);
   g_io_channel_unref (stdio);
 }
 
@@ -179,13 +311,12 @@ on_init_finished (gboolean result, gpointer user_data)
 
   if (result)
     {
-      g_printf ("Initialization is finished successfully.\n"
-                "Your input will be handled from now on.\n");
-      start_handling_input ();
+      g_printf ("done.\n");
+      start_handling_input (stop_flag);
     }
   else
     {
-      g_printf ("Initialization failed. Quitting...\n");
+      g_printf ("FAILED! Quitting...\n");
       *stop_flag = TRUE;
     }
 }
@@ -287,7 +418,7 @@ main (int argc, char* argv[])
   g_unix_signal_add (SIGINT, on_stop, &stop_requested);
   g_unix_signal_add (SIGHUP, on_stop, &stop_requested);
 
-  g_printf ("Initializing the system, this can take a while.\n");
+  g_printf ("Initializing the system, this can take a while... ");
   if (!dscuss_init (opt_config_dir_arg,
                     on_init_finished, &stop_requested,
                     on_new_message, NULL,
