@@ -43,11 +43,11 @@
 struct DscussCommand
 {
   const gchar* command;
-  gboolean (*action) (const gchar* arguments);
+  gboolean (*action) (const gchar* arguments, gboolean* disable_input);
   const gchar* helptext;
 };
 
-static gboolean do_help (const gchar* args);
+static gboolean do_help (const gchar* args, gboolean* disable_input);
 
 /**** Start of logging *******************************************************/
 
@@ -105,6 +105,7 @@ log_handler (const gchar* log_domain,
     }
 
   g_fprintf (log_file, "<%s> %s: %s\n", datetime_str, log_level_str, message);
+  fflush (log_file);
   g_free (datetime_str);
 }
 
@@ -134,6 +135,42 @@ logger_uninit (void)
 }
 
 /**** End of logging *********************************************************/
+
+
+
+static void
+on_new_message (DscussMessage* msg, gpointer user_data)
+{
+  g_printf ("New message received: '%s'.\n",
+            dscuss_message_get_description (msg));
+  dscuss_entity_unref ((DscussEntity*) msg);
+}
+
+
+static void
+on_new_user (DscussUser* user, gpointer user_data)
+{
+  g_printf ("New user received.\n");
+}
+
+
+static void
+on_new_operation (DscussOperation* oper, gpointer user_data)
+{
+  g_printf ("New operation received.\n");
+}
+
+
+
+/**** Command handlers *******************************************************/
+
+static void
+print_prompt (void)
+{
+  g_printf (">");
+  fflush (stdout);
+}
+
 
 /**
  * TBD
@@ -166,16 +203,113 @@ do_publish_msg (const char *msg)
 */
 
 
-static gboolean
-do_unknown (const gchar* msg)
+static void
+on_register_finished (gboolean result,
+                      gpointer user_data)
 {
-  g_printf ("Unknown command `%s'\n", msg);
+  gboolean* disable_input = user_data;
+  if (result)
+    g_printf ("New user successfully registered.\n");
+  else
+    g_printf ("Failed to register new user!\n");
+  *disable_input = FALSE;
+  print_prompt ();
+}
+
+
+static gboolean
+do_register (const gchar* args, gboolean* disable_input)
+{
+  gchar* nickname = NULL;
+  gchar* space = NULL;
+  const gchar* info = NULL;
+
+  if (args == NULL || strlen (args) == 0)
+    {
+      g_printf ("You must specify a nickname.\n");
+      return TRUE;
+    }
+
+  nickname = strdup (args);
+  space = strstr (nickname, " ");
+  if (space != NULL)
+    {
+      *space = '\0';
+      info = args + strlen (nickname) + 1;
+    }
+
+  /* TBD: validate input */
+
+  if (dscuss_register (nickname,
+                       info,
+                       on_register_finished,
+                       disable_input))
+    {
+      g_printf ("Registering new user '%s', this will take about 4 hours...\n",
+                nickname);
+      *disable_input = TRUE;
+    }
+  else
+    {
+      g_printf ("Failed to register new user '%s'. See log file for details.\n",
+                 nickname);
+    }
+  g_free (nickname);
+
   return TRUE;
 }
 
 
 static gboolean
-do_quit (const gchar* args)
+do_login (const gchar* nickname, gboolean* disable_input)
+{
+  if (dscuss_is_logged_in ())
+    {
+      g_printf ("You are already logged into the network."
+                "You need to `logout' before logging in as another user.\n");
+      return TRUE;
+    }
+
+  /* TBD: validate nickname */
+  if (!dscuss_login (nickname,
+                     on_new_message, NULL,
+                     on_new_user, NULL,
+                     on_new_operation, NULL))
+    {
+      g_printf ("Failed to log in as '%s'\n", nickname);
+    }
+
+  return TRUE;
+}
+
+
+static gboolean
+do_logout (const gchar* args, gboolean* disable_input)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged int.\n");
+    }
+  else
+    {
+      g_printf ("Logging out...\n");
+      dscuss_logout ();
+    }
+
+  return TRUE;
+}
+
+
+static gboolean
+do_unknown (const gchar* args, gboolean* disable_input)
+{
+  g_printf ("Unknown command `%s'\n", args);
+  return TRUE;
+}
+
+
+static gboolean
+do_quit (const gchar* args, gboolean* disable_input)
 {
   return FALSE;
 }
@@ -187,35 +321,42 @@ do_quit (const gchar* args)
 static struct DscussCommand commands[] = {
  /**
   * TBD
-  {"/msg", &do_publish_msg,
-   gettext_noop ("Use `/msg category message' to publish a message in the"
+  {"msg", &do_publish_msg,
+   gettext_noop ("Use `msg category message' to publish a message in the"
 		 " specified category")},
-  {"/list_category", &do_list_category,
-   gettext_noop ("Use `/list_category category_uri' to list head messages in a"
+  {"list_category", &do_list_category,
+   gettext_noop ("Use `list_category category_uri' to list head messages in a"
 		 " category")},
-  {"/list_thread", &do_list_thread,
-   gettext_noop ("Use `/list_thread head_id' to list all messages in a"
+  {"list_thread", &do_list_thread,
+   gettext_noop ("Use `list_thread head_id' to list all messages in a"
 		 " thread")},
-  {"/subscribe", &do_subscribe,
-   gettext_noop ("Use `/subscribe category' to subscribe to a category")},
-  {"/list_subscriptions", &do_list_subscriptions,
-   gettext_noop ("Use `/list_subscriptions' to list all categories you are"
+  {"subscribe", &do_subscribe,
+   gettext_noop ("Use `subscribe category' to subscribe to a category")},
+  {"list_subscriptions", &do_list_subscriptions,
+   gettext_noop ("Use `list_subscriptions' to list all categories you are"
 		 " subscribed to")},
-  {"/unsubscribe", &do_unsubscribe,
-   gettext_noop ("Use `/unsubscribe category' to unsubscribe from a category")},
+  {"unsubscribe", &do_unsubscribe,
+   gettext_noop ("Use `unsubscribe category' to unsubscribe from a category")},
   */
-  {"/quit", &do_quit,
-   "Use `/quit' to terminate " PROG_NAME "."},
-  {"/help", &do_help,
-   "Use `/help command' to get help for a specific command."},
+  {"register", &do_register,
+   "Use `register <nickname> [additional_info]' to register new user."
+    " with nickname <nickname> and optional additional info."},
+  {"login", &do_login,
+   "Use `login <nickname>' to login as user <nickname>."},
+  {"logout", &do_logout,
+   "Use `logout' to logout from the network."},
+  {"quit",  &do_quit,
+   "Use `quit' to terminate " PROG_NAME "."},
+  {"help",  &do_help,
+   "Use `help <command>' to get help for a specific command."},
   /* The following two commands must be last! */
-  {"",      &do_unknown, NULL},
+  {"",       &do_unknown, NULL},
   {NULL, NULL, NULL},
 };
 
 
 static gboolean
-do_help (const gchar* args)
+do_help (const gchar* args, gboolean* disable_input)
 {
   int i = 0;
 
@@ -234,32 +375,45 @@ do_help (const gchar* args)
     }
 
   i = 0;
-  fprintf (stdout, "Available commands:");
+  g_printf ("Available commands:");
   while (commands[i].action != &do_help)
     {
       g_printf (" %s", commands[i].command);
       i++;
     }
+  g_printf ("\nMandatory arguments are enclosed in angle brackets."
+            " Optional arguments are enclosed in square brackets.");
   g_printf ("\n%s\n", commands[i].helptext);
   return TRUE;
 }
+
+/**** End of command handlers ************************************************/
+
 
 
 static gboolean
 stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
 {
+  static gboolean disable_input = FALSE;
+
   gchar* line = NULL;
-  DscussMessage* msg = NULL;
+  gchar* args = NULL;
   GError* error = NULL;
   gboolean* stop_flag = data;
   guint i = 0;
   gboolean res = FALSE;
-  
+
   g_assert (stop_flag);
 
   switch (g_io_channel_read_line (io, &line, NULL, NULL, &error))
     {
     case G_IO_STATUS_NORMAL:
+      if (disable_input)
+        {
+          g_printerr ("An operation is in progress, please wait.");
+          return TRUE;
+        }
+
       line[strlen (line) - 1] = '\0';
       i = 0;
       while ((NULL != commands[i].command) &&
@@ -267,10 +421,21 @@ stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
                                         line,
                                         strlen (commands[i].command))))
         i++;
-      res = commands[i].action (&line[strlen (commands[i].command)]);
+
+      /* Remove leading spaces from the argument list */
+      args = line + strlen (commands[i].command);
+      while (g_ascii_isspace (*args))
+        args++;
+
+      res = commands[i].action (args, &disable_input);
       g_free (line);
       if (!res)
         *stop_flag = TRUE;
+      else
+        {
+          if (!disable_input)
+            print_prompt ();
+        }
       return res;
 
     case G_IO_STATUS_ERROR:
@@ -279,7 +444,7 @@ stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
       return FALSE;
 
     case G_IO_STATUS_EOF:
-      g_warning ("No input data available");
+      g_printerr ("No input data available");
       return TRUE;
 
     case G_IO_STATUS_AGAIN:
@@ -301,47 +466,7 @@ start_handling_input (gboolean* stop_flag)
   stdio = g_io_channel_unix_new (fileno (stdin));
   g_io_add_watch (stdio, G_IO_IN, stdio_callback, stop_flag);
   g_io_channel_unref (stdio);
-}
-
-
-static void
-on_init_finished (gboolean result, gpointer user_data)
-{
-  gboolean* stop_flag = user_data;
-
-  if (result)
-    {
-      g_printf ("done.\n");
-      start_handling_input (stop_flag);
-    }
-  else
-    {
-      g_printf ("FAILED! Quitting...\n");
-      *stop_flag = TRUE;
-    }
-}
-
-
-static void
-on_new_message (DscussMessage* msg, gpointer user_data)
-{
-  g_printf ("New message received: '%s'.\n",
-            dscuss_message_get_description (msg));
-  dscuss_entity_unref ((DscussEntity*) msg);
-}
-
-
-static void
-on_new_user (DscussUser* user, gpointer user_data)
-{
-  g_printf ("New user received.\n");
-}
-
-
-static void
-on_new_operation (DscussOperation* oper, gpointer user_data)
-{
-  g_printf ("New operation received.\n");
+  print_prompt ();
 }
 
 
@@ -418,19 +543,18 @@ main (int argc, char* argv[])
   g_unix_signal_add (SIGINT, on_stop, &stop_requested);
   g_unix_signal_add (SIGHUP, on_stop, &stop_requested);
 
-  g_printf ("Initializing the system, this can take a while... ");
-  if (!dscuss_init (opt_config_dir_arg,
-                    on_init_finished, &stop_requested,
-                    on_new_message, NULL,
-                    on_new_user, NULL,
-                    on_new_operation, NULL))
+  if (!dscuss_init (opt_config_dir_arg))
     {
       g_printerr ("Failed to initialize the Dscuss system.\n");
       return 1;
     }
 
+  start_handling_input (&stop_requested);
+
   while (!stop_requested)
       dscuss_iterate ();
+
+  g_printerr ("Failed to initialize the Dscuss system.\n");
 
 uninit:
   dscuss_uninit ();

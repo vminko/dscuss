@@ -28,9 +28,7 @@
  */
 
 /**
- * @file crypto.h  Defines API of the crypto subsystem.
- * @brief The crypto subsystem includes public key cryptography (ECDSA),
- * hashing and symmetric encryption. Based on OpenSSL.
+ * @file crypto.h  Elliptic curve cryptography with OpenSSL.
  */
 
 
@@ -38,58 +36,164 @@
 #define DSCUSS_CRYPTO_H
 
 #include <glib.h>
-#include "connection.h"
-#include "crypto_ecc.h"
+#include <openssl/ec.h>
+#include <openssl/pem.h>
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-/**
- * Callback to notify that initialization of the crypto subsystem is finished.
- *
- * @param result      @c TRUE if initialization was successful,
- *                    or @c FALSE otherwise.
- * @param user_data   The user data.
- */
-typedef void (*DscussCryptoInitCallback)(gboolean result,
-                                         gpointer user_data);
+// Depends on CURVE, use ECDSA_sign to calculate it.
+#define DSCUSS_CRYPTO_SIGNATURE_SIZE 64
+
+
+typedef EC_KEY DscussPrivateKey;
+typedef EC_POINT DscussPublicKey;
+
+/* DER-encoded ECDSA signature. */
+struct DscussSignature
+{
+  gchar s[DSCUSS_CRYPTO_SIGNATURE_SIZE];
+};
+
 
 /**
- * Initializes the crypto subsystem.
+ * Generates new private key.
  *
- * Initializes the private key and proof-of-work. @a dscuss_crypto_uninit
- * should be called if @c TRUE was passed to the callback.
- *
- * @param callback   The function to be called when initialization
- *                   is finished.
- * @param user_data  Additional data to be passed to the callback.
- *
- * @return @c TRUE if initialization started successfully (init result will be
- *         passes to the callback),
- *         or @c FALSE otherwise (callback will not be called at all).
- */
-gboolean
-dscuss_crypto_init (DscussCryptoInitCallback callback,
-                    gpointer user_data);
-
-/**
- * Destroys the crypto subsystem.
- *
- * Frees allocated memory. Stops finding PoW if it's still is progress.
- */
-void
-dscuss_crypto_uninit ();
-
-/**
- * Returns the user's private key. Should only be called when crypto
- * is initialized.
- *
- * @return The user's private key.
+ * @return new private key in case of success, or @c NULL on error.
  */
 DscussPrivateKey*
-dscuss_crypto_get_privkey ();
+dscuss_crypto_private_key_new ();
+
+/**
+ * Frees memory allocated for a private key.
+ *
+ * @param privkey   Private key to free.
+ */
+void
+dscuss_crypto_private_key_free (DscussPrivateKey* privkey);
+
+/**
+ * Writes a private key to a file.
+ *
+ * @param privkey   Private key to store.
+ * @param filename  Name of the file to write in.
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_private_key_write (const DscussPrivateKey* privkey,
+                                 const gchar* filename);
+
+/**
+ * Reads private key from a file.
+ *
+ * @param filename  Name of the file to read from.
+ *
+ * @return  Private key in case, or @c NULL on error.
+ */
+DscussPrivateKey*
+dscuss_crypto_private_key_read (const gchar* filename);
+
+/**
+ * Initialize private key by reading it from a file. If the files does not
+ * exist, create a new private key and write it to the file.
+ *
+ * @param filename  Name of the file to read from or to store to if it does
+ *                  not exist.
+ *
+ * @return  Private key in case, or @c NULL on error.
+ */
+DscussPrivateKey*
+dscuss_crypto_private_key_init (const gchar* filename);
+
+/**
+ * Extracts the public key from the given private key.
+ *
+ * @param privkey  The private key.
+ *
+ * @return The public key in case of success, or @c NULL on error.
+ */
+const DscussPublicKey*
+dscuss_crypto_private_key_get_public (const DscussPrivateKey* privkey);
+
+/**
+ * Encodes a public key into DER format.
+ *
+ * @param pubkey     Public key to encode.
+ * @param digest     Where to store serialized key.
+ * @param digest_len Where to store length of the @a digest.
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_public_key_to_der (const DscussPublicKey* pubkey,
+                                 gchar** digest,
+                                 gsize* digest_len);
+
+/**
+ * Decodes a public key from DER format.
+ *
+ * @param digest     Address of the serialized key.
+ * @param digest_len Length of the @a digest.
+ *
+ * @return Decoded public key or @c NULL on error.
+ */
+DscussPublicKey*
+dscuss_crypto_public_key_from_der (const gchar* digest,
+                                   gsize digest_len);
+
+/**
+ * Creates a copy of a public key.
+ *
+ * @param pubkey  Public key to copy.
+ *
+ * @return  Newly created public key identical to @a pubkey.
+ */
+DscussPublicKey*
+dscuss_crypto_public_key_copy (const DscussPublicKey*);
+
+/**
+ * Frees memory allocated for a public key.
+ *
+ * @param pubkey   Public key to free.
+ */
+void
+dscuss_crypto_public_key_free (DscussPublicKey* pubkey);
+
+/**
+ * Sign a digest.
+ *
+ * @param digest     Address of the digest to sign.
+ * @param digest_len Length of the @a digest.
+ * @param privkey    Private key to use for signing.
+ * @param signature  Where to write the signature (output parameter).
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_sign (const gchar* digest,
+                    gsize digest_len,
+                    const DscussPrivateKey* privkey,
+                    struct DscussSignature* signature);
+
+/**
+ * Verify a signature.
+ *
+ * @param digest     Address of the digest to verify.
+ * @param digest_len Length of the @a digest.
+ * @param pubkey     Public key of the signer.
+ * @param signature  Signature to verify.
+ *
+ * @return @c TRUE if signature is valid, or @c FALSE on error.
+ */
+gboolean
+dscuss_crypto_verify (const gchar* digest,
+                      gsize digest_len,
+                      const DscussPublicKey* pubkey,
+                      const struct DscussSignature* signature);
 
 
 #ifdef __cplusplus

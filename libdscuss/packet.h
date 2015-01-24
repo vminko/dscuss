@@ -36,7 +36,7 @@
 
 #include <glib.h>
 #include "header.h"
-#include "crypto_ecc.h"
+#include "crypto.h"
 
 
 #ifdef __cplusplus
@@ -91,7 +91,7 @@ typedef struct _DscussPacket DscussPacket;
 
 /**
  * Create new packet with no signature specified.
- * Such packet must be explicitly signed after creation.
+ * Such packet must be signed explicitly after creation.
  *
  * @param type          Packet type.
  * @param payload       Payload of the packet.
@@ -102,7 +102,7 @@ typedef struct _DscussPacket DscussPacket;
 DscussPacket*
 dscuss_packet_new (DscussPacketType type,
                    const gchar* payload,
-                   gssize payload_size);
+                   gsize payload_size);
 
 /**
  * Create new packet with known signature.
@@ -115,10 +115,10 @@ dscuss_packet_new (DscussPacketType type,
  * @return  The newly created packet.
  */
 DscussPacket*
-dscuss_packet_full (DscussPacketType type,
-                    const gchar* payload,
-                    gssize payload_size,
-                    const struct DscussSignature* signature);
+dscuss_packet_new_full (DscussPacketType type,
+                        const gchar* payload,
+                        gsize payload_size,
+                        const struct DscussSignature* signature);
 
 /**
  * Destroy a packet (free allocated memory).
@@ -138,7 +138,7 @@ dscuss_packet_free (DscussPacket* packet);
 void
 dscuss_packet_serialize (const DscussPacket* packet,
                          gchar** data,
-                         gssize* size);
+                         gsize* size);
 
 /**
  * Create packet from raw data and header.
@@ -147,7 +147,7 @@ dscuss_packet_serialize (const DscussPacket* packet,
  * @param header  Packet header (defines packet type and size).
  * @param data    Packet data (payload and signature).
  *
- * @return  A new packet.
+ * @return  A new packet in case of success or @c NULL on error.
  */
 DscussPacket*
 dscuss_packet_deserialize (const DscussHeader* header,
@@ -170,7 +170,7 @@ dscuss_packet_get_type (const DscussPacket* packet);
  *
  * @return  Packet size.
  */
-gssize
+gsize
 dscuss_packet_get_size (const DscussPacket* packet);
 
 /**
@@ -183,7 +183,7 @@ dscuss_packet_get_size (const DscussPacket* packet);
 void
 dscuss_packet_get_payload (const DscussPacket* packet,
                            const gchar** payload,
-                           gssize* size);
+                           gsize* size);
 
 /**
  * Get packet signature.

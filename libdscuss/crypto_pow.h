@@ -46,46 +46,44 @@ extern "C" {
 
 
 /**
- * Callback to notify that initialization of the proof-of-work is finished.
+ * Callback to notify that the search of proof-of-work is over.
  *
- * @param result      @c TRUE if initialization was successful,
- *                    or @c FALSE otherwise.
+ * @param result      @c TRUE if proof-of-work is found, @c FALSE otherwise.
  * @param proof       proof-of-work if @a result is @c TRUE, @c 0 otherwise.
  * @param user_data   The user data.
  */
-typedef void (*DscussCryptoPowInitCallback)(gboolean result,
+typedef void (*DscussCryptoPowFindCallback)(gboolean result,
                                             guint64 proof,
                                             gpointer user_data);
 
 /**
- * Initializes proof-of-work (PoW) for the crypto subsystem.
+ * Finds proof-of-work (PoW) for the specified public key.
  *
- * Reads PoW from the PoW-file or generates a new one if there is no such file.
+ * Continues searching from the PoW-file or starts from scratch if there is no
+ * such file.
  *
  * @param pubkey     Public key to find proof for.
- * @param filename   Name of the file to read from or to store to if it does
- *                   not exist.
- * @param callback   The function to be called when initialization
- *                   is finished.
+ * @param filename   Name of the file to store progress.
+ * @param callback   The function to be called when the search is over.
  * @param user_data  Additional data to be passed to @a callback.
  *
- * @return @c TRUE if initialization started successfully (the proof will be
+ * @return @c TRUE if the search started successfully (the proof will be
  *         passes to the callback),
  *         or @c FALSE otherwise (callback will not be called at all).
  */
 gboolean
-dscuss_crypto_pow_init (const DscussPublicKey* pubkey,
+dscuss_crypto_pow_find (const DscussPublicKey* pubkey,
                         const gchar* filename,
-                        DscussCryptoPowInitCallback callback,
+                        DscussCryptoPowFindCallback callback,
                         gpointer user_data);
 
 /**
- * Uninitializes proof-of-work.
+ * Stop the search of proof-of-work.
  *
- * Stops finding PoW if it hasn't been found yet and frees allocated memory.
+ * Stops finding PoW and frees allocated memory.
  */
 void
-dscuss_crypto_pow_uninit ();
+dscuss_crypto_pow_stop_finding (void);
 
 
 #ifdef __cplusplus

@@ -173,7 +173,7 @@ on_new_packet (DscussConnection* connection,
       g_debug ("This is a Message packet");
 
       gchar* payload = NULL;
-      gssize payload_size = 0;
+      gsize payload_size = 0;
 
       dscuss_packet_get_payload (packet,
                                  (const gchar**) &payload,
@@ -358,10 +358,10 @@ dscuss_peer_send (DscussPeer* peer,
     case DSCUSS_ENTITY_TYPE_MSG:
       msg = (DscussMessage*) entity;
       const gchar* msg_text = dscuss_message_get_content (msg);
-      packet = dscuss_packet_full (DSCUSS_PACKET_TYPE_MSG,
-                                   msg_text,
-                                   strlen (msg_text) + 1,
-                                   &signature);
+      packet = dscuss_packet_new_full (DSCUSS_PACKET_TYPE_MSG,
+                                       msg_text,
+                                       strlen (msg_text) + 1,
+                                       &signature);
       break;
 
     case DSCUSS_ENTITY_TYPE_OPER:

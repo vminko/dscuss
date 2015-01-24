@@ -38,7 +38,6 @@
   "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\\d+$"
 #define DSCUSS_NETWORK_HOST_PORT_REGEX \
   "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]):\\d+$"
-#define DSCUSS_NETWORK_ADDR_FILE_NAME "addresses"
 #define DSCUSS_NETWORK_DEFAULT_PORT 8004
 /* How often should we try to establish outgoing connections with other peers?
  * (in seconds) */
@@ -62,6 +61,15 @@ static GHashTable* peers = NULL;
 
 /* ID of timeout for establishing outgoing connections. */
 static guint timeout_id = 0;
+
+/* The user we're logged under. */
+static const DscussUser* user = NULL;
+
+/* The private key of the user. */
+static const DscussPrivateKey* privkey = NULL;
+
+/* The path to the file containing list of addresses of other peers. */
+static gchar* addr_file = NULL;
 
 /* Function to call when a new peer connects. */
 static DscussNewPeerCallback new_peer_callback;
@@ -236,20 +244,16 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
   GFileInputStream* file_in = NULL;
   GDataInputStream* data_in = NULL;
   gchar* line;
-  gchar* path;
   gboolean res = TRUE;
 
-  path = g_build_filename (dscuss_util_get_data_dir (), addr_file_name, NULL);
-  file = g_file_new_for_path (path);
-
+  file = g_file_new_for_path (addr_file_name);
   file_in = g_file_read (file, NULL, &error);
   if (error != NULL)
     {
       g_critical ("Failed to open file '%s': %s",
-                  path, error->message);
+                  addr_file_name, error->message);
       g_error_free (error);
       g_object_unref (file);
-      g_free (path);
       return FALSE;
     }
   
@@ -264,7 +268,7 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
       if (error != NULL)
         {
           g_warning ("Failed to read address string from '%s': %s",
-                     path, error->message);
+                     addr_file_name, error->message);
           g_error_free (error);
           res = FALSE;
           break;
@@ -297,7 +301,6 @@ dscuss_network_read_addresses (const gchar* addr_file_name)
   g_object_unref (data_in);
   g_object_unref (file_in);
   g_object_unref (file);
-  g_free (path);
   return res;
 }
 
@@ -388,7 +391,10 @@ dscuss_network_start_connecting_to_hosts (void)
 
 
 gboolean
-dscuss_network_init (DscussNewPeerCallback new_peer_callback_,
+dscuss_network_init (const gchar* addr_file_,
+                     const DscussUser* user_,
+                     const DscussPrivateKey* privkey_,
+                     DscussNewPeerCallback new_peer_callback_,
                      gpointer new_peer_data_)
 {
   peers = g_hash_table_new_full (g_direct_hash, g_direct_equal,
@@ -409,10 +415,10 @@ dscuss_network_init (DscussNewPeerCallback new_peer_callback_,
                   DSCUSS_NETWORK_DEFAULT_PORT);
       goto error;
     }
-  if (!dscuss_network_read_addresses (DSCUSS_NETWORK_ADDR_FILE_NAME))
+  if (!dscuss_network_read_addresses (addr_file_))
     {
       g_critical ("Could not read host addresses from '%s'",
-                  DSCUSS_NETWORK_ADDR_FILE_NAME);
+                  addr_file_);
       goto error;
     }
   if (!dscuss_network_start_connecting_to_hosts ())
@@ -421,8 +427,11 @@ dscuss_network_init (DscussNewPeerCallback new_peer_callback_,
       goto error;
     }
 
+  addr_file         = g_strdup (addr_file_);
+  user              = user_;
+  privkey           = privkey_;
   new_peer_callback = new_peer_callback_;
-  new_peer_data = new_peer_data_;
+  new_peer_data     = new_peer_data_;
   return TRUE;
 
 error:
@@ -460,4 +469,8 @@ dscuss_network_uninit (void)
       peer_addresses = NULL;
     }
 
+  dscuss_free_non_null (addr_file, g_free);
+
+  user = NULL;
+  privkey = NULL;
 }

@@ -101,8 +101,8 @@ typedef struct
   gpointer user_data;
   const DscussPacket* packet;
   gchar* buffer;
-  gssize length;
-  gssize offset;
+  gsize length;
+  gsize offset;
 } ConnectionSendContext;
 
 
@@ -258,7 +258,7 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
     }
   else
     {
-      g_debug ("Writing remaining %" G_GSSIZE_FORMAT " bytes",
+      g_debug ("Writing remaining %" G_GSIZE_FORMAT " bytes",
                ctx->length - ctx->offset);
       g_output_stream_write_async (out, ctx->buffer + ctx->offset,
                                    ctx->length - ctx->offset,
@@ -374,11 +374,11 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
           connection->header = dscuss_header_deserialize (connection->read_buf);
           g_debug ("Packet header successfully read: %s",
                    dscuss_header_get_description (connection->header));
-          gssize packet_size = dscuss_header_get_packet_size (connection->header);
+          gsize packet_size = dscuss_header_get_packet_size (connection->header);
           if (packet_size > DSCUSS_PACKET_MAX_SIZE)
             {
               g_warning ("Protocol violation detected:"
-                         " packet size '%" G_GSSIZE_FORMAT "' exceeds"
+                         " packet size '%" G_GSIZE_FORMAT "' exceeds"
                          " maximum limit '%d'.",
                          packet_size, DSCUSS_PACKET_MAX_SIZE);
               connection->receive_callback (connection,
@@ -436,10 +436,9 @@ read_packet (DscussConnection* connection)
   GInputStream* in = NULL;
 
   g_assert (connection != NULL);
-  g_debug ("Trying to read from the connection '%s' %" G_GSSIZE_FORMAT,
+  g_debug ("Trying to read from the connection '%s' %" G_GSIZE_FORMAT,
             dscuss_connection_get_description (connection),
-            dscuss_header_get_size ()
-            );
+            dscuss_header_get_size ());
   in = g_io_stream_get_input_stream (G_IO_STREAM (connection->socket_connection));
   connection->read_offset = 0;
   g_input_stream_read_async (in, connection->read_buf,

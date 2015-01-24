@@ -122,7 +122,7 @@ dscuss_header_serialize (const DscussHeader* header,
 }
 
 
-gssize
+gsize
 dscuss_header_get_size (void)
 {
   return sizeof (struct _DscussHeaderNBO);
@@ -137,7 +137,7 @@ dscuss_header_get_packet_type (const DscussHeader* header)
 }
 
 
-gssize
+gsize
 dscuss_header_get_packet_size (const DscussHeader* header)
 {
   g_assert (header != NULL);
@@ -150,7 +150,7 @@ dscuss_header_get_description (const DscussHeader* header)
   g_assert (header != NULL);
   g_snprintf (description_buf, 
               DSCUSS_HEADER_DESCRIPTION_MAX_LEN,
-              "type %d, size %" G_GSSIZE_FORMAT,
+              "type %d, size %" G_GSIZE_FORMAT,
               dscuss_header_get_packet_type (header),
               dscuss_header_get_packet_size (header));
   return description_buf;

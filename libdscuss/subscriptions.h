@@ -43,26 +43,23 @@ extern "C" {
 
 
 /**
- * Initializes the subscriptions.
+ * Reads user subscriptions from a file.
  *
- * @return @c TRUE in case of success, or @c FALSE on error.
+ * @param filename  Name of the file to read subsciptions from.
+ *
+ * @return  The list of topics, which the user is subscribed to
+ *          or @c NULL on error (empty list is an error).
  */
-gboolean
-dscuss_subscriptions_init (void);
+GSList*
+dscuss_subscriptions_read (const gchar* filename);
 
 /**
- * Uninitializes the subscriptions.
+ * Destroys a list of user subscriptions.
+ *
+ * @param subscriptions  Subsciptions to be destroyed.
  */
 void
-dscuss_subscriptions_uninit (void);
-
-/**
- * Returns the list of subscriptions.
- *
- * @return The list of topics, which the user is subscribed to.
- */
-const GSList*
-dscuss_subscriptions_get (void);
+dscuss_subscriptions_free (GSList* subscriptions);
 
 
 #ifdef __cplusplus

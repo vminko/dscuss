@@ -61,7 +61,7 @@ dscuss_message_new (const gchar* content);
 
 /**
  * Destroys a message entity.
- * Frees all memory allocated my the entity.
+ * Frees all memory allocated by the entity.
  *
  * @ param msg Message to be destroyed.
  */

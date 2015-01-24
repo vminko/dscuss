@@ -61,6 +61,13 @@ extern "C" {
 #define dscuss_htonll(val) (GUINT64_TO_BE (val))
 
 /**
+ * Converts a 64-bit integer value from network to host byte order.
+ *
+ * @param val  a 64-bit integer value in network byte order.
+ */
+#define dscuss_ntohll(val) (GUINT64_FROM_BE (val))
+
+/**
  * Initializes the utility subsystem. It must be initialized before any other
  * Dscuss subsystems.
  */

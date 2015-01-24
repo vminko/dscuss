@@ -38,7 +38,7 @@
 #define DSCUSS_DSCUSS_H
 
 
-#include "api.h"
+#include "core.h"
 
 
 #endif /* DSCUSS_DSCUSS_H */

@@ -51,12 +51,46 @@ typedef struct
 } DscussHash;
 
 
+
+/**
+ * Creates digest using password based derivation function with salt
+ * and iteration count. Uses SHA512 for hashing.
+ *
+ * @param data      Data to hash.
+ * @param data_len  Length of @a data.
+ * @param hash      Where to write the result.
+ */
+void
+dscuss_crypto_hash_sha512 (const gchar* data,
+                           gsize data_len,
+                           DscussHash* hash);
+
+/**
+ * Creates hash using password based derivation function with salt
+ * and iteration count. Uses SHA512 for hashing.
+ *
+ * @param password      Password used in the derivation.
+ * @param password_len  Length of @a password.
+ * @param salt          Null-terminated salt used for the derivation.
+ * @param iter          Number or iterations (must be @c>=1 ).
+ * @param hash          Where to write the result (derived key).
+ *
+ * @return @c TRUE in case of success, or @c FALSE otherwise.
+ */
+gboolean
+dscuss_crypto_hash_pbkdf2_hmac_sha512 (const gchar* password,
+                                       gsize password_len,
+                                       const gchar* salt,
+                                       guint iter,
+                                       DscussHash* hash);
+
 /**
  * Read value of the specified bit in hash.
  *
  * @param hash  Hash to read bit from.
  * @param hash  Number of the bit to read.
- * @return      The value of the bit: 0 or 1.
+ *
+ * @return  The value of the bit: 0 or 1.
  */
 gint
 dscuss_crypto_hash_get_bit (const DscussHash* hash,
@@ -66,11 +100,21 @@ dscuss_crypto_hash_get_bit (const DscussHash* hash,
  * Count the leading zero bits in hash.
  *
  * @param hash  Hash to count leading zeros in.
- * @return      The number of leading zeros.
+ *
+ * @return  The number of leading zeros.
  */
 guint
 dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash);
 
+/**
+ * Converts the first 4 bytes of a hash to a string.
+ *
+ * @param user  User to compose description for.
+ *
+ * @return  Text description of the user.
+ */
+const gchar*
+dscuss_crypto_hash_to_string (const DscussHash* hash);
 
 #ifdef __cplusplus
 }

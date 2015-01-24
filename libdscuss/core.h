@@ -38,6 +38,7 @@
 
 #include <glib.h>
 #include "message.h"
+#include "user.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,18 +46,17 @@ extern "C" {
 
 
 /* TBD */
-typedef gpointer DscussUser;
 typedef gpointer DscussOperation;
 
 
 /**
- * Callback used for notification that initialization is finished.
+ * Callback used for notification that registration is finished.
  *
- * @param result      The result of initialization (@c TRUE if success).
+ * @param result      The result of the registration (@c TRUE if success).
  * @param user_data   The user data.
  */
-typedef void (*DscussInitCallback)(gboolean result,
-                                   gpointer user_data);
+typedef void (*DscussRegisterCallback)(gboolean result,
+                                       gpointer user_data);
 
 /**
  * Callback used for notification about incoming messages.
@@ -88,37 +88,16 @@ typedef void (*DscussNewOperationCallback)(DscussOperation* oper,
 /**
  * Initializes the library.
  *
- * Initializes network subsystem, establishes database connection and
- * initializes crypto subsystem.
+ * Initializes all the subsystems.
  *
  * @param data_dir      Path to the directory containing data files.
  *                      If @c NULL, the default directory will be used
  *                      (@c ~/.dscuss).
- * @param init_callback The function to be called when initialization is
- *                      finished.
- * @param init_data     Additional data to be passed to the @a init_callback.
- * @param msg_callback  The function to be called when a new message is
- *                      received.
- * @param msg_data      Additional data to be passed to the @a msg_callback.
- * @param user_callback The function to be called when a new user is
- *                      received.
- * @param user_data     Additional data to be passed to the @a user_callback.
- * @param oper_callback The function to be called when a new operation is
- *                      received.
- * @param oper_data     Additional data to be passed to the @a oper_callback.
  *
  * @return @c TRUE in case of success, or @c FALSE on error.
  */
 gboolean
-dscuss_init (const gchar* data_dir,
-             DscussInitCallback init_callback,
-             gpointer init_data,
-             DscussNewMessageCallback msg_callback,
-             gpointer msg_data,
-             DscussNewUserCallback user_callback,
-             gpointer user_data,
-             DscussNewOperationCallback oper_callback,
-             gpointer oper_data);
+dscuss_init (const gchar* data_dir);
 
 /**
  * Uninitializes the library.
@@ -136,6 +115,66 @@ dscuss_uninit (void);
  */
 void
 dscuss_iterate (void);
+
+/**
+ * Register a new user.
+ *
+ * Creates private key for the user, find proof-of-work, stores user's profile
+ * in the user's database.
+ *
+ * @param nickname   Nickname of the new user.
+ * @param info       Additional information about the new user (may be
+ *                   @c NULL).
+ * @param callback   The function to be called when registration is
+ *                   finished.
+ * @param user_data  Additional data to be passed to the @a callback.
+ *
+ * @return @c TRUE if registration started successfully, or @c FALSE on error.
+ */
+gboolean
+dscuss_register (const gchar* nickname,
+                 const gchar* info,
+                 DscussRegisterCallback callback,
+                 gpointer user_data);
+
+/**
+ * Login into the network as user @a nickname.
+ *
+ * @param nickname      Username to login under.
+ * @param msg_callback  The function to be called when a new message is
+ *                      received.
+ * @param msg_data      Additional data to be passed to the @a msg_callback.
+ * @param user_callback The function to be called when a new user is
+ *                      received.
+ * @param user_data     Additional data to be passed to the @a user_callback.
+ * @param oper_callback The function to be called when a new operation is
+ *                      received.
+ * @param oper_data     Additional data to be passed to the @a oper_callback.
+ *
+ * @return @c TRUE in case of success, or @c FALSE on error.
+ */
+gboolean
+dscuss_login (const gchar* nickname,
+              DscussNewMessageCallback msg_callback,
+              gpointer msg_data,
+              DscussNewUserCallback user_callback,
+              gpointer user_data,
+              DscussNewOperationCallback oper_callback,
+              gpointer oper_data);
+
+/**
+ * Logout from the network.
+ */
+void
+dscuss_logout (void);
+
+/**
+ * Show whether some user is logged in into the network.
+ *
+ * @return @c TRUE if a user is logged in, @c FALSE otherwise.
+ */
+gboolean
+dscuss_is_logged_in (void);
 
 /**
  * Send a message to the network.

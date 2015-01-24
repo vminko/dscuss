@@ -27,7 +27,44 @@
  * as that of the covered work.
  */
 
+#include <string.h>
+#include <openssl/evp.h>
 #include "crypto_hash.h"
+
+#define DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN 9
+
+static gchar description_buf[DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN];
+
+
+void
+dscuss_crypto_hash_sha512 (const gchar* digest,
+                           gsize digest_len,
+                           DscussHash* hash)
+{
+  SHA512 ((unsigned char*) digest,
+          digest_len,
+          (unsigned char*) hash);
+}
+
+
+gboolean
+dscuss_crypto_hash_pbkdf2_hmac_sha512 (const gchar* password,
+                                       gsize password_len,
+                                       const gchar* salt,
+                                       guint iter,
+                                       DscussHash* hash)
+{
+  int result = 0;
+  result = PKCS5_PBKDF2_HMAC (password,
+                              password_len,
+                              (const unsigned char *) salt,
+                              strlen (salt),
+                              iter,
+                              EVP_sha512 (),
+                              SHA512_DIGEST_LENGTH,
+                              (unsigned char*) hash);
+  return (result == 1);
+}
 
 
 gint
@@ -46,4 +83,24 @@ dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash)
   while ((0 == dscuss_crypto_hash_get_bit (hash, hash_count)))
     hash_count++;
   return hash_count;
+}
+
+
+const gchar*
+dscuss_crypto_hash_to_string (const DscussHash* hash)
+{
+  gchar* buf = description_buf;
+  const gchar* buf_end = description_buf
+                       + DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN;
+  guint i = 0;
+
+  g_assert (hash != NULL);
+
+  while (buf < buf_end)
+    {
+      buf += g_snprintf (buf, 2, "%02X", hash->digest[i++]);
+    }
+  description_buf[DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN - 1] = '\0';
+
+  return description_buf;
 }

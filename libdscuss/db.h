@@ -36,6 +36,8 @@
 #define DSCUSS_DB_H
 
 #include <glib.h>
+#include <sqlite3.h>
+#include "user.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,44 +45,50 @@ extern "C" {
 
 
 /**
- * Initializes the database subsystem.
- *
+ * Handle for a database.
+ */
+typedef sqlite3 DscussDb;
+
+/**
  * Opens connection with the database. Creates a new database if it does not
  * exist.
  *
- * @return @c TRUE in case of success, or @c FALSE on error.
+ * @param filename  Filename used for the database.
+ *
+ * @return  Handle for the database in case of success, or @c NULL on error.
  */
-gboolean
-dscuss_db_init ();
+DscussDb*
+dscuss_db_open (const gchar* filename);
 
 /**
- * Destroys the database subsystem.
+ * Closes connection with the database. Frees allocated memory.
  *
- * Frees allocated memory. Closes connection with the database.
+ * @param dbh   Database to close.
  */
 void
-dscuss_db_uninit ();
+dscuss_db_close (DscussDb* dbh);
 
 /**
  * Store a user in the database.
  *
- * @param user  user to store
+ * @param dbh   Database handle.
+ * @param user  The user to store.
  *
- * @return @c TRUE on success, @c FALSE on error.
+ * @return  @c TRUE on success, @c FALSE on error.
  */
-//gboolean
-//dscuss_db_put_user (const DscussUser* user);
+gboolean
+dscuss_db_put_user (DscussDb* dbh, const DscussUser* user);
 
 /**
  * Fetch a user from the database.
  *
  * @param id  hash of the user's public key.
  *
- * @return the fetched user
- *         or @c NULL if there is no such user in the database.
+ * @return  The fetched user
+ *          or @c NULL if there is no such user in the database.
  */
-//DscussUser*
-//dscuss_db_get_user (const DscussHash* id);
+DscussUser*
+dscuss_db_get_user (DscussDb* dbh, const DscussHash* id);
 
 
 #ifdef __cplusplus

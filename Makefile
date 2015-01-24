@@ -1,9 +1,8 @@
 CC=gcc
 LD=gcc
-CFLAGS=`pkg-config --cflags glib-2.0`
+CFLAGS+=`pkg-config --cflags glib-2.0`
 CFLAGS+=`pkg-config --cflags gio-2.0`
 CFLAGS+=`pkg-config --cflags libcrypto`
-CFLAGS+=`pkg-config --cflags sqlite3`
 CFLAGS+=-Wall -O2 -g
 LDFLAGS=`pkg-config --libs glib-2.0`
 LDFLAGS+=`pkg-config --libs gio-2.0`

@@ -34,12 +34,8 @@
 #include "subscriptions.h"
 
 
-/* List of the topics the user is subscribed to. */
-static GSList* topics = NULL;
-
-
-gboolean
-dscuss_subscriptions_init (void)
+GSList*
+dscuss_subscriptions_read (const gchar* filename)
 {
   gchar* path;
   GFile* file;
@@ -47,14 +43,13 @@ dscuss_subscriptions_init (void)
   GDataInputStream* data_in = NULL;
   gchar* line;
   DscussTopic* topic = NULL;
+  GSList* topics = NULL;
   GError* error = NULL;
-  gboolean res = TRUE;
+  gboolean res = FALSE;
 
   g_debug ("Initializing subscriptions.");
 
-  path = g_build_filename (dscuss_util_get_data_dir (), "subscriptions", NULL);
-  file = g_file_new_for_path (path);
-
+  file = g_file_new_for_path (filename);
   file_in = g_file_read (file, NULL, &error);
   if (error != NULL)
     {
@@ -63,7 +58,7 @@ dscuss_subscriptions_init (void)
       g_error_free (error);
       g_object_unref (file);
       g_free (path);
-      return FALSE;
+      return NULL;
     }
   
   data_in = g_data_input_stream_new ((GInputStream*) file_in);
@@ -122,26 +117,19 @@ dscuss_subscriptions_init (void)
   g_free (path);
 
   if (!res)
-    dscuss_subscriptions_uninit ();
+    {
+      dscuss_subscriptions_free (topics);
+      topics = NULL;
+    }
 
-  return res;
+  return topics;
 }
 
 
 void
-dscuss_subscriptions_uninit (void)
+dscuss_subscriptions_free (GSList* subscriptions)
 {
-  g_debug ("Uninitializing subscriptions.");
-  if (topics != NULL)
-    {
-      g_slist_free_full (topics, (GDestroyNotify) dscuss_topic_free);
-      topics = NULL;
-    }
-}
-
-
-const GSList*
-dscuss_subscriptions_get (void)
-{
-  return topics;
+  g_debug ("Destroying user subscriptions.");
+  if (subscriptions != NULL)
+    g_slist_free_full (subscriptions, (GDestroyNotify) dscuss_topic_free);
 }

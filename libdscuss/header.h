@@ -112,7 +112,7 @@ dscuss_header_serialize (const DscussHeader* header,
  *
  * @return Header size in bytes.
  */
-gssize
+gsize
 dscuss_header_get_size (void);
 
 /**
@@ -132,7 +132,7 @@ dscuss_header_get_packet_type (const DscussHeader* header);
  *
  * @return Packet size in HBO.
  */
-gssize
+gsize
 dscuss_header_get_packet_size (const DscussHeader* header);
 
 /**

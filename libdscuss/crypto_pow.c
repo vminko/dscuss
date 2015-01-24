@@ -34,21 +34,18 @@
 #include <string.h>
 #include <glib.h>
 #include <glib/gstdio.h>
-#include "crypto_ecc.h"
+#include "crypto.h"
 #include "crypto_hash.h"
 #include "crypto_pow.h"
 
 #define SALT "dscuss-proof-of-work"
-#define REQUIRED_ZERO_NUM 20
+#define REQUIRED_ZERO_NUM 10
 
 
 typedef struct PowFindContext PowFindContext;
 
 /* ID of the event source for finding PoW. */
 static guint find_pow_id = 0;
-
-/* Name of the file for storing proof-of-work.  */
-static gchar* filename = NULL;
 
 /* Name of the file for storing current progress (counter value). */
 static gchar* tmp_filename = NULL;
@@ -57,10 +54,10 @@ static gchar* tmp_filename = NULL;
 static PowFindContext* find_ctx = NULL;
 
 /* Function to call when initialization is finished. */
-static DscussCryptoPowInitCallback init_callback;
+static DscussCryptoPowFindCallback find_callback;
 
-/* User data to pass to @a init_callback. */
-static gpointer init_data;
+/* User data to pass to @a find_callback. */
+static gpointer find_data;
 
 
 /**
@@ -80,25 +77,20 @@ pow_hash (const gchar* pubkey_digest,
           guint64 proof,
           DscussHash* hash)
 {
-  int result = 0;
+  gboolean result = FALSE;
   gchar* to_hash = g_malloc0 (digest_len + sizeof (guint64));
 
   guint64 nproof = dscuss_htonll (proof);
   memcpy (&to_hash[0], pubkey_digest, digest_len);
   memcpy (&to_hash[digest_len], &nproof, sizeof (guint64));
 
-  result = PKCS5_PBKDF2_HMAC (to_hash,
-                              digest_len + sizeof (guint64),
-                              (const unsigned char *) SALT,
-                              strlen (SALT),
-                              1, // iterations
-                              EVP_sha512 (),
-                              SHA512_DIGEST_LENGTH,
-                              (unsigned char*) hash);
-
+  result = dscuss_crypto_hash_pbkdf2_hmac_sha512 (to_hash,
+                                                  digest_len + sizeof (guint64),
+                                                  SALT,
+                                                  1, //iterations
+                                                  hash);
   g_free (to_hash);
-
-  return (result == 1);
+  return result;
 }
 
 
@@ -218,7 +210,7 @@ typedef void (*PowFindCallback)(gboolean result,
 
 typedef struct PowFindContext
 {
-  const gchar* digest;
+  gchar* digest;
   gsize digest_len;
   guint64 counter;
   const gchar* tmp_filename;
@@ -228,7 +220,7 @@ typedef struct PowFindContext
 
 
 static PowFindContext*
-pow_find_context_new (const gchar* digest,
+pow_find_context_new (gchar* digest,
                       gsize digest_len,
                       guint64 counter,
                       const gchar* tmp_filename,
@@ -249,6 +241,7 @@ pow_find_context_new (const gchar* digest,
 static void
 pow_find_context_free (PowFindContext* ctx)
 {
+  g_free (ctx->digest);
   g_free (ctx);
 }
 
@@ -271,20 +264,10 @@ on_pow_found (gboolean find_result,
         }
     }
 
-  if (result)
-    {
-      if (!pow_write (filename, proof))
-        {
-          g_critical ("Failed to write proof-of-work to '%s'", filename);
-          result = FALSE;
-        }
-    }
-
-  dscuss_free_non_null (filename, g_free);
   dscuss_free_non_null (tmp_filename, g_free);
   find_pow_id = 0;
 
-  init_callback (result, proof, init_data);
+  find_callback (result, proof, find_data);
 }
 
 
@@ -345,19 +328,6 @@ pow_find (gpointer user_data)
 }
 
 
-static void
-pow_stop_finding ()
-{
-  dscuss_free_non_null (filename, g_free);
-  dscuss_free_non_null (tmp_filename, g_free);
-  if (find_pow_id != 0)
-    {
-      g_source_remove (find_pow_id);
-      find_pow_id = 0;
-    }
-  dscuss_free_non_null (find_ctx,
-                        pow_find_context_free);
-}
 
 
 static gboolean
@@ -368,14 +338,13 @@ pow_start_finding (const DscussPublicKey* pubkey,
   gsize digest_len;
   guint64 start_from = 0;
 
-  if (!dscuss_crypto_ecc_public_key_to_der (pubkey, &digest, &digest_len))
+  if (!dscuss_crypto_public_key_to_der (pubkey, &digest, &digest_len))
     {
       g_warning ("Failed to serialize public key");
       goto error;
     }
 
-  filename = g_strdup (filename_);
-  tmp_filename = g_strjoin (NULL, filename, ".tmp", NULL);
+  tmp_filename = g_strdup (filename_);
   if (g_file_test (tmp_filename, G_FILE_TEST_EXISTS))
     {
       if (!pow_read (tmp_filename, &start_from))
@@ -398,97 +367,36 @@ pow_start_finding (const DscussPublicKey* pubkey,
   return TRUE;
 
 error:
-  dscuss_free_non_null (filename, g_free);
   dscuss_free_non_null (tmp_filename, g_free);
   dscuss_free_non_null (digest, g_free);
   return FALSE;
 }
 
 
-/*** PowReturnContext ********************************************************/
-
-typedef struct
-{
-  gboolean result;
-  guint64 proof;
-} PowReturnContext;
-
-
-static PowReturnContext*
-pow_return_context_new (gboolean result,
-                        guint64 proof)
-{
-  PowReturnContext* ctx = g_new0 (PowReturnContext, 1);
-  ctx->result = result;
-  ctx->proof = proof;
-  return ctx;
-}
-
-
-static void
-pow_return_context_free (PowReturnContext* ctx)
-{
-  g_assert (ctx != NULL);
-  g_free (ctx);
-}
-
-/*** End of PowReturnContext *************************************************/
-
-
-static gboolean
-pow_return (gpointer user_data)
-{
-  PowReturnContext* ctx = (PowReturnContext*) user_data;
-  init_callback (ctx->result,
-                 ctx->proof,
-                 init_data);
-  pow_return_context_free (ctx);
-  return FALSE;
-}
-
-
 gboolean
-dscuss_crypto_pow_init (const DscussPublicKey* pubkey,
+dscuss_crypto_pow_find (const DscussPublicKey* pubkey,
                         const gchar* filename,
-                        DscussCryptoPowInitCallback callback,
+                        DscussCryptoPowFindCallback callback,
                         gpointer user_data)
-
 {
   g_assert (pubkey != NULL);
   g_assert (filename != NULL);
 
-  init_callback = callback;
-  init_data = user_data;
-
-  if (!g_file_test (filename, G_FILE_TEST_EXISTS))
+  if (find_pow_id != 0)
     {
-      g_debug ("Proof-of-work file '%s' not found, generating new one."
-               " This will take a while.",
-               filename);
-
-      if (!pow_start_finding (pubkey, filename))
-        {
-          g_warning ("Failed to start finding proof-of-work");
-          return FALSE;
-        }
+      g_warning ("Pow finding is already in progress.");
+      return FALSE;
     }
-  else
+
+  find_callback = callback;
+  find_data = user_data;
+
+  if (!pow_start_finding (pubkey, filename))
     {
-      guint64 proof = 0;
-      g_debug ("Using proof-of-work from the file '%s'", filename);
-      if (!pow_read (filename, &proof))
-        {
-          g_critical ("Failed to read proof-of-work from '%s'."
-                      " If you want to generate a new proof-of-work,"
-                      " remove this file.",
-                      filename);
-          return FALSE;
-        }
-      else
-        {
-          PowReturnContext* return_ctx = pow_return_context_new (TRUE, proof);
-          g_idle_add (pow_return, return_ctx);
-        }
+      g_warning ("Failed to start finding proof-of-work");
+      find_callback = NULL;
+      find_data = NULL;
+      return FALSE;
     }
 
   return TRUE;
@@ -496,7 +404,16 @@ dscuss_crypto_pow_init (const DscussPublicKey* pubkey,
 
 
 void
-dscuss_crypto_pow_uninit ()
+dscuss_crypto_pow_stop_finding ()
 {
-  pow_stop_finding ();
+  dscuss_free_non_null (tmp_filename, g_free);
+  if (find_pow_id != 0)
+    {
+      g_source_remove (find_pow_id);
+      find_pow_id = 0;
+    }
+  dscuss_free_non_null (find_ctx,
+                        pow_find_context_free);
+  find_callback = NULL;
+  find_data = NULL;
 }
