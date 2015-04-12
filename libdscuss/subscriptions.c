@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@
 GSList*
 dscuss_subscriptions_read (const gchar* filename)
 {
-  gchar* path;
   GFile* file;
   GFileInputStream* file_in = NULL;
   GDataInputStream* data_in = NULL;
@@ -47,17 +46,17 @@ dscuss_subscriptions_read (const gchar* filename)
   GError* error = NULL;
   gboolean res = FALSE;
 
-  g_debug ("Initializing subscriptions.");
+  g_assert (filename != NULL);
+  g_debug ("Reading subscriptions from '%s'.", filename);
 
   file = g_file_new_for_path (filename);
   file_in = g_file_read (file, NULL, &error);
   if (error != NULL)
     {
       g_critical ("Failed to open file '%s': %s",
-                  path, error->message);
+                  filename, error->message);
       g_error_free (error);
       g_object_unref (file);
-      g_free (path);
       return NULL;
     }
   
@@ -72,7 +71,7 @@ dscuss_subscriptions_read (const gchar* filename)
       if (error != NULL)
         {
           g_warning ("Failed to read topics from '%s': %s",
-                     path, error->message);
+                     filename, error->message);
           g_error_free (error);
           res = FALSE;
           break;
@@ -114,7 +113,6 @@ dscuss_subscriptions_read (const gchar* filename)
   g_object_unref (data_in);
   g_object_unref (file_in);
   g_object_unref (file);
-  g_free (path);
 
   if (!res)
     {
@@ -132,4 +130,18 @@ dscuss_subscriptions_free (GSList* subscriptions)
   g_debug ("Destroying user subscriptions.");
   if (subscriptions != NULL)
     g_slist_free_full (subscriptions, (GDestroyNotify) dscuss_topic_free);
+}
+
+
+GSList*
+dscuss_subscriptions_copy (GSList* subscriptions)
+{
+  GSList* subscriptions_copy = NULL;
+
+  g_assert (subscriptions != NULL);
+  g_debug ("Copying user subscriptions.");
+  subscriptions_copy = g_slist_copy_deep (subscriptions,
+                                          (GCopyFunc) dscuss_topic_copy, NULL);
+
+  return subscriptions_copy;
 }

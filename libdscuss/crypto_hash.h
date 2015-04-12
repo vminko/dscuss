@@ -116,6 +116,7 @@ dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash);
 const gchar*
 dscuss_crypto_hash_to_string (const DscussHash* hash);
 
+
 #ifdef __cplusplus
 }
 #endif

@@ -63,8 +63,6 @@ typedef void (*DscussNewPeerCallback)(DscussPeer* peer,
  *
  * @param addr_file          The path to the file to read addresses of other
  *                           peers from.
- * @param user               The user entity (for handshaking).
- * @param privkey            The private key of the user (for signing packets).
  * @param new_peer_callback  The function to be called when a new peer connects.
  * @param new_peer_data      Additional data to be passed to the callback.
  *
@@ -72,8 +70,6 @@ typedef void (*DscussNewPeerCallback)(DscussPeer* peer,
  */
 gboolean
 dscuss_network_init (const gchar* addr_filename,
-                     const DscussUser* user,
-                     const DscussPrivateKey* privkey,
                      DscussNewPeerCallback new_peer_callback,
                      gpointer new_peer_data);
 

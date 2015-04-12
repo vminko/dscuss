@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -553,8 +553,6 @@ main (int argc, char* argv[])
 
   while (!stop_requested)
       dscuss_iterate ();
-
-  g_printerr ("Failed to initialize the Dscuss system.\n");
 
 uninit:
   dscuss_uninit ();

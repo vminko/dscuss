@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
  * as that of the covered work.
  */
 
+#include <string.h>
 #include <glib.h>
 #include "util.h"
 
@@ -62,4 +63,66 @@ dscuss_util_get_data_dir (void)
   if (!default_data_dir)
     default_data_dir = g_build_filename (g_get_home_dir (), ".dscuss", NULL);
   return default_data_dir;
+}
+
+
+gchar*
+dscuss_data_to_hex (const gpointer data, gsize data_len, gchar* buffer)
+{
+    gchar* result = buffer;
+    gsize i = 0;
+    guint tmp = 0;
+
+    if (result == NULL)
+      result = g_malloc (data_len * 2 + 1);
+
+    for (i = 0; i < data_len; i++) {
+        tmp = *((guint8 *) (data + i));
+        g_snprintf (result + i * 2, 3, "%02X", tmp);
+    }
+
+    return result;
+}
+
+
+/* Slightly modified version of Glib's g_strjoinv */
+gchar *
+dscuss_strnjoinv (const gchar *separator,
+                  gchar **str_array,
+                  gsize str_array_len)
+{
+  gchar *string;
+  gchar *ptr;
+
+  g_return_val_if_fail (str_array != NULL, NULL);
+  g_return_val_if_fail (str_array_len > 0, NULL);
+  g_assert (separator != NULL);
+
+  if (*str_array)
+    {
+      gint i;
+      gsize len;
+      gsize separator_len;
+
+      separator_len = strlen (separator);
+
+      /* First part, getting length */
+      len = 1 + strlen (str_array[0]);
+      for (i = 1; i < str_array_len; i++)
+        len += strlen (str_array[i]);
+      len += separator_len * (i - 1);
+
+      /* Second part, building string */
+      string = g_new (gchar, len);
+      ptr = g_stpcpy (string, *str_array);
+      for (i = 1; i < str_array_len; i++)
+        {
+          ptr = g_stpcpy (ptr, separator);
+          ptr = g_stpcpy (ptr, str_array[i]);
+        }
+      }
+  else
+    string = g_strdup ("");
+
+  return string;
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,12 +61,6 @@ static GHashTable* peers = NULL;
 
 /* ID of timeout for establishing outgoing connections. */
 static guint timeout_id = 0;
-
-/* The user we're logged under. */
-static const DscussUser* user = NULL;
-
-/* The private key of the user. */
-static const DscussPrivateKey* privkey = NULL;
 
 /* The path to the file containing list of addresses of other peers. */
 static gchar* addr_file = NULL;
@@ -166,14 +160,6 @@ on_disconnect (DscussPeer* peer,
 }
 
 
-void
-on_peer_handshaked (DscussPeer* peer,
-                    gpointer user_data)
-{
-  new_peer_callback (peer, new_peer_data);
-}
-
-
 static gboolean
 on_incoming_connection (GSocketService*    service,
                         GSocketConnection* socket_connection,
@@ -186,17 +172,12 @@ on_incoming_connection (GSocketService*    service,
   DscussPeer* peer = dscuss_peer_new (socket_connection,
                                       TRUE,
                                       on_disconnect,
-                                      NULL,
-                                      on_peer_handshaked,
                                       NULL);
   g_debug ("New connection from '%s'",
            dscuss_peer_get_connecton_description (peer));
   g_hash_table_insert (peers, peer, NULL);
 
-  /**
-   * FIXME: temporary solution, handshake is not implemented yet
-   */
-  on_peer_handshaked (peer, NULL);
+  new_peer_callback (peer, new_peer_data);
 
   return FALSE;
 }
@@ -346,14 +327,10 @@ dscuss_network_establish_outgoing_connections (gpointer user_data)
               DscussPeer* peer = dscuss_peer_new (socket_connection,
                                                   FALSE,
                                                   on_disconnect,
-                                                  NULL,
-                                                  on_peer_handshaked,
                                                   NULL);
               g_hash_table_insert (peers, peer, address);
-              /**
-               * FIXME: temporarily solution, handshake is not implemented yet
-               */
-              on_peer_handshaked (peer, NULL);
+              /* Notify core */
+              new_peer_callback (peer, new_peer_data);
             }
           else
             {
@@ -392,8 +369,6 @@ dscuss_network_start_connecting_to_hosts (void)
 
 gboolean
 dscuss_network_init (const gchar* addr_file_,
-                     const DscussUser* user_,
-                     const DscussPrivateKey* privkey_,
                      DscussNewPeerCallback new_peer_callback_,
                      gpointer new_peer_data_)
 {
@@ -428,8 +403,6 @@ dscuss_network_init (const gchar* addr_file_,
     }
 
   addr_file         = g_strdup (addr_file_);
-  user              = user_;
-  privkey           = privkey_;
   new_peer_callback = new_peer_callback_;
   new_peer_data     = new_peer_data_;
   return TRUE;
@@ -470,7 +443,4 @@ dscuss_network_uninit (void)
     }
 
   dscuss_free_non_null (addr_file, g_free);
-
-  user = NULL;
-  privkey = NULL;
 }

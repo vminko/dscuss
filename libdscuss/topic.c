@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -121,8 +121,8 @@ dscuss_topic_new (const gchar* topic_str)
           g_free (tag);
           goto next;
         }
-
       g_ptr_array_add (topic, tag);
+
 next:
       g_match_info_next (match_info, NULL);
     }
@@ -140,7 +140,17 @@ dscuss_topic_free (DscussTopic* topic)
   if (topic == NULL)
     return;
 
-  g_ptr_array_free ((GPtrArray*) topic, TRUE);
+  g_ptr_array_unref ((GPtrArray*) topic);
+}
+
+
+DscussTopic*
+dscuss_topic_copy (DscussTopic* topic)
+{
+  g_assert (topic != NULL);
+
+  g_ptr_array_ref ((GPtrArray*) topic);
+  return topic;
 }
 
 
@@ -149,7 +159,10 @@ dscuss_topic_to_string (const DscussTopic* topic)
 {
   g_assert (topic != NULL);
 
-  return g_strjoinv (", ", (gchar**) ((GPtrArray*)topic)->pdata);
+
+  GPtrArray* topic2 = (GPtrArray*)topic;
+
+  return dscuss_strnjoinv (", ", (gchar**)topic2->pdata, topic2->len);
 }
 
 

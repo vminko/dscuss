@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,9 @@
 #include <string.h>
 #include <openssl/evp.h>
 #include "crypto_hash.h"
+#include "util.h"
 
-#define DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN 9
+#define DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN 1024
 
 static gchar description_buf[DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN];
 
@@ -89,18 +90,7 @@ dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash)
 const gchar*
 dscuss_crypto_hash_to_string (const DscussHash* hash)
 {
-  gchar* buf = description_buf;
-  const gchar* buf_end = description_buf
-                       + DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN;
-  guint i = 0;
-
   g_assert (hash != NULL);
-
-  while (buf < buf_end)
-    {
-      buf += g_snprintf (buf, 2, "%02X", hash->digest[i++]);
-    }
-  description_buf[DSCUSS_CRYPTO_HASH_DESCRIPTION_MAX_LEN - 1] = '\0';
-
+  dscuss_data_to_hex ((const gpointer)hash, sizeof (DscussHash), description_buf);
   return description_buf;
 }

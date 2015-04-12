@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,6 +109,39 @@ on_new_entity (DscussPeer* peer,
 }
 
 
+static gboolean
+free_peer (gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  dscuss_peer_free (peer);
+  return FALSE;
+}
+
+
+static void
+on_peer_handshaked (DscussPeer* peer,
+                    gboolean result,
+                    gpointer user_data)
+{
+  if (result)
+    {
+      g_debug ("Successfully handshaked with peer '%s'.",
+               dscuss_peer_get_description (peer));
+      /* TBD: synchronize with peer */
+      dscuss_peer_set_receive_callback (peer,
+                                        on_new_entity,
+                                        NULL);
+    }
+  else
+    {
+      g_warning ("Error handshaking with peer '%s'.",
+                 dscuss_peer_get_description (peer));
+      self->peers = g_slist_remove (self->peers, peer);
+      g_idle_add (free_peer, peer);
+    }
+}
+
+
 static void
 peer_connected_cb (DscussPeer* peer,
                    gpointer user_data)
@@ -118,9 +151,14 @@ peer_connected_cb (DscussPeer* peer,
   g_debug ("Connection with a new peer is established '%s'.",
            dscuss_peer_get_connecton_description (peer));
   self->peers = g_slist_append (self->peers, peer);
-  dscuss_peer_set_receive_callback (peer,
-                                    on_new_entity,
-                                    NULL);
+
+  dscuss_peer_handshake (peer,
+                         self->user,
+                         self->privkey,
+                         self->subscriptions,
+                         self->dbh,
+                         on_peer_handshaked,
+                         NULL);
 }
 
 
@@ -359,6 +397,8 @@ dscuss_login (const gchar* nickname,
   DscussHash id;
   gboolean result = FALSE;
 
+  g_assert (nickname != NULL);
+
   if (self != NULL)
     {
       g_warning ("You are already logged in as '%s'.",
@@ -422,9 +462,7 @@ dscuss_login (const gchar* nickname,
   addr_filename = g_build_filename (dscuss_util_get_data_dir (),
                                     nickname, "addresses", NULL);
   if (!dscuss_network_init (addr_filename,
-                            self->user,
-                            self->privkey,
-                            peer_connected_cb , NULL))
+                            peer_connected_cb, NULL))
     {
       g_critical ("Error initializing the network subsystem!");
       goto out;
@@ -455,13 +493,13 @@ dscuss_logout (void)
       return;
    }
 
-  dscuss_network_uninit ();
-
   if (self->peers != NULL)
     {
       g_debug ("Freeing peers...");
       g_slist_free_full (self->peers, (GDestroyNotify) dscuss_peer_free);
     }
+
+  dscuss_network_uninit ();
 
   if (self->subscriptions != NULL)
     {

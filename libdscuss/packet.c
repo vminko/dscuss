@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,10 +48,14 @@ struct _DscussPacket
   /* Data which depends on the packet type. */
   gchar* payload;
 
-  /* Every packet ends with a signature of header+payload */
+  /* Length of the signature. */
+  gsize signature_len;
+
+  /* Every packet ends with a signature of header+payload. */
   struct DscussSignature signature;
 
 };
+
 
 DscussPacket*
 dscuss_packet_new (DscussPacketType type,
@@ -66,28 +70,11 @@ dscuss_packet_new (DscussPacketType type,
   DscussPacket* packet = g_new0 (DscussPacket, 1);
   packet_size = dscuss_header_get_size ()
               + payload_size
+              + sizeof (gsize)
               + sizeof (struct DscussSignature);
   packet->header = dscuss_header_new_full (type, packet_size);
   packet->payload = g_malloc0 (payload_size);
   memcpy (packet->payload, payload, payload_size);
-  return packet;
-}
-
-
-DscussPacket*
-dscuss_packet_new_full (DscussPacketType type,
-                        const gchar* payload,
-                        gsize payload_size,
-                        const struct DscussSignature* signature)
-{
-  g_assert (payload != NULL);
-  g_assert (payload_size >= 0);
-  g_assert (signature != NULL);
-
-  DscussPacket* packet = dscuss_packet_new (type, payload, payload_size);
-  memcpy (&packet->signature,
-          signature,
-          sizeof (struct DscussSignature));
   return packet;
 }
 
@@ -109,6 +96,7 @@ dscuss_packet_serialize (const DscussPacket* packet,
 {
   gchar* digest = NULL;
   gsize payload_size = 0;
+  guint16 sig_size_nbo = 0;
 
   g_assert (packet != NULL);
   g_assert (data != NULL);
@@ -123,6 +111,7 @@ dscuss_packet_serialize (const DscussPacket* packet,
   /* Copy payload */
   payload_size = dscuss_header_get_packet_size (packet->header)
                - dscuss_header_get_size ()
+               - sizeof (gsize)
                - sizeof (struct DscussSignature);
   memcpy (digest,
           packet->payload,
@@ -130,6 +119,11 @@ dscuss_packet_serialize (const DscussPacket* packet,
   digest += payload_size;
 
   /* Copy signature */
+  sig_size_nbo = g_ntohs (packet->signature_len);
+  memcpy (digest,
+          &sig_size_nbo,
+          sizeof (sig_size_nbo));
+  digest += sizeof (gsize);
   memcpy (digest,
           &packet->signature,
           sizeof (struct DscussSignature));
@@ -142,11 +136,13 @@ DscussPacket*
 dscuss_packet_deserialize (const DscussHeader* header,
                            const gchar* data)
 {
+  guint16 sig_size_nbo = 0;
+
   g_assert (header != NULL);
   g_assert (data != NULL);
 
   if (dscuss_header_get_packet_size (header) <=
-      dscuss_header_get_size () + sizeof (struct DscussSignature))
+      dscuss_header_get_size () + sizeof (gsize) + sizeof (struct DscussSignature))
     {
       g_warning ("Packet size is too small: '%" G_GSIZE_FORMAT "'",
                  dscuss_header_get_packet_size (header));
@@ -164,11 +160,16 @@ dscuss_packet_deserialize (const DscussHeader* header,
   packet->header = dscuss_header_copy (header);
   gsize data_size = dscuss_header_get_packet_size (header)
                    - dscuss_header_get_size ();
-  gsize payload_size = data_size - sizeof (struct DscussSignature);
+  gsize payload_size = data_size - sizeof (gsize)
+                     - sizeof (struct DscussSignature);
   packet->payload = g_malloc0 (payload_size);
   memcpy (packet->payload, data, payload_size);
-  memcpy (&packet->signature,
+  memcpy (&sig_size_nbo,
           data + payload_size,
+          sizeof (sig_size_nbo));
+  packet->signature_len = g_ntohs (sig_size_nbo);
+  memcpy (&packet->signature,
+          data + payload_size + sizeof (gsize),
           sizeof (struct DscussSignature));
 
   return packet;
@@ -203,6 +204,7 @@ dscuss_packet_get_payload (const DscussPacket* packet,
   *payload = packet->payload;
   *size = dscuss_header_get_packet_size (packet->header)
         - dscuss_header_get_size ()
+        - sizeof (gsize)
         - sizeof (struct DscussSignature);
 }
 
@@ -212,6 +214,14 @@ dscuss_packet_get_signature (const DscussPacket* packet)
 {
   g_assert (packet != NULL);
   return &packet->signature;
+}
+
+
+gsize
+dscuss_packet_get_signature_length (const DscussPacket* packet)
+{
+  g_assert (packet != NULL);
+  return packet->signature_len;
 }
 
 
@@ -241,11 +251,12 @@ dscuss_packet_sign (DscussPacket* packet,
   dscuss_packet_serialize (packet,
                            &digest,
                            &digest_len);
-  digest_len -= sizeof (struct DscussSignature);
+  digest_len -= sizeof (struct DscussSignature) + sizeof (gsize);
   dscuss_crypto_sign (digest,
                       digest_len,
                       privkey,
-                      &packet->signature);
+                      &packet->signature,
+                      &packet->signature_len);
   g_free (digest);
 }
 
@@ -264,11 +275,14 @@ dscuss_packet_verify (const DscussPacket* packet,
   dscuss_packet_serialize (packet,
                            &digest,
                            &digest_len);
-  digest_len -= sizeof (struct DscussSignature);
+  digest_len -= sizeof (struct DscussSignature) + sizeof (gsize);
   res = dscuss_crypto_verify (digest,
                               digest_len,
                               pubkey,
-                              (const struct DscussSignature* ) digest + digest_len);
+                              (const struct DscussSignature* ) (digest
+                                                                + digest_len
+                                                                + sizeof (gsize)),
+                              packet->signature_len);
   g_free (digest);
 
   return res;

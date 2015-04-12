@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ typedef struct _DscussConnection DscussConnection;
 
 /**
  * Callback returns result of a send operation.
+ * Called with priority G_PRIORITY_DEFAULT.
  *
  * @param connection Connection via which we've been trying to send
  *                   the packet.
@@ -85,6 +86,7 @@ typedef void (*DscussConnectionSendCallback)(DscussConnection* connection,
 
 /**
  * Callback used for notifying about incoming packets.
+ * Called with priority G_PRIORITY_DEFAULT.
  *
  * @param connection Connection via which we've been trying to send
  *                   the packet.
@@ -92,11 +94,16 @@ typedef void (*DscussConnectionSendCallback)(DscussConnection* connection,
  * @param result     @c TRUE if the packet has been successfully sent,
  *                   @c FALSE otherwise.
  * @param user_data  The user data.
+ *
+ * @return  If @a result is @c TRUE:
+ *          @c TRUE to continue receiving packets,
+ *          @c FALSE to stop receiving packets.
+ *          If @a result is @c FALSE, the return value is ignored.
  */
-typedef void (*DscussConnectionReceiveCallback)(DscussConnection* connection,
-                                                DscussPacket* packet,
-                                                gboolean result,
-                                                gpointer user_data);
+typedef gboolean (*DscussConnectionReceiveCallback)(DscussConnection* connection,
+                                                    DscussPacket* packet,
+                                                    gboolean result,
+                                                    gpointer user_data);
 
 /**
  * Creates a new connection.
@@ -150,7 +157,8 @@ dscuss_connection_get_description (DscussConnection* connection);
  * data from the connection.
  *
  * @param connection Connection to receive packets from.
- * @param callback   Function to call when new packet received.
+ * @param callback   Function to call when new packet received
+ *                   (can't be @c NULL).
  * @param user_data  User data to pass to the callback.
  */
 void

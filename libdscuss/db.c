@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,6 +90,7 @@ dscuss_db_open (const gchar* filename)
                         "  nickname        TEXT NOT NULL,"
                         "  info            TEXT,"
                         "  timestamp       INTEGER NOT NULL,"
+                        "  signature_len   INTEGER NOT NULL,"
                         "  signature       BLOB NOT NULL)") ||
       !db_sqlite3_exec (sql_dbh,
                         "CREATE TABLE IF NOT EXISTS  message ("
@@ -99,6 +100,7 @@ dscuss_db_open (const gchar* filename)
                         "  timestamp       UNSIGNED BIG INT NOT NULL,"
                         "  author_id       BLOB NOT NULL,"
                         "  in_reply_to     BLOB NOT NULL,"
+                        "  signature_len   INTEGER NOT NULL,"
                         "  signature       BLOB NOT NULL,"
                         "  FOREIGN KEY (author_id) REFERENCES user(id))") ||
       !db_sqlite3_exec (sql_dbh,
@@ -109,6 +111,7 @@ dscuss_db_open (const gchar* filename)
                         "  comment         TEXT,"
                         "  author_id       BLOB NOT NULL,"
                         "  timestamp       UNSIGNED BIG INT NOT NULL,"
+                        "  signature_len   INTEGER NOT NULL,"
                         "  signature       BLOB NOT NULL,"
                         "  FOREIGN KEY (author_id) REFERENCES user(id))") ||
       !db_sqlite3_exec (sql_dbh,
@@ -184,7 +187,7 @@ dscuss_db_close (DscussDb* dbh)
 
 
 gboolean
-dscuss_db_put_user (DscussDb* dbh, const DscussUser* user)
+dscuss_db_put_user (DscussDb* dbh, DscussUser* user)
 {
   sqlite3_stmt *stmt;
   gchar* pubkey_digest = NULL;
@@ -210,8 +213,15 @@ dscuss_db_put_user (DscussDb* dbh, const DscussUser* user)
 
   if (db_sqlite3_prepare (dbh,
           "INSERT INTO user "
-          "(id, public_key, proof, nickname, info, timestamp, signature) "
-          "VALUES (?, ?, ?, ?, ?, ?, ?)", &stmt) != SQLITE_OK)
+          "( id,"
+          "  public_key,"
+          "  proof,"
+          "  nickname,"
+          "  info,"
+          "  timestamp,"
+          "  signature_len,"
+          "  signature) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", &stmt) != SQLITE_OK)
     {
       g_warning ("Failed to prepare `put_user' statement with error: %s.",
                  sqlite3_errmsg(dbh));
@@ -237,7 +247,9 @@ dscuss_db_put_user (DscussDb* dbh, const DscussUser* user)
                                          -1, SQLITE_TRANSIENT)) ||
        (SQLITE_OK != sqlite3_bind_int64 (stmt, 6,
                                          timestamp)) ||
-       (SQLITE_OK != sqlite3_bind_blob  (stmt, 7,
+       (SQLITE_OK != sqlite3_bind_int   (stmt, 7,
+                                         dscuss_user_get_signature_length (user))) ||
+       (SQLITE_OK != sqlite3_bind_blob  (stmt, 8,
                                          dscuss_user_get_signature (user),
                                          sizeof (struct DscussSignature),
                                          SQLITE_TRANSIENT)) )
@@ -284,7 +296,13 @@ dscuss_db_get_user (DscussDb* dbh, const DscussHash* id)
   g_debug ("Fetching user with id `%s' from the database.",
            dscuss_crypto_hash_to_string (id));
   if (db_sqlite3_prepare (dbh,
-                  "SELECT public_key, proof, nickname, info, timestamp, signature "
+                  "SELECT public_key,"
+                  "       proof,"
+                  "       nickname,"
+                  "       info,"
+                  "       timestamp,"
+                  "       signature_len,"
+                  "       signature "
                   "FROM user WHERE id=?",
                   &stmt) != SQLITE_OK)
     {
@@ -304,7 +322,7 @@ dscuss_db_get_user (DscussDb* dbh, const DscussHash* id)
       g_debug ("No such user in the database.");
       goto out;
     }
-  if ( (sqlite3_column_bytes (stmt, 5) !=
+  if ( (sqlite3_column_bytes (stmt, 6) !=
         sizeof (struct DscussSignature)) )
     {
       g_warning ("Database is corrupted: wrong signature size.");
@@ -331,7 +349,8 @@ dscuss_db_get_user (DscussDb* dbh, const DscussHash* id)
                           (const gchar*) sqlite3_column_text  (stmt, 2),
                           (const gchar*) sqlite3_column_text  (stmt, 3),
                           datetime,
-                          (struct DscussSignature *) sqlite3_column_blob  (stmt, 5));
+                          (struct DscussSignature *) sqlite3_column_blob  (stmt, 6),
+                          sqlite3_column_int (stmt, 5));
   if (user == NULL)
     g_warning ("Failed to create a user entity.");
 
@@ -341,7 +360,7 @@ out:
                         dscuss_crypto_public_key_free);
   if (SQLITE_OK != sqlite3_finalize (stmt))
     {
-      g_warning ("Failed to finalize `gut_user' statement with error: %s.",
+      g_warning ("Failed to finalize `get_user' statement with error: %s.",
                  sqlite3_errmsg(dbh));
     }
 

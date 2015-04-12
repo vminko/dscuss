@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,6 +79,16 @@ dscuss_topic_new (const gchar* topic_str);
  */
 void
 dscuss_topic_free (DscussTopic* topic);
+
+/**
+ * Copy a topic. Increments reference count to the object.
+ *
+ * @param topic  Topic to copy.
+ *
+ * @return  Copy of the topic.
+ */
+DscussTopic*
+dscuss_topic_copy (DscussTopic* topic);
 
 /**
  * Convert a topic to a string of comma-separated tags.

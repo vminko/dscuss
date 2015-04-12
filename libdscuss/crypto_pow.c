@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -416,4 +416,24 @@ dscuss_crypto_pow_stop_finding ()
                         pow_find_context_free);
   find_callback = NULL;
   find_data = NULL;
+}
+
+
+gboolean
+dscuss_crypto_pow_validate (const DscussPublicKey* pubkey,
+                            guint64 proof)
+{
+  gchar* digest = NULL;
+  gsize digest_len;
+  gboolean result = FALSE;
+
+  if (!dscuss_crypto_public_key_to_der (pubkey, &digest, &digest_len))
+    {
+      g_warning ("Failed to serialize public key");
+      return FALSE;
+    }
+  result = pow_is_valid (digest, digest_len, proof);
+  g_free (digest);
+
+  return result;
 }

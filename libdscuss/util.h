@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,6 +86,39 @@ dscuss_util_uninit (void);
  */
 const gchar*
 dscuss_util_get_data_dir (void);
+
+/**
+ * Converts a binary data to a hexademical string.
+ *
+ * @param data      Pointer to the data to convert.
+ * @param data_len  Length of the data.
+ * @param buffer    Optional buffer for writing the result,
+ *                  must be at least @c data_len * 2 + 1 bytes in size.
+ *                  If no buffer is specified, the memory for the string
+ *                  will be allocated.
+ *
+ * @return  Address of the hexademical string (@a buffer of newly allocated
+ *          string if buffer was not specified).
+ * the data.
+ */
+gchar*
+dscuss_data_to_hex (const gpointer data, gsize data_len, gchar* buffer);
+
+/**
+ * Joins a number of strings together to form one long string, with a
+ * separator inserted between each of them.
+ *
+ * @param separator      A string to insert between each of the strings.
+ * @param str_array      Array of strings to join.
+ * @param str_array_len  Length of the @a str_array_len.
+ *
+ * @return  A newly-allocated string containing all of the strings joined
+ * together (should be freed with g_free()).
+ */
+gchar *
+dscuss_strnjoinv (const gchar *separator,
+                  gchar **str_array,
+                  gsize str_array_len);
 
 
 #ifdef __cplusplus

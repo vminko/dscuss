@@ -61,6 +61,16 @@ dscuss_subscriptions_read (const gchar* filename);
 void
 dscuss_subscriptions_free (GSList* subscriptions);
 
+/**
+ * Copies user subscriptions.
+ *
+ * @param topic  Subsciptions to copy.
+ *
+ * @return  Copy of the subscriptions.
+ */
+GSList*
+dscuss_subscriptions_copy (GSList* subscriptions);
+
 
 #ifdef __cplusplus
 }

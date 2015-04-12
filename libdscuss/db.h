@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ dscuss_db_close (DscussDb* dbh);
  * @return  @c TRUE on success, @c FALSE on error.
  */
 gboolean
-dscuss_db_put_user (DscussDb* dbh, const DscussUser* user);
+dscuss_db_put_user (DscussDb* dbh, DscussUser* user);
 
 /**
  * Fetch a user from the database.

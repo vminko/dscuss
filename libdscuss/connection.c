@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -120,7 +120,6 @@ connecion_send_context_new (DscussConnection* connection,
   dscuss_packet_serialize (packet,
                            &ctx->buffer,
                            &ctx->length);
-  g_debug ("DEBUG send_cont_new %" G_GSSIZE_FORMAT, ctx->length);
   ctx->offset = 0;
   return ctx;
 }
@@ -232,7 +231,7 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
       if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         {
           g_debug ("Could not write to the connection:"
-                   " operation was cancelled");
+                   " operation was canceled");
           g_error_free (error);
           return;
         }
@@ -316,14 +315,20 @@ dscuss_connection_send (DscussConnection* connection,
 
 
 static void
+connection_clear_receive_callbacks (DscussConnection* connection)
+{
+  connection->receive_callback = NULL;
+  connection->receive_data = NULL;
+}
+
+
+static void
 istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
 {
   GInputStream* in = G_INPUT_STREAM (source);
   DscussConnection* connection = user_data;
   GError* error = NULL;
   gssize nread;
-
-          g_debug ("read_cb CALLED");
 
   nread = g_input_stream_read_finish (in, res, &error);
   if (nread == -1)
@@ -342,6 +347,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                                     NULL,
                                     FALSE,
                                     connection->receive_data);
+      connection_clear_receive_callbacks (connection);
       return;
     }
   if (nread == 0)
@@ -353,6 +359,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                                     NULL,
                                     FALSE,
                                     connection->receive_data);
+      connection_clear_receive_callbacks (connection);
       return;
     }
 
@@ -385,6 +392,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                                             NULL,
                                             FALSE,
                                             connection->receive_data);
+              connection_clear_receive_callbacks (connection);
               return;
             }
           if (packet_size > dscuss_header_get_size ())
@@ -409,13 +417,16 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                                         NULL,
                                         FALSE,
                                         connection->receive_data);
+          connection_clear_receive_callbacks (connection);
           return;
         }
-      connection->receive_callback (connection,
-                                    packet,
-                                    TRUE,
-                                    connection->receive_data);
-      read_packet (connection);
+      if (connection->receive_callback (connection,
+                                        packet,
+                                        TRUE,
+                                        connection->receive_data))
+        read_packet (connection);
+      else
+        connection_clear_receive_callbacks (connection);
     }
   else
     {
@@ -436,7 +447,7 @@ read_packet (DscussConnection* connection)
   GInputStream* in = NULL;
 
   g_assert (connection != NULL);
-  g_debug ("Trying to read from the connection '%s' %" G_GSIZE_FORMAT,
+  g_debug ("Trying to read from the connection '%s' %" G_GSIZE_FORMAT " bytes",
             dscuss_connection_get_description (connection),
             dscuss_header_get_size ());
   in = g_io_stream_get_input_stream (G_IO_STREAM (connection->socket_connection));
@@ -454,15 +465,15 @@ dscuss_connection_set_receive_callback (DscussConnection* connection,
                                         gpointer user_data)
 {
   g_assert (connection != NULL);
-  if (connection->receive_callback != NULL ||
-      connection->receive_data != NULL)
-    {
-      g_warning ("Attempt to override DscussConnectionReceiveCallback");
-      return;
-    }
+  g_assert (callback != NULL);
+
+  gboolean start_reading = (connection->receive_callback == NULL);
+
   connection->receive_callback = callback;
   connection->receive_data = user_data;
-  read_packet (connection);
+
+  if (start_reading)
+    read_packet (connection);
 }
 
 

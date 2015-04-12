@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -105,22 +105,6 @@ dscuss_packet_new (DscussPacketType type,
                    gsize payload_size);
 
 /**
- * Create new packet with known signature.
- *
- * @param type          Packet type.
- * @param payload       Payload of the packet.
- * @param payload_size  Size of @a payload.
- * @param signature     Signature of the packet.
- *
- * @return  The newly created packet.
- */
-DscussPacket*
-dscuss_packet_new_full (DscussPacketType type,
-                        const gchar* payload,
-                        gsize payload_size,
-                        const struct DscussSignature* signature);
-
-/**
  * Destroy a packet (free allocated memory).
  *
  * @param  The packet to free.
@@ -194,6 +178,16 @@ dscuss_packet_get_payload (const DscussPacket* packet,
  */
 const struct DscussSignature*
 dscuss_packet_get_signature (const DscussPacket* packet);
+
+/**
+ * Get length of the signature of the packet.
+ *
+ * @param packet  Packet to get length from.
+ *
+ * @return  The length of the signature of the packet.
+ */
+gsize
+dscuss_packet_get_signature_length (const DscussPacket* packet);
 
 /**
  * Compose a one-line text description of a packet.

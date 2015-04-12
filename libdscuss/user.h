@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,12 +55,13 @@ typedef struct _DscussUser DscussUser;
 /**
  * Creates a new user entity.
  *
- * @param pubkey     User's public key.
- * @param proof      Proof-of-work for the @a pubkey.
- * @param nickname   User's nickname.
- * @param info       Additional information about the user.
- * @param datetime   Registration date and time.
- * @param signature  Signature of the entity.
+ * @param pubkey         User's public key.
+ * @param proof          Proof-of-work for the @a pubkey.
+ * @param nickname       User's nickname.
+ * @param info           Additional information about the user.
+ * @param datetime       Registration date and time.
+ * @param signature      Signature of the entity.
+ * @param signature_len  Length of the signature.
  *
  * @return  Newly created user entity.
  */
@@ -70,7 +71,8 @@ dscuss_user_new (const DscussPublicKey* pubkey,
                  const gchar* nickname,
                  const gchar* info,
                  GDateTime* datetime,
-                 const struct DscussSignature* signature);
+                 const struct DscussSignature* signature,
+                 gsize signature_len);
 
 /**
  * Emerge a new user entity. It should only be called when signature is not
@@ -95,7 +97,7 @@ dscuss_user_emerge (const DscussPrivateKey* privkey,
  * Destroys a user entity.
  * Frees all memory allocated by the entity.
  *
- * @ param user  User to be destroyed.
+ * @param user  User to be destroyed.
  */
 void
 dscuss_user_free (DscussUser* user);
@@ -194,7 +196,7 @@ dscuss_user_get_info (const DscussUser* user);
  * @return  Date and time when the user was registered.
  */
 GDateTime*
-dscuss_user_get_datetime (const DscussUser* user);
+dscuss_user_get_datetime (DscussUser* user);
 
 /**
  * Returns signature the user.
@@ -205,6 +207,16 @@ dscuss_user_get_datetime (const DscussUser* user);
  */
 const struct DscussSignature*
 dscuss_user_get_signature (const DscussUser* user);
+
+/**
+ * Returns length of the signature of the user.
+ *
+ * @param user  User to get length from.
+ *
+ * @return  The length of the signature of the user.
+ */
+gsize
+dscuss_user_get_signature_length (const DscussUser* user);
 
 
 #ifdef __cplusplus

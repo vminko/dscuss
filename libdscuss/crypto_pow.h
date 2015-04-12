@@ -86,6 +86,20 @@ void
 dscuss_crypto_pow_stop_finding (void);
 
 
+/**
+ * Validates proof of work.
+ *
+ * @param pubkey     Public key to find proof for.
+ * @param proof       proof-of-work if @a result is @c TRUE, @c 0 otherwise.
+ *
+ * @return @c TRUE if given @a proof is valid for specified @a pubkey,
+ *         @c FALSE otherwise.
+ */
+gboolean
+dscuss_crypto_pow_validate (const DscussPublicKey* pubkey,
+                            guint64 proof);
+
+
 #ifdef __cplusplus
 }
 #endif

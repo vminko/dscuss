@@ -31,7 +31,7 @@
 #include "crypto.h"
 
 
-#define CURVE NID_secp224r1
+#define DSCUSS_CRYPTO_CURVE NID_secp224r1
 
 
 DscussPrivateKey*
@@ -39,7 +39,7 @@ dscuss_crypto_private_key_new ()
 {
   EC_KEY* eckey = NULL;
 
-  eckey = EC_KEY_new_by_curve_name (NID_secp224r1);
+  eckey = EC_KEY_new_by_curve_name (DSCUSS_CRYPTO_CURVE);
   if (NULL == eckey)
     {
       g_warning ("Failed to create new EC key");
@@ -246,7 +246,7 @@ dscuss_crypto_public_key_to_der (const DscussPublicKey* pubkey,
   g_assert (digest != NULL);
   g_assert (digest_len != NULL);
 
-  eckey = EC_KEY_new_by_curve_name (CURVE);
+  eckey = EC_KEY_new_by_curve_name (DSCUSS_CRYPTO_CURVE);
   if (eckey == NULL)
     {
       g_warning ("Failed to create new EC_KEY");
@@ -345,7 +345,7 @@ DscussPublicKey*
 dscuss_crypto_public_key_copy (const DscussPublicKey* pubkey)
 {
   DscussPublicKey* result = NULL;
-  EC_GROUP* group = EC_GROUP_new_by_curve_name(CURVE);
+  EC_GROUP* group = EC_GROUP_new_by_curve_name(DSCUSS_CRYPTO_CURVE);
   result = EC_POINT_dup (pubkey, group);
   EC_GROUP_free (group);
   return result;
@@ -371,9 +371,10 @@ gboolean
 dscuss_crypto_sign (const gchar* digest,
                     gsize digest_len,
                     const DscussPrivateKey* privkey,
-                    struct DscussSignature* signature)
+                    struct DscussSignature* signature,
+                    gsize* signature_len)
 {
-  guint buf_len;
+  guint signature_len_uint = 0;
 
   g_assert (digest != NULL);
   g_assert (privkey != NULL);
@@ -383,12 +384,14 @@ dscuss_crypto_sign (const gchar* digest,
                    (unsigned char*) digest,
                    (int) digest_len,
                    (unsigned char*) signature,
-                   &buf_len,
+                   &signature_len_uint,
                    (DscussPrivateKey*) privkey))
   {
     g_warning ("Failed to generate EC signature");
     return FALSE;
   }
+
+  *signature_len = signature_len_uint;
 
   return TRUE;
 }
@@ -398,7 +401,8 @@ gboolean
 dscuss_crypto_verify (const gchar* digest,
                       gsize digest_len,
                       const DscussPublicKey* pubkey,
-                      const struct DscussSignature* signature)
+                      const struct DscussSignature* signature,
+                      gsize signature_len)
 {
   EC_KEY* eckey = NULL;
   gint res = 0;
@@ -407,7 +411,7 @@ dscuss_crypto_verify (const gchar* digest,
   g_assert (pubkey != NULL);
   g_assert (signature != NULL);
 
-  eckey = EC_KEY_new_by_curve_name (NID_secp224r1);
+  eckey = EC_KEY_new_by_curve_name (DSCUSS_CRYPTO_CURVE);
   if (eckey == NULL)
     {
       g_warning ("Failed to create new EC key");
@@ -424,7 +428,7 @@ dscuss_crypto_verify (const gchar* digest,
                       (const unsigned char*)digest,
                       (int)digest_len,
                       (unsigned char*) signature,
-                      sizeof (struct DscussSignature),
+                      signature_len,
                       eckey);
   if (res == -1)
   {

@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,8 @@
  * @file peer.h  A peer connected to us.
  * @brief Peer provides a high-level API for communication with other nodes:
  * sending/receiving entities, syncing, etc.  All peers are handled by core.
- * Once a new connection is established, it tries to perform a handshake with
- * the other side. In case of success, the peer gets passed to the core.  Once
- * a peer gets disconnected, the network subsystem is notified via @c
+ * Once a new peer connection is established, the peer gets passed to the core.
+ * Once a peer gets disconnected, the network subsystem is notified via @c
  * disconn_callback callback.
  */
 
@@ -43,6 +42,8 @@
 
 #include <glib.h>
 #include "entity.h"
+#include "user.h"
+#include "db.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,13 +101,17 @@ typedef void (*DscussPeerDisconnectCallback)(DscussPeer* peer,
                                              gpointer user_data);
 
 /**
- * Callback used for notifying the network subsystem that we've successfully
- * handshaked with this peer.
+ * Callback used for notifying that handshaking is over.
+ * If handshake failed, connection with the peer is closed.
+ * No more sending/receiving operations can be performed.
  *
  * @param peer         Peer which we've handshaked with.
+ * @param result       @c TRUE if the handshaking was successful,
+ *                     @c FALSE otherwise.
  * @param user_data    The user data.
  */
 typedef void (*DscussPeerHandshakeCallback)(DscussPeer* peer,
+                                            gboolean result,
                                             gpointer user_data);
 
 /**
@@ -159,9 +164,7 @@ DscussPeer*
 dscuss_peer_new (GSocketConnection* socket_connection,
                  gboolean is_incoming,
                  DscussPeerDisconnectCallback disconn_callback,
-                 gpointer disconn_data,
-                 DscussPeerHandshakeCallback handshake_callback,
-                 gpointer handshake_data);
+                 gpointer disconn_data);
 
 /**
  * Frees all memory allocated by the peer. Closes connection with the node.
@@ -206,7 +209,6 @@ dscuss_peer_get_description (DscussPeer* peer);
 const gchar*
 dscuss_peer_get_connecton_description (DscussPeer* peer);
 
-
 /**
  * Sets callback for notification about incoming entities and starts reading
  * data from the peer.
@@ -219,6 +221,37 @@ void
 dscuss_peer_set_receive_callback (DscussPeer* peer,
                                   DscussPeerReceiveCallback callback,
                                   gpointer user_data);
+
+/**
+ * Request performing handshake with the peer.
+ *
+ * @param peer           Peer to handshake with.
+ * @param user           The user we are logged under.
+ * @param privkey        The private key of the user (for signing packets).
+ * @param subscriptions  List of the topics the user is subscribed to.
+ * @param dbh            Handle for the database connection.
+ * @param callback       Function to call when handshaking is over.
+ * @param user_data      User data to pass to the callback.
+ */
+void
+dscuss_peer_handshake (DscussPeer* peer,
+                       const DscussUser* user,
+                       DscussPrivateKey* privkey,
+                       GSList* subscriptions,
+                       DscussDb* dbh,
+                       DscussPeerHandshakeCallback callback,
+                       gpointer user_data);
+
+/**
+ * Shows whether peer is handshaked.
+ *
+ * @param peer  Peer to investigate.
+ *
+ * @return @c TRUE is we've already handshaked with this peer,
+ *         @c FALSE otherwise.
+ */
+gboolean
+dscuss_peer_is_handshaked (DscussPeer* peer);
 
 
 #ifdef __cplusplus

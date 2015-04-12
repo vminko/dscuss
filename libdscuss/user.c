@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "user.h"
 #include "util.h"
 #include "crypto.h"
+#include "crypto_pow.h"
 
 #define DSCUSS_USER_DESCRIPTION_MAX_LEN 120
 
@@ -77,6 +78,10 @@ struct _DscussUser
    */
   GDateTime* datetime;
   /**
+   * Length of the signature.
+   */
+  gsize signature_len;
+  /**
    * Signature of the serialized entity.
    */
   struct DscussSignature signature;
@@ -109,8 +114,8 @@ struct _DscussUserNBO
   gint64 timestamp;
   /**
    * After this struct go public key, nickname, (optionally) additional
-   * information and finally signature of the entity covering everything from
-   * the beginning of the struct.
+   * information and finally the signature of the entity covering everything
+   * from the beginning of the struct.
    */
 };
 
@@ -137,6 +142,7 @@ user_new_but_signature (const DscussPublicKey* pubkey,
   if (user->info != NULL)
     user->info = g_strdup (info);
   user->datetime = g_date_time_ref (datetime);
+  user->signature_len = 0;
 
   if (!dscuss_crypto_public_key_to_der (pubkey,
                                         &pubkey_digest,
@@ -226,7 +232,8 @@ dscuss_user_new (const DscussPublicKey* pubkey,
                  const gchar* nickname,
                  const gchar* info,
                  GDateTime* datetime,
-                 const struct DscussSignature* signature)
+                 const struct DscussSignature* signature,
+                 gsize signature_len)
 {
   g_assert (signature != NULL);
   DscussUser* user = user_new_but_signature (pubkey,
@@ -237,6 +244,7 @@ dscuss_user_new (const DscussPublicKey* pubkey,
   memcpy (&user->signature,
           signature,
           sizeof (struct DscussSignature));
+  user->signature_len = signature_len;
   return user;
 }
 
@@ -279,7 +287,8 @@ dscuss_user_emerge (const DscussPrivateKey* privkey,
   if (!dscuss_crypto_sign (all_but_signature,
                            all_but_signature_size,
                            privkey,
-                           &user->signature))
+                           &user->signature,
+                           &user->signature_len))
     {
       g_warning ("Failed to sign serialized user entity");
       g_free (all_but_signature);
@@ -307,6 +316,51 @@ dscuss_user_free (DscussUser* user)
 }
 
 
+static void
+user_dump (const DscussUser* user)
+{
+  gchar* datetime_str = NULL;
+  gchar* signature_str = NULL;
+  gchar* pubkey_digest = NULL;
+  gsize pubkey_digest_len = 0;
+  gchar* pubkey_str = NULL;
+
+  g_assert (user != NULL);
+
+  datetime_str = g_date_time_format (user->datetime,
+                                     "%F %T");
+  signature_str = dscuss_data_to_hex ((const gpointer) &user->signature,
+                                      sizeof (struct DscussSignature),
+                                      NULL);
+  dscuss_crypto_public_key_to_der (user->pubkey,
+                                   &pubkey_digest,
+                                   &pubkey_digest_len);
+  pubkey_str = dscuss_data_to_hex ((const gpointer) pubkey_digest,
+                                   pubkey_digest_len,
+                                   NULL);
+
+  g_debug ("Dumping User entity:");
+  g_debug ("  type = %d", user->type);
+  g_debug ("  ref_count = %u", user->ref_count);
+  g_debug ("  pubkey = %s", pubkey_str);
+  g_debug ("  id = %s", dscuss_crypto_hash_to_string (&user->id));
+  g_debug ("  proof = %" G_GUINT64_FORMAT, user->proof);
+  g_debug ("  nickname = '%s'", user->nickname);
+  if (user->info != NULL)
+    g_debug ("  info = '%s'", user->info);
+  else
+    g_debug ("  info = N/A");
+  g_debug ("  datetime = '%s'", datetime_str);
+  g_debug ("  signature = %s", signature_str);
+  g_debug ("  signature_len = %" G_GSIZE_FORMAT, user->signature_len);
+
+  g_free (pubkey_digest);
+  g_free (datetime_str);
+  g_free (signature_str);
+  g_free (pubkey_str);
+}
+
+
 gboolean
 dscuss_user_serialize (const DscussUser* user,
                        gchar** data,
@@ -315,10 +369,13 @@ dscuss_user_serialize (const DscussUser* user,
   gchar* all_but_signature = NULL;
   gsize all_but_signature_size = 0;
   gchar* digest = NULL;
+  guint16 signature_len_nbo = 0;
 
   g_assert (user != NULL);
   g_assert (data != NULL);
   g_assert (size != NULL);
+
+  user_dump (user);
 
   /* Serialize everything except signature first */
   if (!user_serialize_all_but_signature (user,
@@ -329,15 +386,22 @@ dscuss_user_serialize (const DscussUser* user,
       return FALSE;
     }
 
-  *size = all_but_signature_size + sizeof (struct DscussSignature);
+  *size = all_but_signature_size
+        + sizeof (signature_len_nbo)
+        + sizeof (struct DscussSignature);
   digest = g_malloc0 (*size);
   *data = digest;
   memcpy (digest,
           all_but_signature,
           all_but_signature_size);
+  signature_len_nbo = g_htons (user->signature_len);
   memcpy (digest + all_but_signature_size,
+          &signature_len_nbo,
+          sizeof (signature_len_nbo));
+  memcpy (digest + all_but_signature_size + sizeof (signature_len_nbo),
           &user->signature,
           sizeof (struct DscussSignature));
+  g_free (all_but_signature);
 
   return TRUE;
 }
@@ -358,11 +422,12 @@ dscuss_user_deserialize (const gchar* data,
   gchar* info = NULL;
   GDateTime* datetime = NULL;
   struct DscussSignature signature;
+  guint16 signature_len_nbo = 0;
   DscussUser* user = NULL;
 
   g_assert (data != NULL);
 
-  if (size <= sizeof (struct _DscussUserNBO))
+  if (size < sizeof (struct _DscussUserNBO))
     {
       g_warning ("Size of the raw data is too small."
                  " Actual size: %" G_GSIZE_FORMAT
@@ -394,6 +459,7 @@ dscuss_user_deserialize (const gchar* data,
           nickname_len);
   nickname[nickname_len] = '\0';
   digest += nickname_len;
+  /* TBD: validate nickname */
 
   /* Parse info if any */
   info_len = g_ntohs (user_nbo->info_len);
@@ -403,12 +469,17 @@ dscuss_user_deserialize (const gchar* data,
       memcpy (info, digest, info_len);
       info[info_len] = '\0';
       digest += info_len;
+      /* TBD: validate info */
     }
 
   /* Parse timestamp */
   datetime = g_date_time_new_from_unix_utc (dscuss_ntohll (user_nbo->timestamp));
 
   /* Parse signature */
+  memcpy (&signature_len_nbo,
+          digest,
+          sizeof (signature_len_nbo));
+  digest += sizeof (signature_len_nbo);
   memcpy (&signature,
           digest,
           sizeof (struct DscussSignature));
@@ -418,7 +489,8 @@ dscuss_user_deserialize (const gchar* data,
                           nickname,
                           info,
                           datetime,
-                          &signature);
+                          &signature,
+                          g_ntohs (signature_len_nbo));
 
   dscuss_crypto_public_key_free (pubkey);
   g_free (nickname);
@@ -426,7 +498,32 @@ dscuss_user_deserialize (const gchar* data,
     g_free (info);
   g_date_time_unref (datetime);
 
+  user_dump (user);
+
+  /* Validate PoW and signature */
+ if (!dscuss_crypto_verify (data,
+                            size - sizeof (struct DscussSignature)
+                              - sizeof (signature_len_nbo),
+                            user->pubkey,
+                            &user->signature,
+                            user->signature_len))
+   {
+      g_warning ("Invalid signature of the user");
+      goto invalid;
+   }
+ if (!dscuss_crypto_pow_validate (user->pubkey,
+                                  user->proof))
+    {
+      g_warning ("Invalid PoW of the user");
+      goto invalid;
+    }
+
+
   return user;
+
+invalid:
+  dscuss_user_free (user);
+  return NULL;
 }
 
 
@@ -483,7 +580,7 @@ dscuss_user_get_info (const DscussUser* user)
 
 
 GDateTime*
-dscuss_user_get_datetime (const DscussUser* user)
+dscuss_user_get_datetime (DscussUser* user)
 {
   g_assert (user != NULL);
   return user->datetime;
@@ -495,4 +592,11 @@ dscuss_user_get_signature (const DscussUser* user)
 {
   g_assert (user != NULL);
   return &user->signature;
+}
+
+gsize
+dscuss_user_get_signature_length (const DscussUser* user)
+{
+  g_assert (user != NULL);
+  return user->signature_len;
 }

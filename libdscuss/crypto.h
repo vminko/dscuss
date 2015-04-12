@@ -166,10 +166,11 @@ dscuss_crypto_public_key_free (DscussPublicKey* pubkey);
 /**
  * Sign a digest.
  *
- * @param digest     Address of the digest to sign.
- * @param digest_len Length of the @a digest.
- * @param privkey    Private key to use for signing.
- * @param signature  Where to write the signature (output parameter).
+ * @param digest         Address of the digest to sign.
+ * @param digest_len     Length of the @a digest.
+ * @param privkey        Private key to use for signing.
+ * @param signature      Where to write the signature (output parameter).
+ * @param signature_len  Length of the signature written (output parameter).
  *
  * @return @c TRUE in case of success, or @c FALSE on error.
  */
@@ -177,15 +178,17 @@ gboolean
 dscuss_crypto_sign (const gchar* digest,
                     gsize digest_len,
                     const DscussPrivateKey* privkey,
-                    struct DscussSignature* signature);
+                    struct DscussSignature* signature,
+                    gsize* signature_len);
 
 /**
  * Verify a signature.
  *
- * @param digest     Address of the digest to verify.
- * @param digest_len Length of the @a digest.
- * @param pubkey     Public key of the signer.
- * @param signature  Signature to verify.
+ * @param digest         Address of the digest to verify.
+ * @param digest_len     Length of the @a digest.
+ * @param pubkey         Public key of the signer.
+ * @param signature      Signature to verify.
+ * @param signature_len  Length of the signature.
  *
  * @return @c TRUE if signature is valid, or @c FALSE on error.
  */
@@ -193,7 +196,8 @@ gboolean
 dscuss_crypto_verify (const gchar* digest,
                       gsize digest_len,
                       const DscussPublicKey* pubkey,
-                      const struct DscussSignature* signature);
+                      const struct DscussSignature* signature,
+                      gsize signature_len);
 
 
 #ifdef __cplusplus
