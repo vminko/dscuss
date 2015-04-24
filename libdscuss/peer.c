@@ -317,7 +317,7 @@ dscuss_peer_get_description (DscussPeer* peer)
                                    sizeof (DscussHash),
                                    NULL);
       id_str[5] = '\0';
-      g_snprintf (description_buf, 
+      g_snprintf (description_buf,
                   DSCUSS_PEER_DESCRIPTION_MAX_LEN,
                   "%s-%s",
                   dscuss_user_get_nickname (peer->user),
@@ -326,7 +326,7 @@ dscuss_peer_get_description (DscussPeer* peer)
     }
   else
     {
-      g_snprintf (description_buf, 
+      g_snprintf (description_buf,
                   DSCUSS_PEER_DESCRIPTION_MAX_LEN,
                   "(not handshaked), %s",
                   dscuss_connection_get_description (peer->connection));

@@ -174,7 +174,7 @@ on_peer_handshaked (DscussPeer* peer,
     {
       g_debug ("Successfully handshaked with peer '%s'.",
                dscuss_peer_get_description (peer));
-       
+
       /* Drop connection if we have already connected to this peer
        * from another address. */
       GSList* iterator = NULL;
@@ -195,7 +195,7 @@ on_peer_handshaked (DscussPeer* peer,
               return;
             }
         }
-       
+
       /* TBD: synchronize with peer */
       dscuss_peer_set_receive_callback (peer,
                                         on_new_entity,

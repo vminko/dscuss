@@ -168,7 +168,7 @@ dscuss_peer_new (GSocketConnection* socket_connection,
                  gpointer disconn_data);
 
 /**
- * Frees all memory allocated by the peer. Closes connection with 
+ * Frees all memory allocated by the peer. Closes connection with
  * the default reason (@c DSCUSS_PEER_DISCONNECT_REASON_CLOSED).
  *
  * @param peer  Peer to free.
@@ -177,7 +177,7 @@ void
 dscuss_peer_free (DscussPeer* peer);
 
 /**
- * Frees a peer with specified reason. 
+ * Frees a peer with specified reason.
  *
  * @param peer         Peer to free.
  * @param reason       Explains why we are terminating connection with this
