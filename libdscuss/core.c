@@ -27,6 +27,7 @@
  * as that of the covered work.
  */
 
+#include <string.h>
 #include "config.h"
 #include "network.h"
 #include "crypto.h"
@@ -67,6 +68,58 @@ struct LoggedUser
 static struct LoggedUser* self = NULL;
 
 
+/*** FreeDuplicatePeerContext *************************************************/
+
+typedef struct FreeDuplicatePeerContext
+{
+  DscussPeer* peer_to_free;
+  const DscussPeer* duplicate_peer;
+} FreeDuplicatePeerContext;
+
+
+static FreeDuplicatePeerContext*
+free_duplicate_peer_context_new (DscussPeer* peer_to_free,
+                                 const DscussPeer* duplicate_peer)
+{
+  FreeDuplicatePeerContext* ctx = g_new0 (FreeDuplicatePeerContext, 1);
+  ctx->peer_to_free = peer_to_free;
+  ctx->duplicate_peer = duplicate_peer;
+  return ctx;
+}
+
+
+static void
+free_duplicate_peer_context_free (FreeDuplicatePeerContext* ctx)
+{
+  g_assert (ctx != NULL);
+  g_free (ctx);
+}
+
+/*** End of FreeDuplicatePeerContext  *****************************************/
+
+
+static gboolean
+free_peer (gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  dscuss_peer_free (peer);
+  return FALSE;
+}
+
+
+static gboolean
+free_duplicate_peer (gpointer user_data)
+{
+  FreeDuplicatePeerContext* ctx = user_data;
+  g_assert (ctx != NULL);
+  dscuss_peer_free_full (ctx->peer_to_free,
+                         DSCUSS_PEER_DISCONNECT_REASON_DUPLICATE,
+                         (gpointer) ctx->duplicate_peer);
+  free_duplicate_peer_context_free (ctx);
+  return FALSE;
+}
+
+
 static void
 on_new_entity (DscussPeer* peer,
                DscussEntity* entity,
@@ -80,7 +133,7 @@ on_new_entity (DscussPeer* peer,
       g_warning ("Failed to read from peer '%s'",
                  dscuss_peer_get_description (peer));
       self->peers = g_slist_remove (self->peers, peer);
-      dscuss_peer_free (peer);
+      g_idle_add (free_peer, peer);
       return;
     }
 
@@ -109,24 +162,40 @@ on_new_entity (DscussPeer* peer,
 }
 
 
-static gboolean
-free_peer (gpointer user_data)
-{
-  DscussPeer* peer = user_data;
-  dscuss_peer_free (peer);
-  return FALSE;
-}
-
-
 static void
 on_peer_handshaked (DscussPeer* peer,
                     gboolean result,
                     gpointer user_data)
 {
+  g_assert (self != NULL);
+  FreeDuplicatePeerContext* free_dup_ctx = NULL;
+
   if (result)
     {
       g_debug ("Successfully handshaked with peer '%s'.",
                dscuss_peer_get_description (peer));
+       
+      /* Drop connection if we have already connected to this peer
+       * from another address. */
+      GSList* iterator = NULL;
+      for (iterator = self->peers; iterator; iterator = iterator->next)
+        {
+          DscussPeer* ipeer = iterator->data;
+          if (peer != ipeer &&
+              dscuss_peer_is_handshaked (ipeer) &&
+              !memcmp (dscuss_user_get_id (dscuss_peer_get_user (ipeer)),
+                       dscuss_user_get_id (dscuss_peer_get_user (peer)),
+                       sizeof (DscussHash)))
+            {
+              g_debug ("Already connected with this peer from '%s'.",
+                       dscuss_peer_get_connecton_description (ipeer));
+              self->peers = g_slist_remove (self->peers, peer);
+              free_dup_ctx = free_duplicate_peer_context_new (peer, ipeer);
+              g_idle_add (free_duplicate_peer, free_dup_ctx);
+              return;
+            }
+        }
+       
       /* TBD: synchronize with peer */
       dscuss_peer_set_receive_callback (peer,
                                         on_new_entity,
@@ -240,7 +309,7 @@ register_context_free (RegisterContext* ctx)
   g_free (ctx);
 }
 
-/*** End of PowFindContext ***************************************************/
+/*** End of RegisterContext ***************************************************/
 
 
 static void
@@ -534,6 +603,20 @@ gboolean
 dscuss_is_logged_in (void)
 {
   return (self != NULL);
+}
+
+
+const GSList*
+dscuss_get_peers (void)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_warning ("Can't list peers: not logged in.");
+      return NULL;
+    }
+
+  g_assert (self != NULL);
+  return self->peers;
 }
 
 

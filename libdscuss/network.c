@@ -114,6 +114,8 @@ on_disconnect (DscussPeer* peer,
               g_warning ("Duplicated peer connection '%s' was not found"
                          " in the hash of connected peers'",
                          dscuss_peer_get_description (peer));
+              g_warning ("DEBUG %u",
+                         g_hash_table_size (peers));
               break;
             }
           if (dup_address != NULL)

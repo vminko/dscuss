@@ -262,7 +262,7 @@ dscuss_peer_new (GSocketConnection* socket_connection,
 }
 
 
-static void
+void
 dscuss_peer_free_full (DscussPeer* peer,
                        DscussPeerDisconnectReason reason,
                        gpointer reason_data)
@@ -272,7 +272,7 @@ dscuss_peer_free_full (DscussPeer* peer,
 
   peer->disconn_callback (peer,
                           reason,
-                          NULL,
+                          reason_data,
                           peer->disconn_data);
 
   if (peer->handshake_ctx != NULL)
@@ -296,15 +296,42 @@ dscuss_peer_free (DscussPeer* peer)
 }
 
 
+const DscussUser*
+dscuss_peer_get_user (const DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  return (peer->is_handshaked) ? peer->user : NULL;
+}
+
+
 const gchar*
 dscuss_peer_get_description (DscussPeer* peer)
 {
+  gchar* id_str = NULL;
+
   g_assert (peer != NULL);
-  /* TBD */
-  g_snprintf (description_buf, 
-              DSCUSS_PEER_DESCRIPTION_MAX_LEN,
-              "%s",
-              "TBD: show peer's id");
+
+  if (peer->is_handshaked)
+    {
+      id_str = dscuss_data_to_hex ((const gpointer) dscuss_user_get_id(peer->user),
+                                   sizeof (DscussHash),
+                                   NULL);
+      id_str[5] = '\0';
+      g_snprintf (description_buf, 
+                  DSCUSS_PEER_DESCRIPTION_MAX_LEN,
+                  "%s-%s",
+                  dscuss_user_get_nickname (peer->user),
+                  id_str);
+      g_free (id_str);
+    }
+  else
+    {
+      g_snprintf (description_buf, 
+                  DSCUSS_PEER_DESCRIPTION_MAX_LEN,
+                  "(not handshaked), %s",
+                  dscuss_connection_get_description (peer->connection));
+    }
+
   return description_buf;
 }
 

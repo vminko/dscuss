@@ -177,6 +177,14 @@ gboolean
 dscuss_is_logged_in (void);
 
 /**
+ * Returns list of connected peers. Should be called only after logging.
+ *
+ * @return  List of connected peers.
+ */
+const GSList*
+dscuss_get_peers (void);
+
+/**
  * Send a message to the network.
  *
  * Actually the message will be just copied the outgoing buffer. So it does not

@@ -301,6 +301,28 @@ do_logout (const gchar* args, gboolean* disable_input)
 
 
 static gboolean
+do_list_peers (const gchar* args, gboolean* disable_input)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+    }
+  else
+    {
+      const GSList* peers = dscuss_get_peers ();
+      const GSList* iterator = NULL;
+      for (iterator = peers; iterator; iterator = iterator->next)
+        {
+          DscussPeer* peer = iterator->data;
+          g_printf ("%s\n", dscuss_peer_get_description (peer));
+        }
+    }
+
+  return TRUE;
+}
+
+
+static gboolean
 do_unknown (const gchar* args, gboolean* disable_input)
 {
   g_printf ("Unknown command `%s'\n", args);
@@ -345,6 +367,8 @@ static struct DscussCommand commands[] = {
    "Use `login <nickname>' to login as user <nickname>."},
   {"logout", &do_logout,
    "Use `logout' to logout from the network."},
+  {"lspeer", &do_list_peers,
+   "Use `lspeer to list connected peers."},
   {"quit",  &do_quit,
    "Use `quit' to terminate " PROG_NAME "."},
   {"help",  &do_help,

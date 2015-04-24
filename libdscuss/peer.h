@@ -42,6 +42,7 @@
 
 #include <glib.h>
 #include "entity.h"
+#include "connection.h"
 #include "user.h"
 #include "db.h"
 
@@ -167,12 +168,28 @@ dscuss_peer_new (GSocketConnection* socket_connection,
                  gpointer disconn_data);
 
 /**
- * Frees all memory allocated by the peer. Closes connection with the node.
+ * Frees all memory allocated by the peer. Closes connection with 
+ * the default reason (@c DSCUSS_PEER_DISCONNECT_REASON_CLOSED).
  *
- * @param connection A connection whose memory is going to be freed.
+ * @param peer  Peer to free.
  */
 void
 dscuss_peer_free (DscussPeer* peer);
+
+/**
+ * Frees a peer with specified reason. 
+ *
+ * @param peer         Peer to free.
+ * @param reason       Explains why we are terminating connection with this
+ *                     peer.
+ * @param reason_data  Reason-specific data.
+ *                     Must be the duplicate peer if @a reason is
+ *                     @c DSCUSS_PEER_DISCONNECT_REASON_DUPLICATE.
+ */
+void
+dscuss_peer_free_full (DscussPeer* peer,
+                       DscussPeerDisconnectReason reason,
+                       gpointer reason_data);
 
 /**
  * Send an entity to the connected peer.
@@ -244,6 +261,7 @@ dscuss_peer_handshake (DscussPeer* peer,
 
 /**
  * Shows whether peer is handshaked.
+ * Peer's user is unknown until peer is handshaked.
  *
  * @param peer  Peer to investigate.
  *
@@ -252,6 +270,16 @@ dscuss_peer_handshake (DscussPeer* peer,
  */
 gboolean
 dscuss_peer_is_handshaked (DscussPeer* peer);
+
+/**
+ * Returns peer's user. Should be called after handshaking.
+ *
+ * @param peer  Peer to fetch user from.
+ *
+ * @return Peer's user if peer is handshaked or @c NULL otherwise.
+ */
+const DscussUser*
+dscuss_peer_get_user (const DscussPeer* peer);
 
 
 #ifdef __cplusplus

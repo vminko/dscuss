@@ -39,6 +39,7 @@
 
 
 #include "core.h"
+#include "peer.h"
 
 
 #endif /* DSCUSS_DSCUSS_H */
