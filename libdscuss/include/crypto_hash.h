@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,19 +27,43 @@
  * as that of the covered work.
  */
 
-
 /**
- * @file dscuss.h  Header files and defines.
- * This file contains all the necessary header files and defines required for
- * UIs to build.
+ * @file include/crypto_hash.h  Public API of the hash.
  */
 
-#ifndef DSCUSS_DSCUSS_H
-#define DSCUSS_DSCUSS_H
+
+#ifndef DSCUSS_INCLUDE_CRYPTO_HASH_H
+#define DSCUSS_INCLUDE_CRYPTO_HASH_H
+
+#include <glib.h>
+#include <openssl/sha.h>
 
 
-#include "core.h"
-#include "peer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
-#endif /* DSCUSS_DSCUSS_H */
+/* 512-bit hash digest. */
+typedef struct
+{
+  unsigned char digest[SHA512_DIGEST_LENGTH];
+} DscussHash;
+
+
+/**
+ * Converts the first 4 bytes of a hash to a string.
+ *
+ * @param user  User to compose description for.
+ *
+ * @return  Text description of the user.
+ */
+const gchar*
+dscuss_crypto_hash_to_string (const DscussHash* hash);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* DSCUSS_INCLUDE_CRYPTO_HASH_H */

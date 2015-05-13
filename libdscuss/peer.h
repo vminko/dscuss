@@ -28,7 +28,7 @@
  */
 
 /**
- * @file peer.h  A peer connected to us.
+ * @file peer.h  Internal API for a connected peer.
  * @brief Peer provides a high-level API for communication with other nodes:
  * sending/receiving entities, syncing, etc.  All peers are handled by core.
  * Once a new peer connection is established, the peer gets passed to the core.
@@ -45,6 +45,7 @@
 #include "connection.h"
 #include "user.h"
 #include "db.h"
+#include "include/peer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,11 +83,6 @@ typedef enum
   DSCUSS_PEER_DISCONNECT_REASON_VIOLATION,
 
 } DscussPeerDisconnectReason;
-
-/**
- * Handle for a peer.
- */
-typedef struct _DscussPeer DscussPeer;
 
 /**
  * Callback used for notifying the network subsystem about disconnected peers.
@@ -206,27 +202,6 @@ dscuss_peer_send (DscussPeer* peer,
                   gpointer user_data);
 
 /**
- * Composes a one-line text description of a peer.
- *
- * @param peer  Peer to compose description for.
- *
- * @return Text description of the peer.
- */
-const gchar*
-dscuss_peer_get_description (DscussPeer* peer);
-
-/**
- * Composes a one-line text description of a peer's connection
- * (host, port).
- *
- * @param peer  Peer to compose description for.
- *
- * @return Text description of the peer's connection.
- */
-const gchar*
-dscuss_peer_get_connecton_description (DscussPeer* peer);
-
-/**
  * Sets callback for notification about incoming entities and starts reading
  * data from the peer.
  *
@@ -270,16 +245,6 @@ dscuss_peer_handshake (DscussPeer* peer,
  */
 gboolean
 dscuss_peer_is_handshaked (DscussPeer* peer);
-
-/**
- * Returns peer's user. Should be called after handshaking.
- *
- * @param peer  Peer to fetch user from.
- *
- * @return Peer's user if peer is handshaked or @c NULL otherwise.
- */
-const DscussUser*
-dscuss_peer_get_user (const DscussPeer* peer);
 
 
 #ifdef __cplusplus

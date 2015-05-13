@@ -215,9 +215,15 @@ on_new_packet (DscussConnection* connection,
           payload[payload_size - 1] = '\0';
         }
 
-      /* Payload of the message packet is the actual message in
-       * plaintext */
-      DscussMessage* msg = dscuss_message_new (payload);
+
+
+      DscussMessage* msg = dscuss_message_deserialize (payload,
+                                                       payload_size);
+       if (msg == NULL)
+         {
+           g_warning ("Malformed Message packet: failed to parse.");
+           break;
+         }
       peer->receive_callback (peer,
                               (DscussEntity*) msg,
                               TRUE,

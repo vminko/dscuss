@@ -28,202 +28,42 @@
  */
 
 /**
- * @file api.h  Defines the API of libdiscuss.
- * @brief Contains core subroutines, which should be moved to a separate file.
+ * @file api.h  Internal API of libdiscuss.
  */
 
 
-#ifndef DSCUSS_API_H
-#define DSCUSS_API_H
+#ifndef DSCUSS_CORE_H
+#define DSCUSS_CORE_H
 
 #include <glib.h>
-#include "message.h"
-#include "user.h"
+#include "crypto.h"
+#include "include/core.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-/* TBD */
-typedef gpointer DscussOperation;
+/**
+ * Returns user we're logged under.
+ *
+ * @return  Logged user or @c NULL if we're not logged in.
+ */
+const DscussUser*
+dscuss_get_logged_user ();
 
 
 /**
- * Callback used for notification that registration is finished.
+ * Returns private key of the user we're logged under.
  *
- * @param result      The result of the registration (@c TRUE if success).
- * @param user_data   The user data.
+ * @return  Logged user's private key or @c NULL if we're not logged in.
  */
-typedef void (*DscussRegisterCallback)(gboolean result,
-                                       gpointer user_data);
-
-/**
- * Callback used for notification about incoming messages.
- *
- * @param msg         The message received.
- * @param user_data   The user data.
- */
-typedef void (*DscussNewMessageCallback)(DscussMessage* msg,
-                                         gpointer user_data);
-
-/**
- * Callback used for notification about incoming user entities.
- *
- * @param user        The user received.
- * @param user_data   The user data.
- */
-typedef void (*DscussNewUserCallback)(DscussUser* user,
-                                      gpointer user_data);
-
-/**
- * Callback used for notification about incoming operations.
- *
- * @param operation   The operation received.
- * @param user_data   The user data.
- */
-typedef void (*DscussNewOperationCallback)(DscussOperation* oper,
-                                           gpointer user_data);
-
-/**
- * Initializes the library.
- *
- * Initializes all the subsystems.
- *
- * @param data_dir      Path to the directory containing data files.
- *                      If @c NULL, the default directory will be used
- *                      (@c ~/.dscuss).
- *
- * @return @c TRUE in case of success, or @c FALSE on error.
- */
-gboolean
-dscuss_init (const gchar* data_dir);
-
-/**
- * Uninitializes the library.
- *
- * Disconnects from other peers, closes database connection and frees allocated
- * memory.
- */
-void
-dscuss_uninit (void);
-
-/**
- * Performs a single iteration for the event loop.
- *
- * Processes a pending event if any.
- */
-void
-dscuss_iterate (void);
-
-/**
- * Register a new user.
- *
- * Creates private key for the user, find proof-of-work, stores user's profile
- * in the user's database.
- *
- * @param nickname   Nickname of the new user.
- * @param info       Additional information about the new user (may be
- *                   @c NULL).
- * @param callback   The function to be called when registration is
- *                   finished.
- * @param user_data  Additional data to be passed to the @a callback.
- *
- * @return @c TRUE if registration started successfully, or @c FALSE on error.
- */
-gboolean
-dscuss_register (const gchar* nickname,
-                 const gchar* info,
-                 DscussRegisterCallback callback,
-                 gpointer user_data);
-
-/**
- * Login into the network as user @a nickname.
- *
- * @param nickname      Username to login under.
- * @param msg_callback  The function to be called when a new message is
- *                      received.
- * @param msg_data      Additional data to be passed to the @a msg_callback.
- * @param user_callback The function to be called when a new user is
- *                      received.
- * @param user_data     Additional data to be passed to the @a user_callback.
- * @param oper_callback The function to be called when a new operation is
- *                      received.
- * @param oper_data     Additional data to be passed to the @a oper_callback.
- *
- * @return @c TRUE in case of success, or @c FALSE on error.
- */
-gboolean
-dscuss_login (const gchar* nickname,
-              DscussNewMessageCallback msg_callback,
-              gpointer msg_data,
-              DscussNewUserCallback user_callback,
-              gpointer user_data,
-              DscussNewOperationCallback oper_callback,
-              gpointer oper_data);
-
-/**
- * Logout from the network.
- */
-void
-dscuss_logout (void);
-
-/**
- * Show whether some user is logged in into the network.
- *
- * @return @c TRUE if a user is logged in, @c FALSE otherwise.
- */
-gboolean
-dscuss_is_logged_in (void);
-
-/**
- * Returns list of connected peers. Should be called only after logging.
- *
- * @return  List of connected peers.
- */
-const GSList*
-dscuss_get_peers (void);
-
-/**
- * Send a message to the network.
- *
- * Actually the message will be just copied the outgoing buffer. So it does not
- * guarantee that the message has been sent to a single peer when the function
- * returns.
- *
- * TBD: release version should have some sort of notification that the message
- * has been successfully sent to this or that peer.
- *
- * @param msg  Message to send.
- */
-void
-dscuss_send_message (DscussMessage* msg);
-
-/**
- * Send a user to the network.
- *
- * Just like the @c dscuss_send_message, it does not guarantee that the
- * user has been sent to a single peer when the function returns.
- *
- * @param msg  Message to send.
- */
-void
-dscuss_send_user (DscussUser* user);
-
-/**
- * Send an operation to the network.
- *
- * Just like the @c dscuss_send_message, it does not guarantee that the
- * operation has been sent to a single peer when the function returns.
- *
- * @param msg  Message to send.
- */
-void
-dscuss_send_operation (DscussOperation* oper);
+const DscussPrivateKey*
+dscuss_get_logged_user_private_key ();
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* DSCUSS_API_H */
+#endif /* DSCUSS_CORE_H */

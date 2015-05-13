@@ -28,27 +28,61 @@
  */
 
 /**
- * @file entity.h  Internal API for Dscuss entity.
+ * @file include/peer.h  A peer connected to us.
+ * @brief Peer provides a high-level API for communication with other nodes:
+ * sending/receiving entities, syncing, etc.  All peers are handled by core.
  */
 
-#ifndef DSCUSS_ENTITY_H
-#define DSCUSS_ENTITY_H
+
+#ifndef DSCUSS_INCLUDE_PEER_H
+#define DSCUSS_INCLUDE_PEER_H
 
 #include <glib.h>
-#include "include/entity.h"
-
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-/* Nothing so far */
+/**
+ * Handle for a peer.
+ */
+typedef struct _DscussPeer DscussPeer;
+
+/**
+ * Composes a one-line text description of a peer.
+ *
+ * @param peer  Peer to compose description for.
+ *
+ * @return Text description of the peer.
+ */
+const gchar*
+dscuss_peer_get_description (DscussPeer* peer);
+
+/**
+ * Composes a one-line text description of a peer's connection
+ * (host, port).
+ *
+ * @param peer  Peer to compose description for.
+ *
+ * @return Text description of the peer's connection.
+ */
+const gchar*
+dscuss_peer_get_connecton_description (DscussPeer* peer);
+
+/**
+ * Returns peer's user. Should be called after handshaking.
+ *
+ * @param peer  Peer to fetch user from.
+ *
+ * @return Peer's user if peer is handshaked or @c NULL otherwise.
+ */
+const DscussUser*
+dscuss_peer_get_user (const DscussPeer* peer);
 
 
 #ifdef __cplusplus
 }
 #endif
 
-
-#endif /* DSCUSS_ENTITY_H */
+#endif /* DSCUSS_INCLUDE_PEER_H */

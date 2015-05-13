@@ -28,14 +28,13 @@
  */
 
 /**
- * @file entity.h  Internal API for Dscuss entity.
+ * @file include/entity.h  Dscuss entity definition.
  */
 
-#ifndef DSCUSS_ENTITY_H
-#define DSCUSS_ENTITY_H
+#ifndef DSCUSS_INCLUDE_ENTITY_H
+#define DSCUSS_INCLUDE_ENTITY_H
 
 #include <glib.h>
-#include "include/entity.h"
 
 
 #ifdef __cplusplus
@@ -43,7 +42,69 @@ extern "C" {
 #endif
 
 
-/* Nothing so far */
+/**
+ * Dscuss entity types.
+ */
+typedef enum
+{
+  /*
+   * User registers, post messages and performs operations.
+   */
+  DSCUSS_ENTITY_TYPE_USER = 0,
+  /*
+   * Some information published by a user.
+   */
+  DSCUSS_ENTITY_TYPE_MSG,
+  /*
+   * An action performed on a user or a message.
+   */
+  DSCUSS_ENTITY_TYPE_OPER,
+
+} DscussEntityType;
+
+/**
+ * Handle for an entity.
+ */
+typedef struct _DscussEntity DscussEntity;
+
+/**
+ * Returns type of an entity.
+ *
+ * @param entity  Entity to get type of.
+ *
+ * @return Entity type.
+ */
+DscussEntityType
+dscuss_entity_get_type (const DscussEntity* entity);
+
+/**
+ * Composes a one-line text description of an entity.
+ *
+ * @param entity  Entity to compose description for.
+ *
+ * @return Text description of the entity.
+ */
+const gchar*
+dscuss_entity_get_description (const DscussEntity* entity);
+
+/**
+ * Increases the reference count of an entity.
+ *
+ * @param entity  an entity.
+ *
+ * Returns: the same entity.
+ */
+DscussEntity*
+dscuss_entity_ref (DscussEntity* entity);
+
+/**
+ * Decreases the reference count of an entity. When its reference count
+ * drops to 0, the entity is freed.
+ *
+ * @param entity  an entity.
+ */
+void
+dscuss_entity_unref (DscussEntity* entity);
 
 
 #ifdef __cplusplus
@@ -51,4 +112,4 @@ extern "C" {
 #endif
 
 
-#endif /* DSCUSS_ENTITY_H */
+#endif /* DSCUSS_INCLUDE_ENTITY_H */

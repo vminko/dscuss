@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,15 +28,17 @@
  */
 
 /**
- * @file entity.h  Dscuss message definition.
- * @brief Message is some information published by a user.
+ * @file message.h  Internal API for message entity.
+ * @brief Message is some text information published by a user.
  */
 
 #ifndef DSCUSS_MESSAGE_H
 #define DSCUSS_MESSAGE_H
 
 #include <glib.h>
+#include "crypto.h"
 #include "entity.h"
+#include "include/message.h"
 
 
 #ifdef __cplusplus
@@ -45,48 +47,103 @@ extern "C" {
 
 
 /**
- * Handle for a message.
- */
-typedef struct _DscussMessage DscussMessage;
-
-/**
  * Creates a new message entity.
+ * Date and time will be current date and time.
  *
- * @param content Plain text message content.
+ * @param topic      Topic the message will belong to.
+ * @param subject    Subject of the message.
+ * @param text       Plain next message content.
+ * @param author_id  ID of the author of the message.
+ * @param privkey    Private key of the author (will be used for signing).
  *
- * @return newly created message entity.
+ * @return  Newly created message entity.
  */
 DscussMessage*
-dscuss_message_new (const gchar* content);
+dscuss_message_new_int (DscussTopic* topic,
+                        const gchar* subject,
+                        const gchar* text,
+                        const DscussHash* author_id,
+                        const DscussPrivateKey* privkey);
 
 /**
- * Destroys a message entity.
- * Frees all memory allocated by the entity.
+ * Creates a new message entity with all fields supplied.
  *
- * @ param msg Message to be destroyed.
+ * @param topic          Topic the message will belong to.
+ * @param subject        Subject of the message.
+ * @param text           Plain next message content.
+ * @param author_id      ID of the author of the message.
+ * @param datetime       Date and time when the message was written.
+ * @param signature      Signature of the message.
+ * @param signature_len  Length of the @c signature.
+ *
+ * @return  Newly created message entity.
  */
-void
-dscuss_message_free (DscussMessage* msg);
+DscussMessage*
+dscuss_message_new_full (DscussTopic* topic,
+                         const gchar* subject,
+                         const gchar* text,
+                         const DscussHash* author_id,
+                         GDateTime* datetime,
+                         const struct DscussSignature* signature,
+                         gsize signature_len);
 
 /**
- * Returns message content.
+ * Convert a message to raw data, which can be transmitted via network.
  *
- * @param msg a Message.
+ * @param msg   Message to serialize.
+ * @param data  Where to store address of the serialized mesage.
+ * @param size  @a data size (output parameter).
  *
- * @return Content of the message.
+ * @return  @c TRUE in case of success, or @c FALSE on error.
  */
-const gchar*
-dscuss_message_get_content (const DscussMessage* msg);
+gboolean
+dscuss_message_serialize (const DscussMessage* msg,
+                          gchar** data,
+                          gsize* size);
 
 /**
- * Composes a one-line text description of a message.
+ * Create message from raw data.
  *
- * @param msg Message to compose description for.
+ * @param data  Raw data to parse.
+ * @param size  Size of @a data.
  *
- * @return Text description of the message.
+ * @return  A new message in case of success or @c NULL on error.
  */
-const gchar*
-dscuss_message_get_description (const DscussMessage* msg);
+DscussMessage*
+dscuss_message_deserialize (const gchar* data,
+                            gsize size);
+
+/**
+ * Verify signature of the message.
+ *
+ * @param msg         Message to verify.
+ * @param pubkey      Public key of the message author.
+ *
+ * @return  @c TRUE if signature is valid, or @c FALSE on error.
+ */
+gboolean
+dscuss_message_verify_signature (const DscussMessage* msg,
+                                 const DscussPublicKey* pubkey);
+
+/**
+ * Returns signature the message.
+ *
+ * @param msg  Message to get signature of.
+ *
+ * @return  Signature of the message.
+ */
+const struct DscussSignature*
+dscuss_message_get_signature (const DscussMessage* msg);
+
+/**
+ * Returns length of the signature of the message.
+ *
+ * @param msg  Message to get length from.
+ *
+ * @return  The length of the signature of the message.
+ */
+gsize
+dscuss_message_get_signature_length (const DscussMessage* msg);
 
 
 #ifdef __cplusplus

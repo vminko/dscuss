@@ -33,6 +33,7 @@
 #include "util.h"
 #include "crypto.h"
 #include "crypto_pow.h"
+#include "crypto_hash.h"
 
 #define DSCUSS_USER_DESCRIPTION_MAX_LEN 120
 
@@ -74,7 +75,7 @@ struct _DscussUser
    */
   gchar* info;
   /**
-   * Registration date and time..
+   * Registration date and time.
    */
   GDateTime* datetime;
   /**
@@ -113,9 +114,10 @@ struct _DscussUserNBO
    */
   gint64 timestamp;
   /**
-   * After this struct go public key, nickname, (optionally) additional
-   * information and finally the signature of the entity covering everything
-   * from the beginning of the struct.
+   * After this structure go public key, nickname, (optionally) additional
+   * information and finally the signature (both length and the signature
+   * itself) of the entity covering everything from the beginning of the
+   * structure.
    */
 };
 

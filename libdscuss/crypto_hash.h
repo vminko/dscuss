@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2015  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
  */
 
 /**
- * @file crypto_pow.h  API of the hash functions (SHA-512).
+ * @file crypto_hash.h  Internal API of the hash functions (SHA-512).
  */
 
 
@@ -36,20 +36,12 @@
 #define DSCUSS_CRYPTO_HASH_H
 
 #include <glib.h>
-#include <openssl/sha.h>
+#include "include/crypto_hash.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-/* 512-bit hash digest. */
-typedef struct
-{
-  unsigned char digest[SHA512_DIGEST_LENGTH];
-} DscussHash;
-
 
 
 /**
@@ -105,16 +97,6 @@ dscuss_crypto_hash_get_bit (const DscussHash* hash,
  */
 guint
 dscuss_crypto_hash_count_leading_zeroes (const DscussHash* hash);
-
-/**
- * Converts the first 4 bytes of a hash to a string.
- *
- * @param user  User to compose description for.
- *
- * @return  Text description of the user.
- */
-const gchar*
-dscuss_crypto_hash_to_string (const DscussHash* hash);
 
 
 #ifdef __cplusplus

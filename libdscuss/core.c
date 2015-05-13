@@ -32,6 +32,7 @@
 #include "network.h"
 #include "crypto.h"
 #include "crypto_pow.h"
+#include "crypto_hash.h"
 #include "db.h"
 #include "util.h"
 #include "topic.h"
@@ -68,7 +69,7 @@ struct LoggedUser
 static struct LoggedUser* self = NULL;
 
 
-/*** FreeDuplicatePeerContext *************************************************/
+/*** FreeDuplicatePeerContext ************************************************/
 
 typedef struct FreeDuplicatePeerContext
 {
@@ -95,7 +96,7 @@ free_duplicate_peer_context_free (FreeDuplicatePeerContext* ctx)
   g_free (ctx);
 }
 
-/*** End of FreeDuplicatePeerContext  *****************************************/
+/*** End of FreeDuplicatePeerContext  ****************************************/
 
 
 static gboolean
@@ -266,7 +267,7 @@ dscuss_uninit ()
     g_main_context_iteration (NULL, TRUE);
 }
 
-/*** RegisterContext **********************************************************/
+/*** RegisterContext *********************************************************/
 
 typedef struct RegisterContext
 {
@@ -309,7 +310,7 @@ register_context_free (RegisterContext* ctx)
   g_free (ctx);
 }
 
-/*** End of RegisterContext ***************************************************/
+/*** End of RegisterContext **************************************************/
 
 
 static void
@@ -606,6 +607,13 @@ dscuss_is_logged_in (void)
 }
 
 
+const gchar*
+dscuss_get_data_dir ()
+{
+  return dscuss_util_get_data_dir ();
+}
+
+
 const GSList*
 dscuss_get_peers (void)
 {
@@ -666,3 +674,28 @@ dscuss_send_message (DscussMessage* msg)
     }
 }
 
+
+/*** Internal API ************************************************************/
+
+const DscussUser*
+dscuss_get_logged_user ()
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  g_assert (self != NULL);
+  return self->user;
+}
+
+
+const DscussPrivateKey*
+dscuss_get_logged_user_private_key ()
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  g_assert (self != NULL);
+  return self->privkey;
+}
+
+/*** End of Internal API *****************************************************/

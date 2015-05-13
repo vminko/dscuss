@@ -30,24 +30,52 @@
 #include <string.h>
 #include <glib.h>
 #include <glib-unix.h>
+#include <gio/gio.h>
 #include <glib/gprintf.h>
 #include <glib/gstdio.h>
-#include "libdscuss/dscuss.h"
+#include "libdscuss/include/dscuss.h"
 
-#define PROG_NAME            "Dscuss"
-#define PROG_VERSION         "proof-of-concept"
-#define DEFAULT_DATA_DIR     ".dscuss"
-#define DEFAULT_LOGFILE_NAME "dscuss.log"
+#define PROG_NAME                "Dscuss"
+#define PROG_VERSION             "proof-of-concept"
+#define DEFAULT_DATA_DIR         ".dscuss"
+#define DEFAULT_LOGFILE_NAME     "dscuss.log"
+#define DEFAULT_TMPFILE_NAME     "dscuss.tmp"
+#define EDITOR_CMD_MAX_LEN       1024
+
+
+/**** Global variables *******************************************************/
+
+
+/* Flag indicates that user wants to stop the program. */
+gboolean stop_requested = FALSE;
+
+static void
+request_stop ()
+{
+  stop_requested = TRUE;
+}
+
+static gboolean
+is_stop_requested ()
+{
+  return stop_requested;
+}
+
+
+/**** End of global variables ************************************************/
 
 
 struct DscussCommand
 {
   const gchar* command;
-  gboolean (*action) (const gchar* arguments, gboolean* disable_input);
+  gboolean (*action) (const gchar* arguments);
   const gchar* helptext;
 };
 
-static gboolean do_help (const gchar* args, gboolean* disable_input);
+static gboolean do_help (const gchar* args);
+static void start_handling_input (void);
+
+
 
 /**** Start of logging *******************************************************/
 
@@ -172,57 +200,25 @@ print_prompt (void)
 }
 
 
-/**
- * TBD
-static int
-do_publish_msg (const char *msg)
-{
-  char *category;
-
-  if (NULL == strstr (msg, " "))
-    {
-      fprintf (stderr, _("Syntax: /msg CATEGORY MESSAGE"));
-      return GNUNET_OK;
-    }
-  category = GNUNET_strdup (msg);
-  strstr (category, " ")[0] = '\0';
-  msg += strlen (category) + 1;
-  GNUNET_DSCUSS_publish_message (ctx,
-				 category,
-				 NULL,
-				 msg);
-  GNUNET_free (category);
-  return GNUNET_OK;
-
-  g_debug ("Sending message '%s'", line);
-  msg = dscuss_message_new (line);
-  dscuss_send_message (msg);
-  dscuss_entity_unref ((DscussEntity*) msg);
-  g_free (line);
-}
-*/
-
-
 static void
 on_register_finished (gboolean result,
                       gpointer user_data)
 {
-  gboolean* disable_input = user_data;
   if (result)
     g_printf ("New user successfully registered.\n");
   else
     g_printf ("Failed to register new user!\n");
-  *disable_input = FALSE;
-  print_prompt ();
+  start_handling_input ();
 }
 
 
 static gboolean
-do_register (const gchar* args, gboolean* disable_input)
+do_register (const gchar* args)
 {
   gchar* nickname = NULL;
   gchar* space = NULL;
   const gchar* info = NULL;
+  gboolean enable_input = TRUE;
 
   if (args == NULL || strlen (args) == 0)
     {
@@ -243,11 +239,11 @@ do_register (const gchar* args, gboolean* disable_input)
   if (dscuss_register (nickname,
                        info,
                        on_register_finished,
-                       disable_input))
+                       NULL))
     {
       g_printf ("Registering new user '%s', this will take about 4 hours...\n",
                 nickname);
-      *disable_input = TRUE;
+      enable_input = FALSE;
     }
   else
     {
@@ -256,12 +252,12 @@ do_register (const gchar* args, gboolean* disable_input)
     }
   g_free (nickname);
 
-  return TRUE;
+  return enable_input;
 }
 
 
 static gboolean
-do_login (const gchar* nickname, gboolean* disable_input)
+do_login (const gchar* nickname)
 {
   if (dscuss_is_logged_in ())
     {
@@ -284,7 +280,7 @@ do_login (const gchar* nickname, gboolean* disable_input)
 
 
 static gboolean
-do_logout (const gchar* args, gboolean* disable_input)
+do_logout (const gchar* args)
 {
   if (!dscuss_is_logged_in ())
     {
@@ -301,7 +297,7 @@ do_logout (const gchar* args, gboolean* disable_input)
 
 
 static gboolean
-do_list_peers (const gchar* args, gboolean* disable_input)
+do_list_peers (const gchar* args)
 {
   if (!dscuss_is_logged_in ())
     {
@@ -322,8 +318,213 @@ do_list_peers (const gchar* args, gboolean* disable_input)
 }
 
 
+/**** EnteredMsg *************************************************************/
+
+typedef struct
+{
+  DscussTopic* topic;
+  gchar* subject;
+  gchar* text;
+} EnteredMsg;
+
+
+static EnteredMsg*
+entered_msg_new (DscussTopic* topic,
+                 gchar* subject,
+                 gchar* text)
+{
+  EnteredMsg* em = g_new0 (EnteredMsg, 1);
+  em->topic = dscuss_topic_copy (topic);
+  em->subject = strdup (subject);
+  em->text = strdup (text);
+  return em;
+}
+
+
+static void
+entered_msg_free (EnteredMsg* ctx)
+{
+  dscuss_topic_free (ctx->topic);
+  g_free (ctx->subject);
+  g_free (ctx->text);
+  g_free (ctx);
+}
+
+EnteredMsg*
+entered_msg_read_from_file (const gchar* tmp_file_name)
+{
+  GError* error = NULL;
+  GFile* file;
+  GFileInputStream* file_in = NULL;
+  GDataInputStream* data_in = NULL;
+  gchar* line = NULL;
+  DscussTopic* topic = NULL;
+  gchar* subject = NULL;
+  gchar* tmp = NULL;
+  gchar* text = NULL;
+  EnteredMsg* entered_msg = NULL;
+
+  file = g_file_new_for_path (tmp_file_name);
+  file_in = g_file_read (file, NULL, &error);
+  if (error != NULL)
+    {
+      g_critical ("Failed to open temporary input file '%s': %s",
+                  tmp_file_name, error->message);
+      g_error_free (error);
+      g_object_unref (file);
+      return FALSE;
+    }
+
+  data_in = g_data_input_stream_new ((GInputStream*) file_in);
+  error = NULL;
+  while (TRUE)
+    {
+      line = g_data_input_stream_read_line_utf8 (G_DATA_INPUT_STREAM (data_in),
+                                                 NULL,
+                                                 NULL,
+                                                 &error);
+      if (error != NULL)
+        {
+          g_printf ("Failed to read from temporary input file '%s': %s",
+                    tmp_file_name, error->message);
+          g_error_free (error);
+          break;
+        }
+
+      if (line == NULL)
+	break;
+
+      if (topic == NULL)
+        {
+          topic = dscuss_topic_new (line);
+          if (topic == NULL)
+            {
+              g_printf ("Failed to parse topic");
+              break;
+            }
+          else
+            continue;
+        }
+
+      if (subject == NULL)
+        {
+          subject = strdup (line);
+          continue;
+        }
+
+      tmp = g_strjoin (NULL, text, line, NULL);
+      g_free (text);
+      text = tmp;
+    }
+
+  if (text != NULL)
+    {
+      entered_msg = entered_msg_new (topic,
+                                     subject,
+                                     text);
+    }
+
+  if (topic != NULL)
+    dscuss_topic_free (topic);
+  if (subject != NULL)
+    g_free (subject);
+  if (text != NULL)
+    g_free (text);
+  g_object_unref (data_in);
+  g_object_unref (file_in);
+  g_object_unref (file);
+  return entered_msg;
+}
+
+/**** EnteredMsg *************************************************************/
+
+
+void
+on_msg_entered (GPid pid, int status, gpointer user_data)
+{
+  gchar* tmp_file_name = user_data;
+  EnteredMsg* em = NULL;
+  DscussMessage* msg = NULL;
+
+  g_spawn_close_pid(pid);
+
+  em = entered_msg_read_from_file (tmp_file_name);
+  msg = dscuss_message_new (em->topic,
+                            em->subject,
+                            em->text);
+  dscuss_send_message (msg);
+
+  dscuss_entity_unref ((DscussEntity*) msg);
+  entered_msg_free (em);
+  if (tmp_file_name != NULL)
+    g_free (tmp_file_name);
+  start_handling_input ();
+}
+
+
 static gboolean
-do_unknown (const gchar* args, gboolean* disable_input)
+do_publish_msg (const gchar* args)
+{
+  gint          rc            = 0;
+  gchar**       argv          = NULL;
+  gint          argp          = 0;
+  const gchar*  editor        = NULL;
+  GError*       error         = NULL;
+  GPid          pid;
+  gboolean      enable_input  = TRUE;
+  gchar*        tmp_file_name = NULL;
+  gchar         editor_cmd[EDITOR_CMD_MAX_LEN];
+
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+      return TRUE;
+    }
+
+  editor = g_getenv ("EDITOR");
+  if (editor == NULL)
+    {
+      g_printf ("The environment variable `EDITOR' is not set.\n");
+      goto out;
+    }
+
+  tmp_file_name = g_build_filename (dscuss_get_data_dir(),
+                                    DEFAULT_TMPFILE_NAME, NULL);
+  g_snprintf (editor_cmd,
+              EDITOR_CMD_MAX_LEN,
+              "%s %s",
+              editor, tmp_file_name);
+
+  rc = g_shell_parse_argv (editor_cmd, &argp, &argv, NULL);
+  if (!rc)
+    {
+      g_printf ("Failed to parse the environment variable `EDITOR': %d.\n", rc);
+      goto out;
+    }
+
+  rc = g_spawn_async (NULL, argv, NULL,
+		      G_SPAWN_CHILD_INHERITS_STDIN | G_SPAWN_DO_NOT_REAP_CHILD,
+		      NULL, NULL, &pid, &error);
+  if (!rc)
+    {
+      g_printf ("Failed to start the `EDITOR': %s.\n", error->message);
+      goto out;
+    }
+
+  enable_input = FALSE;
+  g_child_watch_add (pid, (GChildWatchFunc)on_msg_entered, tmp_file_name);
+
+out:
+  if (argv != NULL)
+    g_strfreev (argv);
+  if (enable_input && tmp_file_name != NULL)
+    g_free (tmp_file_name);
+  return enable_input;
+}
+
+
+static gboolean
+do_unknown (const gchar* args)
 {
   g_printf ("Unknown command `%s'\n", args);
   return TRUE;
@@ -331,8 +532,9 @@ do_unknown (const gchar* args, gboolean* disable_input)
 
 
 static gboolean
-do_quit (const gchar* args, gboolean* disable_input)
+do_quit (const gchar* args)
 {
+  request_stop ();
   return FALSE;
 }
 
@@ -343,9 +545,6 @@ do_quit (const gchar* args, gboolean* disable_input)
 static struct DscussCommand commands[] = {
  /**
   * TBD
-  {"msg", &do_publish_msg,
-   gettext_noop ("Use `msg category message' to publish a message in the"
-		 " specified category")},
   {"list_category", &do_list_category,
    gettext_noop ("Use `list_category category_uri' to list head messages in a"
 		 " category")},
@@ -363,24 +562,26 @@ static struct DscussCommand commands[] = {
   {"register", &do_register,
    "Use `register <nickname> [additional_info]' to register new user."
     " with nickname <nickname> and optional additional info."},
-  {"login", &do_login,
+  {"login",    &do_login,
    "Use `login <nickname>' to login as user <nickname>."},
-  {"logout", &do_logout,
+  {"logout",   &do_logout,
    "Use `logout' to logout from the network."},
-  {"lspeer", &do_list_peers,
+  {"lspeer",   &do_list_peers,
    "Use `lspeer to list connected peers."},
-  {"quit",  &do_quit,
+  {"msg",      &do_publish_msg,
+   "Use `msg' to publish a message"},
+  {"quit",     &do_quit,
    "Use `quit' to terminate " PROG_NAME "."},
-  {"help",  &do_help,
+  {"help",     &do_help,
    "Use `help <command>' to get help for a specific command."},
   /* The following two commands must be last! */
-  {"",       &do_unknown, NULL},
+  {"",         &do_unknown, NULL},
   {NULL, NULL, NULL},
 };
 
 
 static gboolean
-do_help (const gchar* args, gboolean* disable_input)
+do_help (const gchar* args)
 {
   int i = 0;
 
@@ -418,26 +619,15 @@ do_help (const gchar* args, gboolean* disable_input)
 static gboolean
 stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
 {
-  static gboolean disable_input = FALSE;
-
   gchar* line = NULL;
   gchar* args = NULL;
   GError* error = NULL;
-  gboolean* stop_flag = data;
   guint i = 0;
   gboolean res = FALSE;
-
-  g_assert (stop_flag);
 
   switch (g_io_channel_read_line (io, &line, NULL, NULL, &error))
     {
     case G_IO_STATUS_NORMAL:
-      if (disable_input)
-        {
-          g_printerr ("An operation is in progress, please wait.");
-          return TRUE;
-        }
-
       line[strlen (line) - 1] = '\0';
       i = 0;
       while ((NULL != commands[i].command) &&
@@ -451,14 +641,11 @@ stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
       while (g_ascii_isspace (*args))
         args++;
 
-      res = commands[i].action (args, &disable_input);
+      res = commands[i].action (args);
       g_free (line);
-      if (!res)
-        *stop_flag = TRUE;
-      else
+      if (res)
         {
-          if (!disable_input)
-            print_prompt ();
+          print_prompt ();
         }
       return res;
 
@@ -484,24 +671,23 @@ stdio_callback (GIOChannel* io, GIOCondition condition, gpointer data)
 
 
 static void
-start_handling_input (gboolean* stop_flag)
+start_handling_input (void)
 {
   GIOChannel* stdio = NULL;
   stdio = g_io_channel_unix_new (fileno (stdin));
-  g_io_add_watch (stdio, G_IO_IN, stdio_callback, stop_flag);
+  g_io_add_watch (stdio, G_IO_IN, stdio_callback, NULL);
   g_io_channel_unref (stdio);
   print_prompt ();
 }
 
 
 static gboolean
-on_stop (gpointer data)
+on_stop_signal (gpointer data)
 {
   /* Do NOT call any glib function from the signal handler.
    * Let glib finish its current iteration instead and
    * free all the resources after that. */
-  gboolean* stop_flag = data;
-  *stop_flag = TRUE;
+  request_stop ();
   return TRUE;
 }
 
@@ -521,7 +707,6 @@ main (int argc, char* argv[])
         &opt_config_dir_arg, "Directory with config files to use", NULL },
       { NULL}
     };
-  gboolean stop_requested = FALSE;
 
   g_set_prgname (argv[0]);
   g_set_application_name (PROG_NAME);
@@ -563,9 +748,9 @@ main (int argc, char* argv[])
       goto uninit;
     }
 
-  g_unix_signal_add (SIGTERM, on_stop, &stop_requested);
-  g_unix_signal_add (SIGINT, on_stop, &stop_requested);
-  g_unix_signal_add (SIGHUP, on_stop, &stop_requested);
+  g_unix_signal_add (SIGTERM, on_stop_signal, NULL);
+  g_unix_signal_add (SIGINT,  on_stop_signal, NULL);
+  g_unix_signal_add (SIGHUP,  on_stop_signal, NULL);
 
   if (!dscuss_init (opt_config_dir_arg))
     {
@@ -573,9 +758,9 @@ main (int argc, char* argv[])
       return 1;
     }
 
-  start_handling_input (&stop_requested);
+  start_handling_input ();
 
-  while (!stop_requested)
+  while (!is_stop_requested ())
       dscuss_iterate ();
 
 uninit:

@@ -29,6 +29,7 @@
 
 #include <glib.h>
 #include "entity.h"
+#include "user.h"
 #include "message.h"
 
 
@@ -88,8 +89,7 @@ dscuss_entity_free (DscussEntity* entity)
   switch (entity->type)
     {
     case DSCUSS_ENTITY_TYPE_USER:
-      g_assert_not_reached ();
-      /* TBD */
+      dscuss_user_free ((DscussUser*) entity);
       break;
 
     case DSCUSS_ENTITY_TYPE_MSG:

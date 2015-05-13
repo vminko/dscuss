@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014-2015  Vitaly Minko
+ * Copyright (C) 2014  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,28 +27,21 @@
  * as that of the covered work.
  */
 
+
 /**
- * @file entity.h  Internal API for Dscuss entity.
+ * @file include/dscuss.h  Header files and defines.
+ * This file contains all the necessary header files and defines required for
+ * UIs to build.
  */
 
-#ifndef DSCUSS_ENTITY_H
-#define DSCUSS_ENTITY_H
-
-#include <glib.h>
-#include "include/entity.h"
+#ifndef DSCUSS_INCLUDE_DSCUSS_H
+#define DSCUSS_INCLUDE_DSCUSS_H
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "core.h"
+#include "peer.h"
+#include "topic.h"
+#include "entity.h"
 
 
-/* Nothing so far */
-
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#endif /* DSCUSS_ENTITY_H */
+#endif /* DSCUSS_INCLUDE_DSCUSS_H */

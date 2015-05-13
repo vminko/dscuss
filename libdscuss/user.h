@@ -28,9 +28,7 @@
  */
 
 /**
- * @file entity.h  Dscuss user definition.
- * @brief User entity identifies and describes a user.
- * It's like a password in real life.
+ * @file user.h  Internal API for Dscuss User.
  */
 
 #ifndef DSCUSS_USER_H
@@ -39,18 +37,13 @@
 #include <glib.h>
 #include "entity.h"
 #include "crypto.h"
-#include "crypto_hash.h"
+#include "include/user.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-/**
- * Handle for a user entity.
- */
-typedef struct _DscussUser DscussUser;
 
 /**
  * Creates a new user entity.
@@ -94,15 +87,6 @@ dscuss_user_emerge (const DscussPrivateKey* privkey,
                     GDateTime* datetime);
 
 /**
- * Destroys a user entity.
- * Frees all memory allocated by the entity.
- *
- * @param user  User to be destroyed.
- */
-void
-dscuss_user_free (DscussUser* user);
-
-/**
  * Convert a user to raw data, which can be transmitted via network.
  *
  * @param user  User to serialize.
@@ -129,16 +113,6 @@ dscuss_user_deserialize (const gchar* data,
                          gsize size);
 
 /**
- * Composes a one-line text description of a user.
- *
- * @param user  User to compose description for.
- *
- * @return  Text description of the user.
- */
-const gchar*
-dscuss_user_get_description (const DscussUser* user);
-
-/**
  * Returns public key of the user.
  *
  * @param user  User to get public key of.
@@ -149,16 +123,6 @@ const DscussPublicKey*
 dscuss_user_get_public_key (const DscussUser* user);
 
 /**
- * Returns ID of the user.
- *
- * @param user  User to get ID of.
- *
- * @return  ID of the user.
- */
-const DscussHash*
-dscuss_user_get_id (const DscussUser* user);
-
-/**
  * Returns proof-of-work of the user.
  *
  * @param user  User to get proof of.
@@ -167,36 +131,6 @@ dscuss_user_get_id (const DscussUser* user);
  */
 guint64
 dscuss_user_get_proof (const DscussUser* user);
-
-/**
- * Returns nickname of the user.
- *
- * @param user  User to get nickname of.
- *
- * @return  Nickname of the user.
- */
-const gchar*
-dscuss_user_get_nickname (const DscussUser* user);
-
-/**
- * Returns additional information of the user.
- *
- * @param user  User to get info of.
- *
- * @return  Information about the user.
- */
-const gchar*
-dscuss_user_get_info (const DscussUser* user);
-
-/**
- * Returns date and time when the user was registered.
- *
- * @param user User to get registration date and time of..
- *
- * @return  Date and time when the user was registered.
- */
-GDateTime*
-dscuss_user_get_datetime (DscussUser* user);
 
 /**
  * Returns signature the user.
