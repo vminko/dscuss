@@ -101,7 +101,7 @@ dscuss_message_get_id (const DscussMessage* msg);
  *
  * @return  Topic of the message.
  */
-DscussTopic*
+const DscussTopic*
 dscuss_message_get_topic (const DscussMessage* msg);
 
 /**

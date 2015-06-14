@@ -28,6 +28,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <glib.h>
 #include "util.h"
 
@@ -78,10 +79,52 @@ dscuss_data_to_hex (const gpointer data, gsize data_len, gchar* buffer)
 
     for (i = 0; i < data_len; i++) {
         tmp = *((guint8 *) (data + i));
-        g_snprintf (result + i * 2, 3, "%02X", tmp);
+        g_snprintf (result + i * 2 * sizeof(char), 3, "%02X", tmp);
     }
 
     return result;
+}
+
+
+gboolean
+dscuss_data_from_hex (const gchar* hex_str, gpointer* data, gsize* data_len)
+{
+    gsize hex_str_len  = 0;
+    const gchar* hex_str_pos = hex_str;
+    gpointer result    = NULL;
+    gsize result_len   = 0;
+    gsize i            = 0;
+
+    g_assert (hex_str != NULL);
+
+    hex_str_len = strlen (hex_str);
+    if (hex_str_len % 2)
+      {
+        g_debug ("Malformed hex string '%s': odd length.", hex_str);
+        goto error;
+      }
+
+    result_len = hex_str_len / 2;
+    result = g_malloc (result_len);
+    for (i = 0; i < result_len; i++)
+      {
+        if (sscanf (hex_str_pos, "%2hhX", (gchar*)result + i) != 1)
+          {
+            g_debug ("Malformed hex string '%s': failed at %" G_GSIZE_FORMAT ".",
+                     hex_str, i);
+            goto error;
+          }
+        hex_str_pos += 2 * sizeof(char);
+      }
+
+    *data = result;
+    *data_len = result_len;
+    return TRUE;
+
+error:
+    if (result != NULL)
+      g_free (result);
+    return FALSE;
 }
 
 

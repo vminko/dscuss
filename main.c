@@ -266,6 +266,12 @@ do_login (const gchar* nickname)
       return TRUE;
     }
 
+  if (nickname == NULL || strlen (nickname) == 0)
+    {
+      g_printf ("You must to specify a nickname.");
+      return TRUE;
+    }
+
   /* TBD: validate nickname */
   if (!dscuss_login (nickname,
                      on_new_message, NULL,
@@ -368,8 +374,8 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
   file_in = g_file_read (file, NULL, &error);
   if (error != NULL)
     {
-      g_critical ("Failed to open temporary input file '%s': %s",
-                  tmp_file_name, error->message);
+      g_printf ("Failed to open temporary input file '%s': %s",
+                tmp_file_name, error->message);
       g_error_free (error);
       g_object_unref (file);
       return FALSE;
@@ -397,9 +403,10 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
       if (topic == NULL)
         {
           topic = dscuss_topic_new (line);
+          g_free (line);
           if (topic == NULL)
             {
-              g_printf ("Failed to parse topic");
+              g_printf ("Failed to parse topic.");
               break;
             }
           else
@@ -408,13 +415,21 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
 
       if (subject == NULL)
         {
-          subject = strdup (line);
+          subject = line;
           continue;
         }
 
-      tmp = g_strjoin (NULL, text, line, NULL);
-      g_free (text);
-      text = tmp;
+      if (text == NULL)
+        {
+          text = line;
+        }
+      else
+        {
+          tmp = g_strjoin (" ", text, line, NULL);
+          g_free (text);
+          g_free (line);
+          text = tmp;
+        }
     }
 
   if (text != NULL)
@@ -446,18 +461,29 @@ on_msg_entered (GPid pid, int status, gpointer user_data)
   EnteredMsg* em = NULL;
   DscussMessage* msg = NULL;
 
-  g_spawn_close_pid(pid);
+  g_spawn_close_pid (pid);
 
   em = entered_msg_read_from_file (tmp_file_name);
-  msg = dscuss_message_new (em->topic,
-                            em->subject,
-                            em->text);
-  dscuss_send_message (msg);
+  if (em != NULL)
+    {
+      msg = dscuss_message_new (em->topic,
+                                em->subject,
+                                em->text);
+      dscuss_send_message (msg);
+      dscuss_entity_unref ((DscussEntity*) msg);
+      entered_msg_free (em);
+    }
+  else
+    {
+      g_printf ("Failed to parse entered message.\n");
+    }
 
-  dscuss_entity_unref ((DscussEntity*) msg);
-  entered_msg_free (em);
-  if (tmp_file_name != NULL)
-    g_free (tmp_file_name);
+
+  if (g_unlink (tmp_file_name) != 0)
+    {
+      g_printf ("Failed to remove temporary input file '%s'", tmp_file_name);
+    }
+  g_free (tmp_file_name);
   start_handling_input ();
 }
 
@@ -465,14 +491,14 @@ on_msg_entered (GPid pid, int status, gpointer user_data)
 static gboolean
 do_publish_msg (const gchar* args)
 {
-  gint          rc            = 0;
-  gchar**       argv          = NULL;
-  gint          argp          = 0;
-  const gchar*  editor        = NULL;
-  GError*       error         = NULL;
+  gint          rc             = 0;
+  gchar**       argv           = NULL;
+  gint          argp           = 0;
+  const gchar*  editor         = NULL;
+  GError*       error          = NULL;
   GPid          pid;
-  gboolean      enable_input  = TRUE;
-  gchar*        tmp_file_name = NULL;
+  gboolean      enable_input   = TRUE;
+  gchar*        tmp_file_name  = NULL;
   gchar         editor_cmd[EDITOR_CMD_MAX_LEN];
 
   if (!dscuss_is_logged_in ())
@@ -508,6 +534,7 @@ do_publish_msg (const gchar* args)
   if (!rc)
     {
       g_printf ("Failed to start the `EDITOR': %s.\n", error->message);
+      g_error_free (error);
       goto out;
     }
 
@@ -520,6 +547,93 @@ out:
   if (enable_input && tmp_file_name != NULL)
     g_free (tmp_file_name);
   return enable_input;
+}
+
+
+void
+iterate_msg_callback (gboolean success,
+                      DscussMessage* msg,
+                      gpointer user_data)
+{
+  if (!success)
+    {
+      g_printf ("Failed to fetch messages from the database\n");
+      start_handling_input ();
+      return;
+    }
+
+  if (msg != NULL)
+    {
+      g_printf ("* %s\n%s\n\n",
+                dscuss_crypto_hash_to_string (dscuss_message_get_id (msg)),
+                dscuss_message_get_description (msg));
+      dscuss_message_free (msg);
+    }
+  else
+    {
+      g_printf ("done\n");
+      start_handling_input ();
+    }
+}
+
+
+static gboolean
+do_list_msg (const gchar* args)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+      return TRUE;
+    }
+
+  dscuss_get_messages (iterate_msg_callback, NULL);
+  return FALSE;
+}
+
+
+static gboolean
+do_print_msg (const gchar* msg_id_str)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+      return TRUE;
+    }
+
+  if (msg_id_str == NULL)
+    {
+      g_printf ("You must specify message ID.\n");
+      return TRUE;
+    }
+  DscussHash* msg_id = dscuss_crypto_hash_from_string (msg_id_str);
+  if (msg_id == NULL)
+    {
+      g_printf ("Malformed hash string.\n");
+      return TRUE;
+    }
+
+  DscussMessage* msg = dscuss_get_message (msg_id);
+  if (msg == NULL)
+    {
+      g_printf ("Message not found.\n");
+      goto out;
+    }
+
+  gchar* topic_str = dscuss_topic_to_string (dscuss_message_get_topic (msg));
+  gchar* datetime_str = g_date_time_format (dscuss_message_get_datetime (msg), "%F %T");
+  g_printf ("Dumping Message entity:\n");
+  g_printf ("  topic:     '%s'\n", topic_str);
+  g_printf ("  subject:   '%s'\n", dscuss_message_get_subject (msg));
+  g_printf ("  text:      '%s'\n", dscuss_message_get_content (msg));
+  g_printf ("  author_id:  %s\n", dscuss_crypto_hash_to_string (dscuss_message_get_author_id (msg)));
+  g_printf ("  datetime:   %s\n", datetime_str);
+  g_free (topic_str);
+  g_free (datetime_str);
+  dscuss_message_free (msg);
+
+out:
+  g_free (msg_id);
+  return TRUE;
 }
 
 
@@ -570,6 +684,10 @@ static struct DscussCommand commands[] = {
    "Use `lspeer to list connected peers."},
   {"msg",      &do_publish_msg,
    "Use `msg' to publish a message"},
+  {"lsmsg",   &do_list_msg,
+   "Use `lsmsg' to list recent messages."},
+  {"printmsg",   &do_print_msg,
+   "Use `printmsg' to print a particular message."},
   {"quit",     &do_quit,
    "Use `quit' to terminate " PROG_NAME "."},
   {"help",     &do_help,
@@ -613,7 +731,6 @@ do_help (const gchar* args)
 }
 
 /**** End of command handlers ************************************************/
-
 
 
 static gboolean

@@ -44,7 +44,7 @@ static GRegex* tag_valid_regex = NULL;
 
 
 static gboolean
-topic_find_tag (DscussTopic* topic, const gchar* tag, guint* index)
+topic_find_tag (const DscussTopic* topic, const gchar* tag, guint* index)
 {
   guint i;
 
@@ -93,6 +93,16 @@ dscuss_topic_cache_uninit ()
 
 
 DscussTopic*
+dscuss_topic_new_empty (void)
+{
+  GPtrArray* topic = NULL;
+  topic = g_ptr_array_new ();
+  g_ptr_array_set_free_func ((GPtrArray*) topic, g_free);
+  return topic;
+}
+
+
+DscussTopic*
 dscuss_topic_new (const gchar* topic_str)
 {
   GPtrArray* topic = NULL;
@@ -107,8 +117,7 @@ dscuss_topic_new (const gchar* topic_str)
       return NULL;
     }
 
-  topic = g_ptr_array_new ();
-  g_ptr_array_set_free_func ((GPtrArray*) topic, g_free);
+  topic = (GPtrArray*)dscuss_topic_new_empty();
   g_regex_match (tag_extr_regex, topic_str, 0, &match_info);
   while (g_match_info_matches (match_info))
     {
@@ -159,7 +168,6 @@ dscuss_topic_to_string (const DscussTopic* topic)
 {
   g_assert (topic != NULL);
 
-
   GPtrArray* topic2 = (GPtrArray*)topic;
 
   return dscuss_strnjoinv (", ", (gchar**)topic2->pdata, topic2->len);
@@ -209,7 +217,8 @@ dscuss_topic_remove_tag (DscussTopic* topic, const gchar* tag)
 
 
 gboolean
-dscuss_topic_contains_topic (DscussTopic* main_topic, DscussTopic* sub_topic)
+dscuss_topic_contains_topic (const DscussTopic* main_topic,
+                             const DscussTopic* sub_topic)
 {
   guint i;
 
@@ -218,7 +227,7 @@ dscuss_topic_contains_topic (DscussTopic* main_topic, DscussTopic* sub_topic)
 
   for (i = 0; i < ((GPtrArray*) main_topic)->len; i++)
     {
-      if (topic_find_tag (sub_topic,
+      if (!topic_find_tag (sub_topic,
                           g_ptr_array_index ((GPtrArray*) main_topic, i),
                           NULL))
         {
@@ -249,4 +258,18 @@ dscuss_topic_compare (const DscussTopic* topic1, const DscussTopic* topic2)
   g_free (topic1_str);
   g_free (topic2_str);
   return res;
+}
+
+
+void
+dscuss_topic_foreach (const DscussTopic* topic,
+                      DscussTopicIteratorCallback callback,
+                      gpointer user_data)
+{
+  g_assert (topic != NULL);
+  g_assert (callback != NULL);
+
+  g_ptr_array_foreach ((GPtrArray*) topic,
+                       (GFunc) callback,
+                       user_data);
 }

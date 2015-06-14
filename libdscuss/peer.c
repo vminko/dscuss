@@ -189,6 +189,10 @@ on_new_packet (DscussConnection* connection,
                  " peer '%s' sent unexpected packet of type '%d'.",
                  dscuss_peer_get_description (peer), type);
       dscuss_packet_free (packet);
+      peer->receive_callback (peer,
+                              NULL,
+                              FALSE,
+                              peer->receive_data);
       return FALSE;
     }
 
@@ -204,26 +208,21 @@ on_new_packet (DscussConnection* connection,
 
       gchar* payload = NULL;
       gsize payload_size = 0;
-
       dscuss_packet_get_payload (packet,
                                  (const gchar**) &payload,
                                  &payload_size);
-
-      if (payload[payload_size - 1] != '\0')
-        {
-          g_warning ("Malformed Message packet payload, fixing '\\0'.");
-          payload[payload_size - 1] = '\0';
-        }
-
-
-
       DscussMessage* msg = dscuss_message_deserialize (payload,
                                                        payload_size);
-       if (msg == NULL)
-         {
-           g_warning ("Malformed Message packet: failed to parse.");
-           break;
-         }
+      if (msg == NULL)
+        {
+          g_warning ("Malformed Message packet: failed to parse.");
+          dscuss_packet_free (packet);
+          peer->receive_callback (peer,
+                                  NULL,
+                                  FALSE,
+                                  peer->receive_data);
+          return FALSE;
+        }
       peer->receive_callback (peer,
                               (DscussEntity*) msg,
                               TRUE,
@@ -310,6 +309,14 @@ dscuss_peer_get_user (const DscussPeer* peer)
 }
 
 
+const GSList*
+dscuss_peer_get_subscriptions (const DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  return (peer->is_handshaked) ? peer->subscriptions : NULL;
+}
+
+
 const gchar*
 dscuss_peer_get_description (DscussPeer* peer)
 {
@@ -366,14 +373,17 @@ on_packet_sent (DscussConnection* connection,
 }
 
 
-void
+gboolean
 dscuss_peer_send (DscussPeer* peer,
                   DscussEntity* entity,
+                  DscussPrivateKey* privkey,
                   DscussPeerSendCallback callback,
                   gpointer user_data)
 {
   DscussPacket* packet = NULL;
   DscussMessage* msg = NULL;
+  gchar* serialized_payload = NULL;
+  gsize serialized_payload_len = 0;
 
   g_assert (peer != NULL);
   g_assert (peer->connection != NULL);
@@ -394,10 +404,19 @@ dscuss_peer_send (DscussPeer* peer,
 
     case DSCUSS_ENTITY_TYPE_MSG:
       msg = (DscussMessage*) entity;
-      const gchar* msg_text = dscuss_message_get_content (msg);
+      if (!dscuss_message_serialize (msg,
+                                     &serialized_payload,
+                                     &serialized_payload_len))
+        {
+          g_warning ("Failed to serialize the message '%s'",
+                     dscuss_message_get_description (msg));
+          return FALSE;
+        }
       packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_MSG,
-                                  msg_text,
-                                  strlen (msg_text) + 1);
+                                  serialized_payload,
+                                  serialized_payload_len);
+      dscuss_packet_sign (packet, privkey);
+      g_free (serialized_payload);
       break;
 
     case DSCUSS_ENTITY_TYPE_OPER:
@@ -417,6 +436,7 @@ dscuss_peer_send (DscussPeer* peer,
                           packet,
                           on_packet_sent,
                           ctx);
+  return TRUE;
 }
 
 
@@ -525,6 +545,7 @@ peer_handshake_failed (gpointer user_data)
   return FALSE;
 }
 
+
 static void
 peer_handshake_schedule_fail (DscussPeer* peer)
 {
@@ -622,6 +643,10 @@ peer_handshake_on_hello_received (DscussConnection* connection,
   peer_handshake_context_free (peer->handshake_ctx);
   peer->handshake_ctx = NULL;
   handshake_result = TRUE;
+
+  /* Now we expect ordinary entities: messages, TBD: users and operations */
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_MSG), NULL);
 
 out:
   dscuss_free_non_null (packet, dscuss_packet_free);

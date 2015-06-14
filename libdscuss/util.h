@@ -91,7 +91,7 @@ dscuss_util_get_data_dir (void);
  * Converts a binary data to a hexademical string.
  *
  * @param data      Pointer to the data to convert.
- * @param data_len  Length of the data.
+ * @param data_len  Length of the @a data.
  * @param buffer    Optional buffer for writing the result,
  *                  must be at least @c data_len * 2 + 1 bytes in size.
  *                  If no buffer is specified, the memory for the string
@@ -103,6 +103,18 @@ dscuss_util_get_data_dir (void);
  */
 gchar*
 dscuss_data_to_hex (const gpointer data, gsize data_len, gchar* buffer);
+
+/**
+ * Converts a hexademical string to binary data.
+ *
+ * @param hex_str   Address of the hexademical string to convert;
+ * @param data      Pointer to the binary data (output parameter).
+ * @param data_len  Length of the @a data (output parameter).
+ *
+ * @return @c TRUE if string was successfully converted, or @c FALSE on error.
+ */
+gboolean
+dscuss_data_from_hex (const gchar* hex_str, gpointer* data, gsize* data_len);
 
 /**
  * Joins a number of strings together to form one long string, with a

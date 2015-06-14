@@ -52,14 +52,26 @@ typedef struct
 
 
 /**
- * Converts the first 4 bytes of a hash to a string.
+ * Converts a hash to a string.
  *
- * @param user  User to compose description for.
+ * @param hash  The hash to convert.
  *
- * @return  Text description of the user.
+ * @return  Hexademical string representing the hash.
  */
 const gchar*
 dscuss_crypto_hash_to_string (const DscussHash* hash);
+
+
+/**
+ * Converts hexademical string into binary hash.
+ *
+ * @param hex_str  String to convert.
+ *
+ * @return  Binary hash corresponding the hexademical string or
+ *          @c NULL if the string is malformed.
+ */
+DscussHash*
+dscuss_crypto_hash_from_string (const gchar* hash_str);
 
 
 #ifdef __cplusplus

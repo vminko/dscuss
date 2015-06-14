@@ -80,6 +80,16 @@ dscuss_peer_get_connecton_description (DscussPeer* peer);
 const DscussUser*
 dscuss_peer_get_user (const DscussPeer* peer);
 
+/**
+ * Returns peer's subscriptions. Should be called after handshaking.
+ *
+ * @param peer  Peer to fetch subscriptions from.
+ *
+ * @return Peer's subscriptions if peer is handshaked or @c NULL otherwise.
+ */
+const GSList*
+dscuss_peer_get_subscriptions (const DscussPeer* peer);
+
 
 #ifdef __cplusplus
 }

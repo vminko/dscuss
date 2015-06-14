@@ -122,6 +122,39 @@ struct _DscussMessageNBO
 
 
 static void
+message_dump (const DscussMessage* msg)
+{
+  gchar* datetime_str = NULL;
+  gchar* signature_str = NULL;
+  gchar* topic_str = NULL;
+
+  g_assert (msg != NULL);
+
+  datetime_str = g_date_time_format (msg->datetime, "%F %T");
+  signature_str = dscuss_data_to_hex ((const gpointer) &msg->signature,
+                                      sizeof (struct DscussSignature),
+                                      NULL);
+  topic_str = dscuss_topic_to_string (msg->topic);
+
+  g_debug ("Dumping Message entity:");
+  g_debug ("  type = %d", msg->type);
+  g_debug ("  ref_count = %u", msg->ref_count);
+  g_debug ("  id = %s", dscuss_crypto_hash_to_string (&msg->id));
+  g_debug ("  topic = '%s'", topic_str);
+  g_debug ("  subject = '%s'", msg->subject);
+  g_debug ("  text = '%s'", msg->text);
+  g_debug ("  author_id = %s", dscuss_crypto_hash_to_string (&msg->author_id));
+  g_debug ("  datetime = '%s'", datetime_str);
+  g_debug ("  signature = %s", signature_str);
+  g_debug ("  signature_len = %" G_GSIZE_FORMAT, msg->signature_len);
+
+  g_free (datetime_str);
+  g_free (topic_str);
+  g_free (signature_str);
+}
+
+
+static void
 message_serialize_all_but_signature (const DscussMessage* msg,
                                      gchar** data,
                                      gsize* size)
@@ -135,11 +168,10 @@ message_serialize_all_but_signature (const DscussMessage* msg,
   g_assert (size != NULL);
 
   topic_str = dscuss_topic_to_string (msg->topic);
-
-  *size = sizeof (struct _DscussMessageNBO)
-        + strlen (topic_str)
-        + strlen (msg->subject)
-        + strlen (msg->text);
+  *size = sizeof (struct _DscussMessageNBO);
+  *size += strlen (topic_str);
+  *size += strlen (msg->subject);
+  *size += strlen (msg->text);
   digest = g_malloc0 (*size);
   *data = digest;
 
@@ -153,6 +185,7 @@ message_serialize_all_but_signature (const DscussMessage* msg,
 
   memcpy (digest, topic_str, strlen (topic_str));
   digest += strlen (topic_str);
+  g_free (topic_str);
 
   memcpy (digest, msg->subject, strlen (msg->subject));
   digest += strlen (msg->subject);
@@ -183,7 +216,6 @@ message_new_but_signature (DscussTopic* topic,
   msg->ref_count = 1;
   msg->topic = dscuss_topic_copy (topic);
   msg->subject = g_strdup (subject);
-  msg->text = g_strdup (text);
   msg->text = g_strdup (text);
   memcpy (&msg->author_id,
           author_id,
@@ -219,6 +251,7 @@ dscuss_message_new (DscussTopic* topic,
                                                text,
                                                author_id,
                                                privkey);
+  message_dump (msg);
   return msg;
 }
 
@@ -288,6 +321,8 @@ dscuss_message_new_full (DscussTopic* topic,
           sizeof (struct DscussSignature));
   msg->signature_len = signature_len;
 
+  message_dump (msg);
+
   return msg;
 }
 
@@ -321,6 +356,8 @@ dscuss_message_serialize (const DscussMessage* msg,
   g_assert (data != NULL);
   g_assert (size != NULL);
 
+  message_dump (msg);
+
   message_serialize_all_but_signature (msg,
                                        &all_but_signature,
                                        &all_but_signature_size);
@@ -328,6 +365,7 @@ dscuss_message_serialize (const DscussMessage* msg,
   *size = all_but_signature_size
         + sizeof (signature_len_nbo)
         + sizeof (struct DscussSignature);
+  g_debug ("Message size is %" G_GSIZE_FORMAT, *size);
   digest = g_malloc0 (*size);
   *data = digest;
   memcpy (digest,
@@ -400,9 +438,9 @@ dscuss_message_deserialize (const gchar* data,
 
   /* Parse text */
   text_len = g_ntohs (msg_nbo->text_len);
-  subject = g_malloc0 (text_len + 1);
+  text = g_malloc0 (text_len + 1);
   memcpy (text, digest, text_len);
-  subject[text_len] = '\0';
+  text[text_len] = '\0';
   digest += text_len;
 
   /* Parse timestamp */
@@ -429,6 +467,8 @@ dscuss_message_deserialize (const gchar* data,
   g_free (text);
   g_free (subject);
   g_free (topic_str);
+
+  message_dump (msg);
 
   return msg;
 }
@@ -479,6 +519,14 @@ dscuss_message_get_id (const DscussMessage* msg)
 {
   g_assert (msg != NULL);
   return &msg->id;
+}
+
+
+const DscussTopic*
+dscuss_message_get_topic (const DscussMessage* msg)
+{
+  g_assert (msg != NULL);
+  return msg->topic;
 }
 
 

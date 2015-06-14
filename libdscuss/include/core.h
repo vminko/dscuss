@@ -86,6 +86,19 @@ typedef void (*DscussNewOperationCallback)(DscussOperation* oper,
                                            gpointer user_data);
 
 /**
+ * Function called to iterate over messages.
+ *
+ * @param success    @c TRUE if the message was successfully obtained,
+ *                   @c FALSE otherwise.
+ * @param msg        The message this notification is about,
+ *                   @c NULL indicates end of list.
+ * @param user_data  The user data.
+ */
+typedef void (*DscussIterateMessageCallback)(gboolean success,
+                                             DscussMessage* msg,
+                                             gpointer user_data);
+
+/**
  * Initializes the library.
  *
  * Initializes all the subsystems.
@@ -227,6 +240,27 @@ dscuss_send_user (DscussUser* user);
  */
 void
 dscuss_send_operation (DscussOperation* oper);
+
+/**
+ * Get all messages from the database.
+ *
+ * @param callback   Function to call for each message.
+ * @param user_data  Data to be passed to the @a callback.
+ */
+void
+dscuss_get_messages (DscussIterateMessageCallback callback,
+                     gpointer user_data);
+
+/**
+ * Get particular message from the database.
+ *
+ * @param msg_id  ID of the message to fetch.
+ *
+ * @return  Fetched message or @c NULL in case of a failure
+ *          (no such message in the database or internal error).
+ */
+DscussMessage*
+dscuss_get_message (const DscussHash* msg_id);
 
 
 #ifdef __cplusplus

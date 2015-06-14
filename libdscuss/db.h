@@ -38,6 +38,7 @@
 #include <glib.h>
 #include <sqlite3.h>
 #include "user.h"
+#include "message.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,6 +49,19 @@ extern "C" {
  * Handle for a database.
  */
 typedef sqlite3 DscussDb;
+
+/**
+ * Function called to iterate over messages.
+ *
+ * @param success    @c TRUE if the message was successfully obtained,
+ *                   @c FALSE otherwise.
+ * @param msg        The message this notification is about,
+ *                   @c NULL indicates end of list.
+ * @param user_data  The user data.
+ */
+typedef void (*DscussDbIterateMessageCallback)(gboolean success,
+                                               DscussMessage* msg,
+                                               gpointer user_data);
 
 /**
  * Opens connection with the database. Creates a new database if it does not
@@ -82,13 +96,49 @@ dscuss_db_put_user (DscussDb* dbh, DscussUser* user);
 /**
  * Fetch a user from the database.
  *
- * @param id  hash of the user's public key.
+ * @param id  Hash of the user's public key.
  *
  * @return  The fetched user
  *          or @c NULL if there is no such user in the database.
  */
 DscussUser*
 dscuss_db_get_user (DscussDb* dbh, const DscussHash* id);
+
+/**
+ * Store a message in the database.
+ *
+ * @param dbh   Database handle.
+ * @param msg   The message to store.
+ *
+ * @return  @c TRUE on success, @c FALSE on error.
+ */
+gboolean
+dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg);
+
+/**
+ * Fetch latest messages from the database.
+ *
+ * @param dbh        Database handle.
+ * @param callback   Function to call for each message.
+ * @param user_data  Data to be passed to the @a callback.
+ */
+void
+dscuss_db_get_recent_messages (DscussDb* dbh,
+                               DscussDbIterateMessageCallback callback,
+                               gpointer user_data);
+
+/**
+ * Get particular message from the database.
+ *
+ * @param dbh  Database handle.
+ * @param id   ID of the message to fetch.
+ *
+ * @return  Fetched message or @c NULL in case of a failure
+ *          (no such message in the database or internal error).
+ */
+DscussMessage*
+dscuss_db_get_message (DscussDb* dbh,
+                       const DscussHash* id);
 
 
 #ifdef __cplusplus

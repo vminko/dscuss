@@ -30,6 +30,7 @@
 #include <string.h>
 #include "config.h"
 #include "util.h"
+#include "topic.h"
 #include "db.h"
 
 
@@ -83,59 +84,60 @@ dscuss_db_open (const gchar* filename)
     }
 
   if (!db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS user ("
-                        "  id              BLOB PRIMARY KEY,"
-                        "  public_key      BLOB NOT NULL,"
-                        "  proof           UNSIGNED BIG INT NOT NULL,"
-                        "  nickname        TEXT NOT NULL,"
-                        "  info            TEXT,"
-                        "  timestamp       INTEGER NOT NULL,"
-                        "  signature_len   INTEGER NOT NULL,"
-                        "  signature       BLOB NOT NULL)") ||
+                        "CREATE TABLE IF NOT EXISTS  User ("
+                        "  Id              BLOB PRIMARY KEY,"
+                        "  Public_key      BLOB NOT NULL,"
+                        "  Proof           UNSIGNED BIG INT NOT NULL,"
+                        "  Nickname        TEXT NOT NULL,"
+                        "  Info            TEXT,"
+                        "  Timestamp       INTEGER NOT NULL,"
+                        "  Signature_len   INTEGER NOT NULL,"
+                        "  Signature       BLOB NOT NULL)") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  message ("
-                        "  id              BLOB PRIMARY KEY,"
-                        "  subject         TEXT,"
-                        "  content         TEXT,"
-                        "  timestamp       UNSIGNED BIG INT NOT NULL,"
-                        "  author_id       BLOB NOT NULL,"
-                        "  in_reply_to     BLOB NOT NULL,"
-                        "  signature_len   INTEGER NOT NULL,"
-                        "  signature       BLOB NOT NULL,"
-                        "  FOREIGN KEY (author_id) REFERENCES user(id))") ||
+                        "CREATE TABLE IF NOT EXISTS  Message ("
+                        "  Id              BLOB PRIMARY KEY,"
+                        "  Subject         TEXT,"
+                        "  Content         TEXT,"
+                        "  Timestamp       UNSIGNED BIG INT NOT NULL,"
+                        "  Author_id       BLOB NOT NULL,"
+                        "  In_reply_to     BLOB NOT NULL,"
+                        "  Signature_len   INTEGER NOT NULL,"
+                        "  Signature       BLOB NOT NULL,"
+                        "  FOREIGN KEY (Author_id) REFERENCES User(Id))") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  operation ("
-                        "  id              BLOB PRIMARY KEY,"
-                        "  type            INTEGER NOT NULL,"
-                        "  reason          INTEGER NOT NULL,"
-                        "  comment         TEXT,"
-                        "  author_id       BLOB NOT NULL,"
-                        "  timestamp       UNSIGNED BIG INT NOT NULL,"
-                        "  signature_len   INTEGER NOT NULL,"
-                        "  signature       BLOB NOT NULL,"
-                        "  FOREIGN KEY (author_id) REFERENCES user(id))") ||
+                        "CREATE TABLE IF NOT EXISTS  Operation ("
+                        "  Id              BLOB PRIMARY KEY,"
+                        "  Type            INTEGER NOT NULL,"
+                        "  Reason          INTEGER NOT NULL,"
+                        "  Comment         TEXT,"
+                        "  Author_id       BLOB NOT NULL,"
+                        "  Timestamp       UNSIGNED BIG INT NOT NULL,"
+                        "  Signature_len   INTEGER NOT NULL,"
+                        "  Signature       BLOB NOT NULL,"
+                        "  FOREIGN KEY (Author_id) REFERENCES User(Id))") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  operation_on_user ("
-                        "  operation_id    BLOB NOT NULL,"
-                        "  user_id         BLOB NOT NULL,"
-                        "  FOREIGN KEY (operation_id) REFERENCES operation(id),"
-                        "  FOREIGN KEY (user_id) REFERENCES user(id))") ||
+                        "CREATE TABLE IF NOT EXISTS  Operation_on_User ("
+                        "  Operation_id    BLOB NOT NULL,"
+                        "  User_id         BLOB NOT NULL,"
+                        "  FOREIGN KEY (Operation_id) REFERENCES Operation(Id),"
+                        "  FOREIGN KEY (User_id) REFERENCES User(Id))") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  operation_on_message ("
-                        "  operation_id    BLOB NOT NULL,"
-                        "  message_id      BLOB NOT NULL,"
-                        "  FOREIGN KEY (operation_id) REFERENCES operation(id),"
-                        "  FOREIGN KEY (message_id) REFERENCES message(id))") ||
+                        "CREATE TABLE IF NOT EXISTS  Operation_on_Message ("
+                        "  Operation_id    BLOB NOT NULL,"
+                        "  Message_id      BLOB NOT NULL,"
+                        "  FOREIGN KEY (Operation_id) REFERENCES Operation(Id),"
+                        "  FOREIGN KEY (Message_id) REFERENCES Message(Id))") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  tag ("
-                        "  id              INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        "  name            TEXT NOT NULL UNIQUE)") ||
+                        "CREATE TABLE IF NOT EXISTS  Tag ("
+                        "  Id              INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        "  Name            TEXT NOT NULL UNIQUE ON CONFLICT IGNORE)") ||
       !db_sqlite3_exec (sql_dbh,
-                        "CREATE TABLE IF NOT EXISTS  message_tag ("
-                        "  tag_id          INTEGER NOT NULL,"
-                        "  message_id      BLOB NOT NULL,"
-                        "  FOREIGN KEY (tag_id) REFERENCES tag(id),"
-                        "  FOREIGN KEY (message_id) REFERENCES message(id))"))
+                        "CREATE TABLE IF NOT EXISTS  Message_Tag ("
+                        "  Tag_id          INTEGER NOT NULL,"
+                        "  Message_id      BLOB NOT NULL,"
+                        "  FOREIGN KEY (Tag_id) REFERENCES Tag(Id),"
+                        "  FOREIGN KEY (Message_id) REFERENCES Message(Id),"
+                        "  UNIQUE (Tag_id, Message_id))"))
     {
       /* db_sqlite3_exec logs error messages. */
       goto error;
@@ -212,19 +214,19 @@ dscuss_db_put_user (DscussDb* dbh, DscussUser* user)
   timestamp = g_date_time_to_unix (dscuss_user_get_datetime (user));
 
   if (db_sqlite3_prepare (dbh,
-          "INSERT INTO user "
-          "( id,"
-          "  public_key,"
-          "  proof,"
-          "  nickname,"
-          "  info,"
-          "  timestamp,"
-          "  signature_len,"
-          "  signature) "
+          "INSERT INTO User "
+          "( Id,"
+          "  Public_key,"
+          "  Proof,"
+          "  Nickname,"
+          "  Info,"
+          "  Timestamp,"
+          "  Signature_len,"
+          "  Signature) "
           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", &stmt) != SQLITE_OK)
     {
       g_warning ("Failed to prepare `put_user' statement with error: %s.",
-                 sqlite3_errmsg(dbh));
+                 sqlite3_errmsg (dbh));
       goto out;
     }
 
@@ -255,14 +257,14 @@ dscuss_db_put_user (DscussDb* dbh, DscussUser* user)
                                          SQLITE_TRANSIENT)) )
     {
       g_warning ("Failed to bind parameters to `put_user' statement"
-                 " with error: %s.", sqlite3_errmsg(dbh));
+                 " with error: %s.", sqlite3_errmsg (dbh));
       goto out;
     }
 
   if (SQLITE_DONE != sqlite3_step (stmt))
     {
       g_warning ("Failed to execute `put_user' statement with error: %s.",
-                 sqlite3_errmsg(dbh));
+                 sqlite3_errmsg (dbh));
       goto out;
     }
 
@@ -273,7 +275,7 @@ out:
   if (SQLITE_OK != sqlite3_finalize (stmt))
     {
       g_warning ("Failed to finalize `put_user' statement with error: %s.",
-                 sqlite3_errmsg(dbh));
+                 sqlite3_errmsg (dbh));
     }
 
   return result;
@@ -296,25 +298,25 @@ dscuss_db_get_user (DscussDb* dbh, const DscussHash* id)
   g_debug ("Fetching user with id `%s' from the database.",
            dscuss_crypto_hash_to_string (id));
   if (db_sqlite3_prepare (dbh,
-                  "SELECT public_key,"
-                  "       proof,"
-                  "       nickname,"
-                  "       info,"
-                  "       timestamp,"
-                  "       signature_len,"
-                  "       signature "
-                  "FROM user WHERE id=?",
+                  "SELECT Public_key,"
+                  "       Proof,"
+                  "       Nickname,"
+                  "       Info,"
+                  "       Timestamp,"
+                  "       Signature_len,"
+                  "       Signature "
+                  "FROM User WHERE Id=?",
                   &stmt) != SQLITE_OK)
     {
       g_warning ("Failed to prepare `gut_user' statement with error: %s.",
-                 sqlite3_errmsg(dbh));
+                 sqlite3_errmsg (dbh));
       goto out;
     }
   if (SQLITE_OK != sqlite3_bind_blob (stmt, 1, id, sizeof (DscussHash),
                       SQLITE_TRANSIENT))
     {
       g_warning ("Failed to bind parameters to `get_user' statement"
-                 " with error: %s.", sqlite3_errmsg(dbh));
+                 " with error: %s.", sqlite3_errmsg (dbh));
       goto out;
     }
   if (SQLITE_ROW != sqlite3_step (stmt))
@@ -325,7 +327,7 @@ dscuss_db_get_user (DscussDb* dbh, const DscussHash* id)
   if ( (sqlite3_column_bytes (stmt, 6) !=
         sizeof (struct DscussSignature)) )
     {
-      g_warning ("Database is corrupted: wrong signature size.");
+      g_warning ("Database is corrupted: wrong size of user.signature.");
       goto out;
     }
   pubkey_digest_len = sqlite3_column_bytes (stmt, 0);
@@ -361,8 +363,484 @@ out:
   if (SQLITE_OK != sqlite3_finalize (stmt))
     {
       g_warning ("Failed to finalize `get_user' statement with error: %s.",
-                 sqlite3_errmsg(dbh));
+                 sqlite3_errmsg (dbh));
     }
 
   return user;
+}
+
+
+/*** IterateMessageTagsContext ***********************************************/
+
+typedef struct IterateMessageTagsContext
+{
+  DscussDb* dbh;
+  const DscussHash* msg_id;
+} IterateMessageTagsContext;
+
+
+static IterateMessageTagsContext*
+iterate_message_tags_context_new (DscussDb* dbh,
+                                  const DscussHash* msg_id)
+{
+  IterateMessageTagsContext* ctx = g_new0 (IterateMessageTagsContext, 1);
+  ctx->dbh = dbh;
+  ctx->msg_id = msg_id;
+  return ctx;
+}
+
+
+static void
+iterate_message_tags_context_free (IterateMessageTagsContext* ctx)
+{
+  g_assert (ctx != NULL);
+  g_free (ctx);
+}
+
+/*** End of IterateMessageTagsContext ****************************************/
+
+
+static gboolean
+db_put_tag (DscussDb* dbh, const gchar* tag)
+{
+  sqlite3_stmt *stmt;
+  gboolean result = FALSE;
+
+  g_assert (dbh != NULL);
+  g_assert (tag != NULL);
+
+  g_debug ("Adding tag `%s' to the database.", tag);
+
+  if (db_sqlite3_prepare (dbh,
+          "INSERT INTO Tag (Name) VALUES (?)",
+          &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `put_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  if (SQLITE_OK != sqlite3_bind_text  (stmt, 1, tag,
+                                       -1, SQLITE_TRANSIENT))
+    {
+      g_warning ("Failed to bind parameters to `put_tag' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  if (SQLITE_DONE != sqlite3_step (stmt))
+    {
+      g_warning ("Failed to execute `put_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  result = TRUE;
+
+out:
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `put_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  return result;
+}
+
+
+static gboolean
+db_put_message_tag (DscussDb* dbh,
+                    const gchar* tag,
+                    const DscussHash* message_id)
+{
+  sqlite3_stmt *stmt;
+  gboolean result = FALSE;
+
+  g_assert (dbh != NULL);
+  g_assert (tag != NULL);
+  g_assert (message_id != NULL);
+
+  g_debug ("Adding tag `%s' for the message `%s' to the database.",
+           tag, dscuss_crypto_hash_to_string (message_id));
+
+  if (db_sqlite3_prepare (dbh,
+          "INSERT INTO Message_Tag "
+          "( Message_id, Tag_id ) "
+          "VALUES (?, (SELECT Id FROM Tag WHERE Name=?))", &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `put_message_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  if ( (SQLITE_OK != sqlite3_bind_blob  (stmt, 1, message_id,
+                                         sizeof (DscussHash),
+                                         SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_text  (stmt, 2, tag, -1,
+                                         SQLITE_TRANSIENT)) )
+    {
+      g_warning ("Failed to bind parameters to `put_message_tag' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  if (SQLITE_DONE != sqlite3_step (stmt))
+    {
+      g_warning ("Failed to execute `put_message_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  result = TRUE;
+
+out:
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `put_message_tag' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  return result;
+}
+
+
+static void
+db_iterate_message_tags (const gchar* tag,
+                         gpointer user_data)
+{
+  IterateMessageTagsContext* ctx = user_data;
+
+  if (!db_put_tag (ctx->dbh, tag))
+    {
+      g_critical ("Failed to store tag '%s' in the DB. DB may be corrupted!",
+                  tag);
+      return;
+    }
+
+  if (!db_put_message_tag (ctx->dbh, tag, ctx->msg_id))
+    {
+      g_critical ("Failed to store tag '%s' in the DB. DB may be corrupted!",
+                  tag);
+      return;
+    }
+}
+
+
+static void
+db_put_message_topic (DscussDb* dbh,
+                      const DscussMessage* msg)
+{
+  IterateMessageTagsContext* ctx = NULL;
+
+  ctx = iterate_message_tags_context_new (dbh,
+                                          dscuss_message_get_id (msg));
+  dscuss_topic_foreach (dscuss_message_get_topic (msg),
+                        db_iterate_message_tags,
+                        ctx);
+  iterate_message_tags_context_free (ctx);
+}
+
+
+static DscussTopic*
+db_get_message_topic (DscussDb* dbh,
+                      const DscussHash* msg_id)
+{
+  sqlite3_stmt *stmt;
+  DscussTopic* topic = NULL;
+
+  g_assert (msg_id != NULL);
+  g_debug ("Fetching message topic from the database.");
+
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT Name "
+                  "FROM Tag "
+                  "INNER JOIN Message_Tag "
+                  "ON Tag.Id = Message_Tag.Tag_id AND Message_Tag.Message_id = ?",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `get_message_topic' statement with"
+                 " error: %s.", sqlite3_errmsg (dbh));
+      return NULL;
+    }
+
+  if ( (SQLITE_OK != sqlite3_bind_blob  (stmt, 1,
+                                         msg_id,
+                                         sizeof (DscussHash),
+                                         SQLITE_TRANSIENT)) )
+    {
+      g_warning ("Failed to bind parameters to `get_message_topic' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  topic = dscuss_topic_new_empty ();
+  while (SQLITE_ROW == sqlite3_step (stmt))
+    {
+      g_debug ("Found a message tag matching the request.");
+      dscuss_topic_add_tag (topic,
+                            (const gchar*) sqlite3_column_text  (stmt, 0));
+    }
+
+out:
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `get_recent_messages' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  if (dscuss_topic_is_empty (topic))
+    {
+      dscuss_topic_free (topic);
+      topic = NULL;
+    }
+
+  return topic;
+}
+
+
+gboolean
+dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg)
+{
+  sqlite3_stmt *stmt;
+  gboolean result = FALSE;
+  gint64 timestamp = 0;
+  DscussHash parent_id;
+
+  g_assert (dbh != NULL);
+  g_assert (msg != NULL);
+
+  g_debug ("Adding message `%s' to the database.",
+           dscuss_message_get_description (msg));
+
+  timestamp = g_date_time_to_unix (dscuss_message_get_datetime (msg));
+  if (db_sqlite3_prepare (dbh,
+          "INSERT INTO Message "
+          "( Id,"
+          "  Subject,"
+          "  Content,"
+          "  Timestamp,"
+          "  Author_id,"
+          "  In_reply_to,"
+          "  Signature_len,"
+          "  Signature) "
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `put_message' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  memset (&parent_id, 0, sizeof (DscussHash));
+
+  if ( (SQLITE_OK != sqlite3_bind_blob  (stmt, 1,
+                                         dscuss_message_get_id (msg),
+                                         sizeof (DscussHash),
+                                         SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_text  (stmt, 2,
+                                         dscuss_message_get_subject (msg),
+                                         -1,
+                                         SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_text  (stmt, 3,
+                                         dscuss_message_get_content (msg),
+                                         -1, SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_int64 (stmt, 4,
+                                         timestamp)) ||
+       (SQLITE_OK != sqlite3_bind_blob  (stmt, 5,
+                                         dscuss_message_get_author_id (msg),
+                                         sizeof (DscussHash),
+                                         SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_blob  (stmt, 6,
+                                         &parent_id,
+                                         sizeof (DscussHash),
+                                         SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_int   (stmt, 7,
+                                         dscuss_message_get_signature_length (msg))) ||
+       (SQLITE_OK != sqlite3_bind_blob  (stmt, 8,
+                                         dscuss_message_get_signature (msg),
+                                         sizeof (struct DscussSignature),
+                                         SQLITE_TRANSIENT)) )
+    {
+      g_warning ("Failed to bind parameters to `put_message' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  if (SQLITE_DONE != sqlite3_step (stmt))
+    {
+      g_warning ("Failed to execute `put_message' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+
+  result = TRUE;
+
+  /* TBD: rollback DB state in case of a failure? */
+  db_put_message_topic (dbh, msg);
+
+out:
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `put_message' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  return result;
+}
+
+
+void
+dscuss_db_get_recent_messages (DscussDb* dbh,
+                               DscussDbIterateMessageCallback callback,
+                               gpointer user_data)
+{
+  sqlite3_stmt *stmt;
+  GDateTime* datetime = NULL;
+  DscussMessage* msg = NULL;
+  DscussTopic* topic = NULL;
+
+  g_assert (dbh != NULL);
+  g_assert (callback != NULL);
+
+  g_debug ("Fetching latest messages from the database.");
+
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT Subject,"
+                  "       Content,"
+                  "       Timestamp,"
+                  "       Author_id,"
+                  "       Signature_len,"
+                  "       Signature, "
+                  "       Id "
+                  "FROM Message "
+                  "ORDER BY Timestamp DESC",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `get_recent_messages' statement with"
+                 " error: %s.", sqlite3_errmsg (dbh));
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+
+  while (SQLITE_ROW == sqlite3_step (stmt))
+    {
+      g_debug ("Found a message matching the request.");
+      if ( (sqlite3_column_bytes (stmt, 3) !=
+            sizeof (DscussHash)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.author_id.");
+          continue;
+        }
+      if ( (sqlite3_column_bytes (stmt, 5) !=
+            sizeof (struct DscussSignature)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.signature.");
+          continue;
+        }
+      topic = db_get_message_topic (dbh,
+                                    (DscussHash *) sqlite3_column_blob (stmt, 6));
+      if (topic == NULL)
+        {
+          g_warning ("Database is corrupted: failed to fetch message topic.");
+          continue;
+        }
+      datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
+      msg = dscuss_message_new_full (
+                topic,
+                (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
+                (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
+                (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
+                datetime,
+                (struct DscussSignature *) sqlite3_column_blob  (stmt, 5), /* signature */
+                sqlite3_column_int (stmt, 4));                             /* signature_len */
+      callback (TRUE, msg, user_data);
+      dscuss_free_non_null (topic, dscuss_topic_free);
+      dscuss_free_non_null (datetime, g_date_time_unref);
+    }
+  callback (TRUE, NULL, user_data);
+
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `get_recent_messages' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+}
+
+
+DscussMessage*
+dscuss_db_get_message (DscussDb* dbh, const DscussHash* id)
+{
+  sqlite3_stmt *stmt;
+  GDateTime* datetime = NULL;
+  DscussTopic* topic = NULL;
+  DscussMessage* msg = NULL;
+
+  g_assert (dbh != NULL);
+  g_assert (id != NULL);
+
+  g_debug ("Fetching message with id `%s' from the database.",
+           dscuss_crypto_hash_to_string (id));
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT Subject,"
+                  "       Content,"
+                  "       Timestamp,"
+                  "       Author_id,"
+                  "       Signature_len,"
+                  "       Signature "
+                  "FROM Message WHERE Id=?",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `get_message' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+  if (SQLITE_OK != sqlite3_bind_blob (stmt, 1, id, sizeof (DscussHash),
+                      SQLITE_TRANSIENT))
+    {
+      g_warning ("Failed to bind parameters to `get_message' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+  if (SQLITE_ROW != sqlite3_step (stmt))
+    {
+      g_debug ("No such message in the database.");
+      goto out;
+    }
+  g_debug ("Found a message matching the request.");
+  if ( (sqlite3_column_bytes (stmt, 3) != sizeof (DscussHash)) )
+    {
+      g_warning ("Database is corrupted: wrong size of message.author_id.");
+      goto out;
+    }
+  if ( (sqlite3_column_bytes (stmt, 5) !=
+        sizeof (struct DscussSignature)) )
+    {
+      g_warning ("Database is corrupted: wrong size of message.signature.");
+      goto out;
+    }
+  topic = db_get_message_topic (dbh, id);
+  if (topic == NULL)
+    {
+      g_warning ("Database is corrupted: failed to fetch message topic.");
+      goto out;
+    }
+  datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
+  msg = dscuss_message_new_full (
+            topic,
+            (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
+            (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
+            (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
+            datetime,
+            (struct DscussSignature *) sqlite3_column_blob  (stmt, 5), /* signature */
+            sqlite3_column_int (stmt, 4));                             /* signature_len */
+
+out:
+  dscuss_free_non_null (topic, dscuss_topic_free);
+  dscuss_free_non_null (datetime, g_date_time_unref);
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `get_message' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  return msg;
 }

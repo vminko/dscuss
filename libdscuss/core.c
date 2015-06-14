@@ -96,7 +96,7 @@ free_duplicate_peer_context_free (FreeDuplicatePeerContext* ctx)
   g_free (ctx);
 }
 
-/*** End of FreeDuplicatePeerContext  ****************************************/
+/*** End of FreeDuplicatePeerContext *****************************************/
 
 
 static gboolean
@@ -121,12 +121,36 @@ free_duplicate_peer (gpointer user_data)
 }
 
 
+
+static gboolean
+is_message_relevant (const GSList* subscriptions,
+                     const DscussMessage* msg)
+{
+  g_assert (subscriptions != NULL);
+  g_assert (msg != NULL);
+
+  GSList* iterator = (GSList*) subscriptions;
+  for (; iterator; iterator = iterator->next)
+    {
+      DscussTopic* topic = iterator->data;
+      if (dscuss_topic_contains_topic (topic,
+                                       dscuss_message_get_topic (msg)))
+        {
+          return TRUE;
+        }
+    }
+  return FALSE;
+}
+
+
 static void
 on_new_entity (DscussPeer* peer,
                DscussEntity* entity,
                gboolean result,
                gpointer user_data)
 {
+  DscussMessage* msg = NULL;
+
   g_assert (self != NULL);
 
   if (!result)
@@ -149,8 +173,25 @@ on_new_entity (DscussPeer* peer,
       break;
 
     case DSCUSS_ENTITY_TYPE_MSG:
-      self->msg_callback ((DscussMessage*) entity, self->msg_data);
-      break;;
+      msg = (DscussMessage*) entity;
+      if (!is_message_relevant (self->subscriptions, msg))
+        {
+          gchar* topic_str = dscuss_topic_to_string (dscuss_message_get_topic (msg));
+          g_warning ("Peer '%s' sent an uninteresting message from the topic '%s'.",
+                     dscuss_peer_get_description (peer), topic_str);
+          g_free (topic_str);
+          dscuss_message_free (msg);
+          self->peers = g_slist_remove (self->peers, peer);
+          g_idle_add (free_peer, peer);
+          return;
+        }
+      if (!dscuss_db_put_message (self->dbh, msg))
+        {
+          g_critical ("Failed to store message '%s' in the database!",
+                      dscuss_message_get_description (msg));
+        }
+      self->msg_callback (msg, self->msg_data);
+      break;
 
     case DSCUSS_ENTITY_TYPE_OPER:
       /* TBD */
@@ -160,6 +201,18 @@ on_new_entity (DscussPeer* peer,
     default:
       g_assert_not_reached ();
     }
+}
+
+
+static gboolean
+start_receiving_entities (gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  g_assert (peer != NULL);
+  dscuss_peer_set_receive_callback (peer,
+                                    on_new_entity,
+                                    NULL);
+  return FALSE;
 }
 
 
@@ -198,9 +251,7 @@ on_peer_handshaked (DscussPeer* peer,
         }
 
       /* TBD: synchronize with peer */
-      dscuss_peer_set_receive_callback (peer,
-                                        on_new_entity,
-                                        NULL);
+      g_idle_add (start_receiving_entities, peer);
     }
   else
     {
@@ -659,19 +710,89 @@ dscuss_send_message (DscussMessage* msg)
 
   g_assert (self != NULL);
 
+  if (!dscuss_db_put_message (self->dbh, msg))
+    {
+      g_critical ("Failed to store message '%s' in the database!",
+                  dscuss_message_get_description (msg));
+    }
+
   for (iterator = self->peers; iterator; iterator = iterator->next)
     {
-      /* TBD: logic deciding whether we need to send this message to this peer
-       * gboolean
-       * dscuss_peer_is_message_relevant (const DscussPeer* peer,
-       *                                  const DscussMessage* msg);
-       **/
       DscussPeer* peer = iterator->data;
-      dscuss_peer_send (peer,
-                        (DscussEntity*) msg,
-                        on_send_finished,
-                        NULL);
+      if (is_message_relevant (dscuss_peer_get_subscriptions (peer), msg))
+        {
+          if (!dscuss_peer_send (peer,
+                                 (DscussEntity*) msg,
+                                 self->privkey,
+                                 on_send_finished,
+                                 NULL))
+            g_warning ("Failed to queue message '%s' for delivery"
+                       " to the peer '%s'",
+                       dscuss_message_get_description (msg),
+                       dscuss_peer_get_description (peer));
+        }
     }
+}
+
+
+/*** IterateMessageContext ***************************************************/
+
+typedef struct IterateMessageContext
+{
+  DscussIterateMessageCallback callback;
+  gpointer user_data;
+} IterateMessageContext;
+
+
+static IterateMessageContext*
+iterate_message_context_new (DscussIterateMessageCallback callback,
+                             gpointer user_data)
+{
+  IterateMessageContext* ctx = g_new0 (IterateMessageContext, 1);
+  ctx->callback = callback;
+  ctx->user_data = user_data;
+  return ctx;
+}
+
+
+static void
+iterate_message_context_free (IterateMessageContext* ctx)
+{
+  g_assert (ctx != NULL);
+  g_free (ctx);
+}
+
+/*** End of IterateMessageContext ********************************************/
+
+
+static void
+iterate_message_callback (gboolean success,
+                          DscussMessage* msg,
+                          gpointer user_data)
+{
+  IterateMessageContext* ctx = user_data;
+  ctx->callback (success, msg, ctx->user_data);
+}
+
+
+void
+dscuss_get_messages (DscussIterateMessageCallback callback,
+                     gpointer user_data)
+{
+  IterateMessageContext* ctx = NULL;
+  ctx = iterate_message_context_new (callback,
+                                     user_data);
+  dscuss_db_get_recent_messages (self->dbh,
+                                 iterate_message_callback,
+                                 ctx);
+  iterate_message_context_free (ctx);
+}
+
+
+DscussMessage*
+dscuss_get_message (const DscussHash* msg_id)
+{
+  return dscuss_db_get_message (self->dbh, msg_id);
 }
 
 

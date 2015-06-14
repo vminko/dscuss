@@ -91,6 +91,28 @@ const gchar*
 dscuss_crypto_hash_to_string (const DscussHash* hash)
 {
   g_assert (hash != NULL);
-  dscuss_data_to_hex ((const gpointer)hash, sizeof (DscussHash), description_buf);
+  dscuss_data_to_hex ((const gpointer)hash,
+                      sizeof (DscussHash),
+                      description_buf);
   return description_buf;
 }
+
+
+DscussHash*
+dscuss_crypto_hash_from_string (const gchar* hash_str)
+{
+  DscussHash* hash = NULL;
+  gsize hash_len = 0;
+
+  g_assert (hash_str != NULL);
+
+  if (dscuss_data_from_hex (hash_str, (gpointer*)&hash, &hash_len) != TRUE ||
+      hash_len != sizeof (DscussHash))
+    {
+      g_warning ("Malformed hash string: '%s'.", hash_str);
+      return NULL;
+    }
+
+  return hash;
+}
+

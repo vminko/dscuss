@@ -50,6 +50,23 @@ extern "C" {
 typedef void DscussTopic;
 
 /**
+ * Callback used for iterating over topics.
+ *
+ * @param tag        A tag.
+ * @param user_data  The user data.
+ */
+typedef void (*DscussTopicIteratorCallback)(const gchar* tag,
+                                            gpointer user_data);
+
+/**
+ * Create an empty topic.
+ *
+ * @return  Newly created topic.
+ */
+DscussTopic*
+dscuss_topic_new_empty (void);
+
+/**
  * Create a new topic from its string representation.
  *
  * @param topic_str  Comma-separated string of tags.
@@ -124,7 +141,8 @@ dscuss_topic_remove_tag (DscussTopic* topic, const gchar* tag);
  *          @c FALSE otherwise.
  */
 gboolean
-dscuss_topic_contains_topic (DscussTopic* main_topic, DscussTopic* sub_topic);
+dscuss_topic_contains_topic (const DscussTopic* main_topic,
+                             const DscussTopic* sub_topic);
 
 /**
  * Shows whether a topic is empty.
@@ -148,6 +166,18 @@ dscuss_topic_is_empty (DscussTopic* topic);
  */
 gint
 dscuss_topic_compare (const DscussTopic* topic1, const DscussTopic* topic2);
+
+/**
+ * Calls a function for each tag of a topic.
+ *
+ * @param topic      The topic to iterate.
+ * @param callback   Function to call.
+ * @param user_data  User data to be passed to the @c callback.
+ */
+void
+dscuss_topic_foreach (const DscussTopic* topic,
+                      DscussTopicIteratorCallback callback,
+                      gpointer user_data);
 
 
 #ifdef __cplusplus
