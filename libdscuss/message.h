@@ -49,17 +49,21 @@ extern "C" {
 /**
  * Creates a new message entity.
  * Date and time will be current date and time.
+ * Either @a topic or @a parent_id must be @c NULL.
  *
  * @param topic      Topic the message will belong to.
+ * @param parent_id  ID of the parent message.
  * @param subject    Subject of the message.
  * @param text       Plain next message content.
  * @param author_id  ID of the author of the message.
  * @param privkey    Private key of the author (will be used for signing).
  *
- * @return  Newly created message entity.
+ * @return  Newly created message entity or
+ *          @c NULL in case of incorrect parameters.
  */
 DscussMessage*
 dscuss_message_new_int (DscussTopic* topic,
+                        const DscussHash* parent_id,
                         const gchar* subject,
                         const gchar* text,
                         const DscussHash* author_id,
@@ -67,8 +71,10 @@ dscuss_message_new_int (DscussTopic* topic,
 
 /**
  * Creates a new message entity with all fields supplied.
+ * Either @a topic or @a parent_id must be @c NULL.
  *
  * @param topic          Topic the message will belong to.
+ * @param parent_id      ID of the parent message.
  * @param subject        Subject of the message.
  * @param text           Plain next message content.
  * @param author_id      ID of the author of the message.
@@ -76,10 +82,12 @@ dscuss_message_new_int (DscussTopic* topic,
  * @param signature      Signature of the message.
  * @param signature_len  Length of the @c signature.
  *
- * @return  Newly created message entity.
+ * @return  Newly created message entity or
+ *          @c NULL in case of incorrect parameters.
  */
 DscussMessage*
 dscuss_message_new_full (DscussTopic* topic,
+                         const DscussHash* parent_id,
                          const gchar* subject,
                          const gchar* text,
                          const DscussHash* author_id,

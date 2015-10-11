@@ -51,19 +51,34 @@ extern "C" {
 typedef struct _DscussMessage DscussMessage;
 
 /**
- * Creates a new message entity.
+ * Creates a new thread.
  * Date and time will be current date and time.
  *
- * @param topic      Topic the message will belong to.
+ * @param topic    Topic the thread will belong to.
+ * @param subject  Subject of the message.
+ * @param text     Plain next message content.
+ *
+ * @return  Newly created message entity.
+ */
+DscussMessage*
+dscuss_message_new_thread (DscussTopic* topic,
+                           const gchar* subject,
+                           const gchar* text);
+
+/**
+ * Creates a reply to another message.
+ * Date and time will be current date and time.
+ *
+ * @param parent_id  ID of the parent message.
  * @param subject    Subject of the message.
  * @param text       Plain next message content.
  *
  * @return  Newly created message entity.
  */
 DscussMessage*
-dscuss_message_new (DscussTopic* topic,
-                    const gchar* subject,
-                    const gchar* text);
+dscuss_message_new_reply (const DscussHash* parent_id,
+                          const gchar* subject,
+                          const gchar* text);
 
 /**
  * Destroys a message entity.
@@ -143,6 +158,16 @@ dscuss_message_get_datetime (DscussMessage* msg);
  */
 const DscussHash*
 dscuss_message_get_author_id (const DscussMessage* msg);
+
+/**
+ * Returns author ID of a mesasge.
+ *
+ * @param msg  Message to get author ID of.
+ *
+ * @return  ID of the author of the message.
+ */
+const DscussHash*
+dscuss_message_get_parent_id (const DscussMessage* msg);
 
 
 #ifdef __cplusplus

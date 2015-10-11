@@ -60,8 +60,14 @@ struct _DscussMessage
   DscussHash id;
   /**
    * Topic the message belongs to.
+   * If topic is specified, then @c parent_id must be empty.
    */
   DscussTopic* topic;
+  /**
+   * ID of the parent message.
+   * If this field is not empty, then @c topic must be NULL.
+   */
+  DscussHash parent_id;
   /**
    * Plain text message subject.
    */
@@ -95,6 +101,7 @@ struct _DscussMessageNBO
 {
   /**
    * Length of serialized topic.
+   * Will be zero if this message is a reply to another message.
    */
   guint16 topic_len;
   /**
@@ -114,9 +121,13 @@ struct _DscussMessageNBO
    */
   DscussHash author_id;
   /**
-   * After this structure go serialized topic, subject, message text and
-   * finally the signature (both length and the signature itself) of the
-   * message covering everything from the beginning of the structure.
+   * ID of the parent message. Empty if this message is a new thread.
+   */
+  DscussHash parent_id;
+  /**
+   * After this structure go serialized topic (optional), subject, message
+   * text and finally the signature (both length and the signature itself) of
+   * the message covering everything from the beginning of the structure.
    */
 };
 
@@ -134,13 +145,16 @@ message_dump (const DscussMessage* msg)
   signature_str = dscuss_data_to_hex ((const gpointer) &msg->signature,
                                       sizeof (struct DscussSignature),
                                       NULL);
-  topic_str = dscuss_topic_to_string (msg->topic);
+  if (msg->topic != NULL)
+    topic_str = dscuss_topic_to_string (msg->topic);
 
   g_debug ("Dumping Message entity:");
   g_debug ("  type = %d", msg->type);
   g_debug ("  ref_count = %u", msg->ref_count);
   g_debug ("  id = %s", dscuss_crypto_hash_to_string (&msg->id));
-  g_debug ("  topic = '%s'", topic_str);
+  if (topic_str != NULL)
+    g_debug ("  topic = '%s'", topic_str);
+  g_debug ("  parent_id = %s", dscuss_crypto_hash_to_string (&msg->parent_id));
   g_debug ("  subject = '%s'", msg->subject);
   g_debug ("  text = '%s'", msg->text);
   g_debug ("  author_id = %s", dscuss_crypto_hash_to_string (&msg->author_id));
@@ -167,25 +181,31 @@ message_serialize_all_but_signature (const DscussMessage* msg,
   g_assert (data != NULL);
   g_assert (size != NULL);
 
-  topic_str = dscuss_topic_to_string (msg->topic);
+  if (msg->topic != NULL)
+    topic_str = dscuss_topic_to_string (msg->topic);
   *size = sizeof (struct _DscussMessageNBO);
-  *size += strlen (topic_str);
+  if (msg->topic != NULL)
+    *size += strlen (topic_str);
   *size += strlen (msg->subject);
   *size += strlen (msg->text);
   digest = g_malloc0 (*size);
   *data = digest;
 
   msg_nbo = (struct _DscussMessageNBO*) digest;
-  msg_nbo->topic_len = g_htons (strlen (topic_str));
+  msg_nbo->topic_len = (msg->topic != NULL) ? g_htons (strlen (topic_str)) : 0;
   msg_nbo->subject_len = g_htons (strlen (msg->subject));
   msg_nbo->text_len = g_htons (strlen (msg->text));
   msg_nbo->timestamp = dscuss_htonll (g_date_time_to_unix (msg->datetime));
   memcpy (&msg_nbo->author_id, &msg->author_id, sizeof (DscussHash));
+  memcpy (&msg_nbo->parent_id, &msg->parent_id, sizeof (DscussHash));
   digest += sizeof (struct _DscussMessageNBO);
 
-  memcpy (digest, topic_str, strlen (topic_str));
-  digest += strlen (topic_str);
-  g_free (topic_str);
+  if (topic_str != NULL)
+    {
+      memcpy (digest, topic_str, strlen (topic_str));
+      digest += strlen (topic_str);
+      g_free (topic_str);
+    }
 
   memcpy (digest, msg->subject, strlen (msg->subject));
   digest += strlen (msg->subject);
@@ -197,6 +217,7 @@ message_serialize_all_but_signature (const DscussMessage* msg,
 
 static DscussMessage*
 message_new_but_signature (DscussTopic* topic,
+                           const DscussHash* parent_id,
                            const gchar* subject,
                            const gchar* text,
                            const DscussHash* author_id,
@@ -205,27 +226,33 @@ message_new_but_signature (DscussTopic* topic,
   gchar* all_but_signature = NULL;
   gsize all_but_signature_size = 0;
 
-  g_assert (topic != NULL);
+  g_assert (topic != NULL || parent_id != NULL);
   g_assert (subject != NULL);
   g_assert (text != NULL);
   g_assert (author_id != NULL);
+  g_assert (datetime != NULL);
   g_assert (datetime != NULL);
 
   DscussMessage* msg = g_new0 (DscussMessage, 1);
   msg->type = DSCUSS_ENTITY_TYPE_MSG;
   msg->ref_count = 1;
-  msg->topic = dscuss_topic_copy (topic);
+  msg->topic = (topic != NULL) ? dscuss_topic_copy (topic) : NULL;
   msg->subject = g_strdup (subject);
   msg->text = g_strdup (text);
   memcpy (&msg->author_id,
           author_id,
           sizeof (DscussHash));
+  if (parent_id != NULL)
+    memcpy (&msg->parent_id,
+            parent_id,
+            sizeof (DscussHash));
   msg->datetime = g_date_time_ref (datetime);
 
   /* Calculate message ID */
   message_serialize_all_but_signature (msg,
                                        &all_but_signature,
                                        &all_but_signature_size);
+
   dscuss_crypto_hash_sha512 (all_but_signature,
                              all_but_signature_size,
                              &msg->id);
@@ -236,9 +263,9 @@ message_new_but_signature (DscussTopic* topic,
 
 
 DscussMessage*
-dscuss_message_new (DscussTopic* topic,
-                    const gchar* subject,
-                    const gchar* text)
+dscuss_message_new_thread (DscussTopic* topic,
+                           const gchar* subject,
+                           const gchar* text)
 {
   if (!dscuss_is_logged_in ())
     return NULL;
@@ -247,6 +274,29 @@ dscuss_message_new (DscussTopic* topic,
   const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
 
   DscussMessage* msg = dscuss_message_new_int (topic,
+                                               NULL, /* parent_id */
+                                               subject,
+                                               text,
+                                               author_id,
+                                               privkey);
+  message_dump (msg);
+  return msg;
+}
+
+
+DscussMessage*
+dscuss_message_new_reply (const DscussHash* parent_id,
+                          const gchar* subject,
+                          const gchar* text)
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
+  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
+
+  DscussMessage* msg = dscuss_message_new_int (NULL, /* topic */
+                                               parent_id,
                                                subject,
                                                text,
                                                author_id,
@@ -258,6 +308,7 @@ dscuss_message_new (DscussTopic* topic,
 
 DscussMessage*
 dscuss_message_new_int (DscussTopic* topic,
+                        const DscussHash* parent_id,
                         const gchar* subject,
                         const gchar* text,
                         const DscussHash* author_id,
@@ -272,6 +323,7 @@ dscuss_message_new_int (DscussTopic* topic,
 
   datetime = g_date_time_new_now_utc ();
   DscussMessage* msg = message_new_but_signature (topic,
+                                                  parent_id,
                                                   subject,
                                                   text,
                                                   author_id,
@@ -301,6 +353,7 @@ dscuss_message_new_int (DscussTopic* topic,
 
 DscussMessage*
 dscuss_message_new_full (DscussTopic* topic,
+                         const DscussHash* parent_id,
                          const gchar* subject,
                          const gchar* text,
                          const DscussHash* author_id,
@@ -311,7 +364,21 @@ dscuss_message_new_full (DscussTopic* topic,
   g_assert (signature != NULL);
   g_assert (signature_len != 0);
 
+  if (topic != NULL && parent_id != NULL)
+    {
+      g_warning ("Malformed message entity:"
+                 " both topic and parent_id are specified.");
+      //return NULL;
+    }
+  if (topic == NULL && parent_id == NULL)
+    {
+      g_warning ("Malformed message entity:"
+                 " both topic and parent_id are not specified.");
+      return NULL;
+    }
+
   DscussMessage* msg = message_new_but_signature (topic,
+                                                  parent_id,
                                                   subject,
                                                   text,
                                                   author_id,
@@ -417,17 +484,20 @@ dscuss_message_deserialize (const gchar* data,
 
   /* Parse topic */
   topic_len = g_ntohs (msg_nbo->topic_len);
-  topic_str = g_malloc0 (topic_len + 1);
-  memcpy (topic_str, digest, topic_len);
-  topic_str[topic_len] = '\0';
-  topic = dscuss_topic_new (topic_str);
-  if (topic == NULL)
+  if (topic_len > 0)
     {
-      g_warning ("Malformed topic in the message: '%s'.", topic_str);
-      g_free (topic_str);
-      return NULL;
+      topic_str = g_malloc0 (topic_len + 1);
+      memcpy (topic_str, digest, topic_len);
+      topic_str[topic_len] = '\0';
+      topic = dscuss_topic_new (topic_str);
+      if (topic == NULL)
+        {
+          g_warning ("Malformed topic in the message: '%s'.", topic_str);
+          g_free (topic_str);
+          return NULL;
+        }
+      digest += topic_len;
     }
-  digest += topic_len;
 
   /* Parse subject */
   subject_len = g_ntohs (msg_nbo->subject_len);
@@ -456,6 +526,7 @@ dscuss_message_deserialize (const gchar* data,
           sizeof (struct DscussSignature));
 
   msg = dscuss_message_new_full (topic,
+                                 &msg_nbo->parent_id,
                                  subject,
                                  text,
                                  &msg_nbo->author_id,
@@ -468,7 +539,8 @@ dscuss_message_deserialize (const gchar* data,
   g_free (subject);
   g_free (topic_str);
 
-  message_dump (msg);
+  if (msg != NULL)
+    message_dump (msg);
 
   return msg;
 }
@@ -559,6 +631,14 @@ dscuss_message_get_author_id (const DscussMessage* msg)
 {
   g_assert (msg != NULL);
   return &msg->author_id;
+}
+
+
+const DscussHash*
+dscuss_message_get_parent_id (const DscussMessage* msg)
+{
+  g_assert (msg != NULL);
+  return &msg->parent_id;
 }
 
 

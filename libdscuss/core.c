@@ -735,34 +735,36 @@ dscuss_send_message (DscussMessage* msg)
 }
 
 
-/*** IterateMessageContext ***************************************************/
+/*** ListBoardContext ********************************************************/
 
-typedef struct IterateMessageContext
+typedef struct ListBoardContext
 {
-  DscussIterateMessageCallback callback;
+  DscussListBoardCallback callback;
+  GList* board_listing;
   gpointer user_data;
-} IterateMessageContext;
+} ListBoardContext;
 
 
-static IterateMessageContext*
-iterate_message_context_new (DscussIterateMessageCallback callback,
-                             gpointer user_data)
+static ListBoardContext*
+list_board_context_new (DscussListBoardCallback callback,
+                        gpointer user_data)
 {
-  IterateMessageContext* ctx = g_new0 (IterateMessageContext, 1);
+  ListBoardContext* ctx = g_new0 (ListBoardContext, 1);
   ctx->callback = callback;
+  ctx->board_listing = NULL;
   ctx->user_data = user_data;
   return ctx;
 }
 
 
 static void
-iterate_message_context_free (IterateMessageContext* ctx)
+list_board_context_free (ListBoardContext* ctx)
 {
   g_assert (ctx != NULL);
   g_free (ctx);
 }
 
-/*** End of IterateMessageContext ********************************************/
+/*** End of ListBoardContext *************************************************/
 
 
 static void
@@ -770,29 +772,197 @@ iterate_message_callback (gboolean success,
                           DscussMessage* msg,
                           gpointer user_data)
 {
-  IterateMessageContext* ctx = user_data;
-  ctx->callback (success, msg, ctx->user_data);
+  ListBoardContext* ctx = user_data;
+  if (!success)
+    {
+      g_warning ("Failed to fetch a root message from the database\n");
+      g_list_free_full (ctx->board_listing,
+                        (GDestroyNotify)dscuss_message_free);
+      ctx->callback (FALSE, NULL, ctx->user_data);
+      list_board_context_free (ctx);
+      return;
+    }
+
+  if (msg != NULL)
+    {
+      ctx->board_listing = g_list_append (ctx->board_listing, msg);
+    }
+  else
+    {
+      ctx->callback (TRUE, ctx->board_listing, ctx->user_data);
+      list_board_context_free (ctx);
+    }
 }
 
 
 void
-dscuss_get_messages (DscussIterateMessageCallback callback,
-                     gpointer user_data)
+dscuss_list_board (DscussListBoardCallback callback,
+                   gpointer user_data)
 {
-  IterateMessageContext* ctx = NULL;
-  ctx = iterate_message_context_new (callback,
-                                     user_data);
-  dscuss_db_get_recent_messages (self->dbh,
-                                 iterate_message_callback,
-                                 ctx);
-  iterate_message_context_free (ctx);
+  ListBoardContext* ctx = list_board_context_new (callback,
+                                                  user_data);
+  dscuss_db_get_root_messages (self->dbh,
+                               iterate_message_callback,
+                               ctx);
 }
 
 
-DscussMessage*
-dscuss_get_message (const DscussHash* msg_id)
+/*** ListThreadContext *******************************************************/
+
+typedef struct ListThreadContext
 {
-  return dscuss_db_get_message (self->dbh, msg_id);
+  GNode* curr_node;
+  DscussListThreadCallback callback;
+  gpointer user_data;
+} ListThreadContext;
+
+
+static ListThreadContext*
+list_thread_context_new (GNode* root,
+                         DscussListThreadCallback callback,
+                         gpointer user_data)
+{
+  ListThreadContext* ctx = g_new0 (ListThreadContext, 1);
+  ctx->curr_node = root;
+  ctx->callback = callback;
+  ctx->user_data = user_data;
+  return ctx;
+}
+
+
+static void
+list_thread_context_free (ListThreadContext* ctx)
+{
+  g_assert (ctx != NULL);
+  g_free (ctx);
+}
+
+/*** End of ListThreadContext ************************************************/
+
+
+static GNode*
+get_next_node (GNode* node)
+{
+  GNode* next_node = NULL;
+
+  if (node->children != NULL)
+    {
+      return node->children;
+    }
+  else
+    {
+      if ((next_node = g_node_next_sibling (node)) != NULL)
+        {
+          return next_node;
+        }
+      else
+        {
+          while (node->parent != NULL)
+            {
+              if (node->parent->next != NULL)
+                return node->parent->next;
+              else
+                node = node->parent;
+            }
+          return NULL;
+        }
+    }
+}
+
+
+static gboolean
+traverse_nodes_callback (GNode *node,
+                         gpointer data)
+{
+  dscuss_message_free (node->data);
+  return FALSE;
+}
+
+
+static void
+thread_free (GNode* root)
+{
+  g_node_traverse (root,
+                   G_POST_ORDER,
+                   G_TRAVERSE_ALL,
+                   -1,   /* max_depth */
+                   traverse_nodes_callback,
+                   NULL);
+  g_node_destroy (root);
+}
+
+
+static void
+iterate_replies_callback (gboolean success,
+                          DscussMessage* msg,
+                          gpointer user_data)
+{
+  ListThreadContext* ctx = user_data;
+  GNode* next_node = user_data;
+
+  if (!success)
+    {
+      g_warning ("Failed to fetch a reply from the database\n");
+      thread_free (g_node_get_root (ctx->curr_node));
+      ctx->callback (FALSE, NULL, ctx->user_data);
+      list_thread_context_free (ctx);
+      return;
+    }
+
+  if (msg != NULL)
+    {
+      g_node_insert_data (ctx->curr_node, -1, msg);
+    }
+  else
+    {
+      if ((next_node = get_next_node (ctx->curr_node)) != NULL)
+        {
+          ctx->curr_node = next_node;
+          DscussMessage* curr_msg = (DscussMessage*) ctx->curr_node->data;
+          g_assert (curr_msg != NULL);
+          dscuss_db_get_message_replies (self->dbh,
+                                         dscuss_message_get_id (curr_msg),
+                                         iterate_replies_callback,
+                                         ctx);
+        }
+      else
+        {
+          ctx->callback (TRUE,
+                         g_node_get_root (ctx->curr_node),
+                         ctx->user_data);
+          list_thread_context_free (ctx);
+        }
+    }
+}
+
+
+void
+dscuss_list_thread (const DscussHash* thread_root_id,
+                    DscussListThreadCallback callback,
+                    gpointer user_data)
+{
+  DscussMessage* root_msg = NULL;
+  GNode* tree = NULL;
+  ListThreadContext* ctx = NULL;
+
+  g_assert (thread_root_id != NULL);
+
+  g_debug ("Composing view for the thread `%s'...",
+           dscuss_crypto_hash_to_string (thread_root_id));
+
+  root_msg = dscuss_db_get_message (self->dbh, thread_root_id);
+  if (root_msg == NULL)
+    {
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+  tree = g_node_new (root_msg);
+
+  ctx = list_thread_context_new (tree, callback, user_data);
+  dscuss_db_get_message_replies (self->dbh,
+                                 dscuss_message_get_id (root_msg),
+                                 iterate_replies_callback,
+                                 ctx);
 }
 
 

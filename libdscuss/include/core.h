@@ -86,17 +86,30 @@ typedef void (*DscussNewOperationCallback)(DscussOperation* oper,
                                            gpointer user_data);
 
 /**
- * Function called to iterate over messages.
+ * Function accepting result of a @a dscuss_list_board operation.
  *
- * @param success    @c TRUE if the message was successfully obtained,
- *                   @c FALSE otherwise.
- * @param msg        The message this notification is about,
- *                   @c NULL indicates end of list.
- * @param user_data  The user data.
+ * @param success        @c TRUE if the board listing is successfully
+ *                       generated, or @c FALSE on error.
+ * @param board_listing  The list of root messages or
+ *                       @c NULL if @a success is @c FALSE.
+ * @param user_data      The user data.
  */
-typedef void (*DscussIterateMessageCallback)(gboolean success,
-                                             DscussMessage* msg,
-                                             gpointer user_data);
+typedef void (*DscussListBoardCallback)(gboolean success,
+                                        GList*   board_listing,
+                                        gpointer user_data);
+
+/**
+ * Function accepting result of a @a dscuss_list_thread operation.
+ *
+ * @param success        @c TRUE if the thread listing is successfully
+ *                       generated, or @c FALSE on error.
+ * @param message_tree   The tree of messages or
+ *                       @c NULL if @a success is @c FALSE.
+ * @param user_data      The user data.
+ */
+typedef void (*DscussListThreadCallback)(gboolean success,
+                                         GNode* message_tree,
+                                         gpointer user_data);
 
 /**
  * Initializes the library.
@@ -242,25 +255,26 @@ void
 dscuss_send_operation (DscussOperation* oper);
 
 /**
- * Get all messages from the database.
+ * Get all thread root messages sorted by timestamp (from newest to oldest).
  *
- * @param callback   Function to call for each message.
+ * @param callback   Function to pass the result to.
  * @param user_data  Data to be passed to the @a callback.
  */
 void
-dscuss_get_messages (DscussIterateMessageCallback callback,
-                     gpointer user_data);
+dscuss_list_board (DscussListBoardCallback callback,
+                   gpointer user_data);
 
 /**
- * Get particular message from the database.
+ * Get all messages from a thread.
  *
- * @param msg_id  ID of the message to fetch.
- *
- * @return  Fetched message or @c NULL in case of a failure
- *          (no such message in the database or internal error).
+ * @param thread_root_id  ID of the root message of the thread to fetch.
+ * @param callback        Function to pass the result to.
+ * @param user_data       Data to be passed to the @a callback.
  */
-DscussMessage*
-dscuss_get_message (const DscussHash* msg_id);
+void
+dscuss_list_thread (const DscussHash* thread_root_id,
+                    DscussListThreadCallback callback,
+                    gpointer user_data);
 
 
 #ifdef __cplusplus

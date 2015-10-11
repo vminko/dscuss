@@ -100,7 +100,7 @@ dscuss_db_open (const gchar* filename)
                         "  Content         TEXT,"
                         "  Timestamp       UNSIGNED BIG INT NOT NULL,"
                         "  Author_id       BLOB NOT NULL,"
-                        "  In_reply_to     BLOB NOT NULL,"
+                        "  Parent_id       BLOB NOT NULL,"
                         "  Signature_len   INTEGER NOT NULL,"
                         "  Signature       BLOB NOT NULL,"
                         "  FOREIGN KEY (Author_id) REFERENCES User(Id))") ||
@@ -532,6 +532,9 @@ db_put_message_topic (DscussDb* dbh,
 {
   IterateMessageTagsContext* ctx = NULL;
 
+  if (dscuss_message_get_topic (msg) == NULL)
+    return;
+
   ctx = iterate_message_tags_context_new (dbh,
                                           dscuss_message_get_id (msg));
   dscuss_topic_foreach (dscuss_message_get_topic (msg),
@@ -604,7 +607,6 @@ dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg)
   sqlite3_stmt *stmt;
   gboolean result = FALSE;
   gint64 timestamp = 0;
-  DscussHash parent_id;
 
   g_assert (dbh != NULL);
   g_assert (msg != NULL);
@@ -620,7 +622,7 @@ dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg)
           "  Content,"
           "  Timestamp,"
           "  Author_id,"
-          "  In_reply_to,"
+          "  Parent_id,"
           "  Signature_len,"
           "  Signature) "
           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", &stmt) != SQLITE_OK)
@@ -630,7 +632,6 @@ dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg)
       goto out;
     }
 
-  memset (&parent_id, 0, sizeof (DscussHash));
 
   if ( (SQLITE_OK != sqlite3_bind_blob  (stmt, 1,
                                          dscuss_message_get_id (msg),
@@ -650,7 +651,7 @@ dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg)
                                          sizeof (DscussHash),
                                          SQLITE_TRANSIENT)) ||
        (SQLITE_OK != sqlite3_bind_blob  (stmt, 6,
-                                         &parent_id,
+                                         dscuss_message_get_parent_id (msg),
                                          sizeof (DscussHash),
                                          SQLITE_TRANSIENT)) ||
        (SQLITE_OK != sqlite3_bind_int   (stmt, 7,
@@ -688,84 +689,6 @@ out:
 }
 
 
-void
-dscuss_db_get_recent_messages (DscussDb* dbh,
-                               DscussDbIterateMessageCallback callback,
-                               gpointer user_data)
-{
-  sqlite3_stmt *stmt;
-  GDateTime* datetime = NULL;
-  DscussMessage* msg = NULL;
-  DscussTopic* topic = NULL;
-
-  g_assert (dbh != NULL);
-  g_assert (callback != NULL);
-
-  g_debug ("Fetching latest messages from the database.");
-
-  if (db_sqlite3_prepare (dbh,
-                  "SELECT Subject,"
-                  "       Content,"
-                  "       Timestamp,"
-                  "       Author_id,"
-                  "       Signature_len,"
-                  "       Signature, "
-                  "       Id "
-                  "FROM Message "
-                  "ORDER BY Timestamp DESC",
-                  &stmt) != SQLITE_OK)
-    {
-      g_warning ("Failed to prepare `get_recent_messages' statement with"
-                 " error: %s.", sqlite3_errmsg (dbh));
-      callback (FALSE, NULL, user_data);
-      return;
-    }
-
-  while (SQLITE_ROW == sqlite3_step (stmt))
-    {
-      g_debug ("Found a message matching the request.");
-      if ( (sqlite3_column_bytes (stmt, 3) !=
-            sizeof (DscussHash)) )
-        {
-          g_warning ("Database is corrupted: wrong size of message.author_id.");
-          continue;
-        }
-      if ( (sqlite3_column_bytes (stmt, 5) !=
-            sizeof (struct DscussSignature)) )
-        {
-          g_warning ("Database is corrupted: wrong size of message.signature.");
-          continue;
-        }
-      topic = db_get_message_topic (dbh,
-                                    (DscussHash *) sqlite3_column_blob (stmt, 6));
-      if (topic == NULL)
-        {
-          g_warning ("Database is corrupted: failed to fetch message topic.");
-          continue;
-        }
-      datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
-      msg = dscuss_message_new_full (
-                topic,
-                (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
-                (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
-                (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
-                datetime,
-                (struct DscussSignature *) sqlite3_column_blob  (stmt, 5), /* signature */
-                sqlite3_column_int (stmt, 4));                             /* signature_len */
-      callback (TRUE, msg, user_data);
-      dscuss_free_non_null (topic, dscuss_topic_free);
-      dscuss_free_non_null (datetime, g_date_time_unref);
-    }
-  callback (TRUE, NULL, user_data);
-
-  if (SQLITE_OK != sqlite3_finalize (stmt))
-    {
-      g_warning ("Failed to finalize `get_recent_messages' statement with error: %s.",
-                 sqlite3_errmsg (dbh));
-    }
-}
-
-
 DscussMessage*
 dscuss_db_get_message (DscussDb* dbh, const DscussHash* id)
 {
@@ -784,6 +707,7 @@ dscuss_db_get_message (DscussDb* dbh, const DscussHash* id)
                   "       Content,"
                   "       Timestamp,"
                   "       Author_id,"
+                  "       Parent_id,"
                   "       Signature_len,"
                   "       Signature "
                   "FROM Message WHERE Id=?",
@@ -811,27 +735,33 @@ dscuss_db_get_message (DscussDb* dbh, const DscussHash* id)
       g_warning ("Database is corrupted: wrong size of message.author_id.");
       goto out;
     }
-  if ( (sqlite3_column_bytes (stmt, 5) !=
+  if ( (sqlite3_column_bytes (stmt, 4) != sizeof (DscussHash)) )
+    {
+      g_warning ("Database is corrupted: wrong size of message.parent_id");
+      goto out;
+    }
+  if ( (sqlite3_column_bytes (stmt, 6) !=
         sizeof (struct DscussSignature)) )
     {
       g_warning ("Database is corrupted: wrong size of message.signature.");
       goto out;
     }
   topic = db_get_message_topic (dbh, id);
-  if (topic == NULL)
-    {
-      g_warning ("Database is corrupted: failed to fetch message topic.");
-      goto out;
-    }
   datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
   msg = dscuss_message_new_full (
             topic,
+            (DscussHash *) sqlite3_column_blob  (stmt, 4),             /* parent_id */
             (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
             (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
             (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
             datetime,
-            (struct DscussSignature *) sqlite3_column_blob  (stmt, 5), /* signature */
-            sqlite3_column_int (stmt, 4));                             /* signature_len */
+            (struct DscussSignature *) sqlite3_column_blob  (stmt, 6), /* signature */
+            sqlite3_column_int (stmt, 5));                             /* signature_len */
+  if (msg == NULL)
+    {
+      g_warning ("Database is corrupted: failed to compose message.");
+      goto out;
+    }
 
 out:
   dscuss_free_non_null (topic, dscuss_topic_free);
@@ -843,4 +773,182 @@ out:
     }
 
   return msg;
+}
+
+
+void
+dscuss_db_get_root_messages (DscussDb* dbh,
+                             DscussDbIterateMessageCallback callback,
+                             gpointer user_data)
+{
+  sqlite3_stmt *stmt;
+  GDateTime* datetime = NULL;
+  DscussMessage* msg = NULL;
+  DscussTopic* topic = NULL;
+  DscussHash empty;
+
+  g_assert (dbh != NULL);
+  g_assert (callback != NULL);
+
+  g_debug ("Fetching root messages from the database.");
+
+  memset (&empty, 0, sizeof (DscussHash));
+
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT Subject,"
+                  "       Content,"
+                  "       Timestamp,"
+                  "       Author_id,"
+                  "       Signature_len,"
+                  "       Signature, "
+                  "       Id "
+                  "FROM Message WHERE Parent_id=? "
+                  "ORDER BY Timestamp DESC",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `get_root_messages' statement with"
+                 " error: %s.", sqlite3_errmsg (dbh));
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+  if (SQLITE_OK != sqlite3_bind_blob (stmt, 1, &empty, sizeof (DscussHash),
+                                      SQLITE_TRANSIENT))
+    {
+      g_warning ("Failed to bind parameters to `get_root_messages' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+
+  while (SQLITE_ROW == sqlite3_step (stmt))
+    {
+      g_debug ("Found a message matching the request.");
+      if ( (sqlite3_column_bytes (stmt, 3) !=
+            sizeof (DscussHash)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.author_id.");
+          continue;
+        }
+      if ( (sqlite3_column_bytes (stmt, 5) !=
+            sizeof (struct DscussSignature)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.signature.");
+          continue;
+        }
+      topic = db_get_message_topic (dbh,
+                                    (DscussHash *) sqlite3_column_blob (stmt, 6));
+      datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
+      msg = dscuss_message_new_full (
+                topic,
+                NULL,
+                (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
+                (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
+                (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
+                datetime,
+                (struct DscussSignature *) sqlite3_column_blob  (stmt, 6), /* signature */
+                sqlite3_column_int (stmt, 4));                             /* signature_len */
+      if (msg == NULL)
+        {
+          g_warning ("Database is corrupted: failed to compose message.");
+        }
+      else
+        {
+          callback (TRUE, msg, user_data);
+        }
+      dscuss_free_non_null (topic, dscuss_topic_free);
+      dscuss_free_non_null (datetime, g_date_time_unref);
+    }
+  callback (TRUE, NULL, user_data);
+
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `get_root_messages' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+}
+
+
+void
+dscuss_db_get_message_replies (DscussDb* dbh,
+                               const DscussHash* parent_id,
+                               DscussDbIterateMessageCallback callback,
+                               gpointer user_data)
+{
+  sqlite3_stmt *stmt;
+  GDateTime* datetime = NULL;
+  DscussMessage* msg = NULL;
+
+  g_assert (dbh != NULL);
+  g_assert (parent_id != NULL);
+  g_assert (callback != NULL);
+
+  g_debug ("Fetching message replies to '%s' from the database.",
+           dscuss_crypto_hash_to_string (parent_id));
+
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT Subject,"
+                  "       Content,"
+                  "       Timestamp,"
+                  "       Author_id,"
+                  "       Signature_len,"
+                  "       Signature, "
+                  "       Id "
+                  "FROM Message WHERE Parent_id=? "
+                  "ORDER BY Timestamp DESC",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `get_message_replies' statement with"
+                 " error: %s.", sqlite3_errmsg (dbh));
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+  if (SQLITE_OK != sqlite3_bind_blob (stmt, 1, parent_id, sizeof (DscussHash),
+                                      SQLITE_TRANSIENT))
+    {
+      g_warning ("Failed to bind parameters to `get_message_replies' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      callback (FALSE, NULL, user_data);
+      return;
+    }
+
+  while (SQLITE_ROW == sqlite3_step (stmt))
+    {
+      g_debug ("Found a message matching the request.");
+      if ( (sqlite3_column_bytes (stmt, 3) !=
+            sizeof (DscussHash)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.author_id.");
+          continue;
+        }
+      if ( (sqlite3_column_bytes (stmt, 5) !=
+            sizeof (struct DscussSignature)) )
+        {
+          g_warning ("Database is corrupted: wrong size of message.signature.");
+          continue;
+        }
+      datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
+      msg = dscuss_message_new_full (
+                NULL,
+                parent_id,
+                (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
+                (const gchar*) sqlite3_column_text  (stmt, 1),             /* content */
+                (DscussHash *) sqlite3_column_blob  (stmt, 3),             /* author_id */
+                datetime,
+                (struct DscussSignature *) sqlite3_column_blob  (stmt, 5), /* signature */
+                sqlite3_column_int (stmt, 4));                             /* signature_len */
+      if (msg == NULL)
+        {
+          g_warning ("Database is corrupted: failed to compose message.");
+          continue;
+        }
+      callback (TRUE, msg, user_data);
+      dscuss_free_non_null (datetime, g_date_time_unref);
+    }
+  callback (TRUE, NULL, user_data);
+
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `get_message_replies' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
 }

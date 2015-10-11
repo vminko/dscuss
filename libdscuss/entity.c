@@ -122,7 +122,7 @@ dscuss_entity_ref (DscussEntity* entity)
 void
 dscuss_entity_unref (DscussEntity* entity)
 {
-  g_debug ("Unrefing entity '%d'", entity->ref_count);
+  g_debug ("Unreferencing entity '%d'", entity->ref_count);
   g_return_if_fail (entity);
   g_return_if_fail (entity->ref_count > 0);
   

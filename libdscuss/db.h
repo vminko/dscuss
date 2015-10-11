@@ -116,29 +116,45 @@ gboolean
 dscuss_db_put_message (DscussDb* dbh, DscussMessage* msg);
 
 /**
- * Fetch latest messages from the database.
+ * Get a message by ID from the database.
  *
- * @param dbh        Database handle.
- * @param callback   Function to call for each message.
- * @param user_data  Data to be passed to the @a callback.
- */
-void
-dscuss_db_get_recent_messages (DscussDb* dbh,
-                               DscussDbIterateMessageCallback callback,
-                               gpointer user_data);
-
-/**
- * Get particular message from the database.
+ * @param dbh     Database handle.
+ * @param msg_id  ID of the message to fetch.
  *
- * @param dbh  Database handle.
- * @param id   ID of the message to fetch.
- *
- * @return  Fetched message or @c NULL in case of a failure
+ * @return  The fetched message or @c NULL in case of a failure
  *          (no such message in the database or internal error).
  */
 DscussMessage*
 dscuss_db_get_message (DscussDb* dbh,
                        const DscussHash* id);
+
+/**
+ * Fetch all root messages sorted by timestamp (from newest to oldest).
+ * Root messages is a message with empty In_reply_to.
+ *
+ * @param dbh        Database handle.
+ * @param callback   Function to call for each root message.
+ * @param user_data  Data to be passed to the @a callback.
+ */
+void
+dscuss_db_get_root_messages (DscussDb* dbh,
+                             DscussDbIterateMessageCallback callback,
+                             gpointer user_data);
+
+/**
+ * Fetch all replies to a parent message.
+ * Replies will be sorted by timestamp (from newest to oldest).
+ *
+ * @param dbh        Database handle.
+ * @param parent_id  ID of the parent message.
+ * @param callback   Function to call for each root message.
+ * @param user_data  Data to be passed to the @a callback.
+ */
+void
+dscuss_db_get_message_replies (DscussDb* dbh,
+                               const DscussHash* parent_id,
+                               DscussDbIterateMessageCallback callback,
+                               gpointer user_data);
 
 
 #ifdef __cplusplus

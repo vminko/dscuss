@@ -340,7 +340,7 @@ entered_msg_new (DscussTopic* topic,
                  gchar* text)
 {
   EnteredMsg* em = g_new0 (EnteredMsg, 1);
-  em->topic = dscuss_topic_copy (topic);
+  em->topic = topic != NULL ? dscuss_topic_copy (topic) : NULL;
   em->subject = strdup (subject);
   em->text = strdup (text);
   return em;
@@ -356,8 +356,12 @@ entered_msg_free (EnteredMsg* ctx)
   g_free (ctx);
 }
 
+/**** End of EnteredMsg ******************************************************/
+
+
 EnteredMsg*
-entered_msg_read_from_file (const gchar* tmp_file_name)
+entered_msg_read_from_file (const gchar* tmp_file_name,
+                            gboolean read_topic)
 {
   GError* error = NULL;
   GFile* file;
@@ -400,7 +404,7 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
       if (line == NULL)
 	break;
 
-      if (topic == NULL)
+      if (read_topic && topic == NULL)
         {
           topic = dscuss_topic_new (line);
           g_free (line);
@@ -434,9 +438,7 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
 
   if (text != NULL)
     {
-      entered_msg = entered_msg_new (topic,
-                                     subject,
-                                     text);
+      entered_msg = entered_msg_new (topic, subject, text);
     }
 
   if (topic != NULL)
@@ -454,21 +456,70 @@ entered_msg_read_from_file (const gchar* tmp_file_name)
 /**** EnteredMsg *************************************************************/
 
 
+/*** EnterMsgContext ***********************************************/
+
+typedef struct EnterMsgContext
+{
+  gchar* tmp_file_name;
+  DscussHash* parent_id;
+} EnterMsgContext;
+
+
+static EnterMsgContext*
+enter_message_context_new (gchar* tmp_file_name,
+                           const DscussHash* parent_id)
+{
+  EnterMsgContext* ctx = g_new0 (EnterMsgContext, 1);
+  ctx->tmp_file_name = tmp_file_name;
+  if (parent_id != NULL)
+    {
+      ctx->parent_id = g_new0 (DscussHash, 1);
+      memcpy (ctx->parent_id,
+              parent_id,
+              sizeof (DscussHash));
+    }
+  else
+    ctx->parent_id = NULL;
+  return ctx;
+}
+
+
+static void
+enter_message_context_free (EnterMsgContext* ctx)
+{
+  g_assert (ctx != NULL);
+  g_free (ctx->parent_id);
+  g_free (ctx);
+}
+
+/*** End of IterateMessageTagsContext ****************************************/
+
+
 void
 on_msg_entered (GPid pid, int status, gpointer user_data)
 {
-  gchar* tmp_file_name = user_data;
+  EnterMsgContext* ctx = user_data;
   EnteredMsg* em = NULL;
   DscussMessage* msg = NULL;
 
   g_spawn_close_pid (pid);
 
-  em = entered_msg_read_from_file (tmp_file_name);
+  em = entered_msg_read_from_file (ctx->tmp_file_name,
+                                   ctx->parent_id == NULL);
   if (em != NULL)
     {
-      msg = dscuss_message_new (em->topic,
-                                em->subject,
-                                em->text);
+      if (ctx->parent_id)
+        {
+          msg = dscuss_message_new_reply (ctx->parent_id,
+                                          em->subject,
+                                          em->text);
+        }
+      else
+        {
+          msg = dscuss_message_new_thread (em->topic,
+                                           em->subject,
+                                           em->text);
+        }
       dscuss_send_message (msg);
       dscuss_entity_unref ((DscussEntity*) msg);
       entered_msg_free (em);
@@ -479,19 +530,21 @@ on_msg_entered (GPid pid, int status, gpointer user_data)
     }
 
 
-  if (g_unlink (tmp_file_name) != 0)
+  if (g_unlink (ctx->tmp_file_name) != 0)
     {
-      g_printf ("Failed to remove temporary input file '%s'", tmp_file_name);
+      g_printf ("Failed to remove temporary input file '%s'", ctx->tmp_file_name);
     }
-  g_free (tmp_file_name);
+  g_free (ctx->tmp_file_name);
+  enter_message_context_free (ctx);
   start_handling_input ();
 }
 
 
 static gboolean
-do_publish_msg (const gchar* args)
+publish_message (const DscussHash* parent_id)
 {
   gint          rc             = 0;
+  gboolean      boolrc         = FALSE;
   gchar**       argv           = NULL;
   gint          argp           = 0;
   const gchar*  editor         = NULL;
@@ -500,6 +553,13 @@ do_publish_msg (const gchar* args)
   gboolean      enable_input   = TRUE;
   gchar*        tmp_file_name  = NULL;
   gchar         editor_cmd[EDITOR_CMD_MAX_LEN];
+  GFile*        file           = NULL;
+  const gchar*  message_draft  = NULL;
+  const gchar*  thread_draft   = "test,devel,dscuss\n"
+                                 "This is a test thread\n"
+                                 "This thread starts a new test dscussion.";
+  const gchar*  reply_draft    = "This is a test subject\n"
+                                 "This is a test reply.";
 
   if (!dscuss_is_logged_in ())
     {
@@ -516,6 +576,26 @@ do_publish_msg (const gchar* args)
 
   tmp_file_name = g_build_filename (dscuss_get_data_dir(),
                                     DEFAULT_TMPFILE_NAME, NULL);
+
+  file = g_file_new_for_path (tmp_file_name);
+  message_draft = (parent_id == NULL) ? thread_draft : reply_draft;
+  boolrc = g_file_replace_contents (file,
+                                    message_draft,
+                                    strlen (message_draft),
+                                    NULL,                     /* old etag */
+                                    FALSE,                    /* make baclup */
+                                    G_FILE_CREATE_NONE,
+                                    NULL,                     /* old etag */
+                                    NULL,                     /* cancellable */
+                                    &error);
+  g_object_unref (file);
+  if (!boolrc)
+    {
+      g_printf ("Failed to write draft the temporary input file: %s.\n", error->message);
+      g_error_free (error);
+      goto out;
+    }
+
   g_snprintf (editor_cmd,
               EDITOR_CMD_MAX_LEN,
               "%s %s",
@@ -539,7 +619,9 @@ do_publish_msg (const gchar* args)
     }
 
   enable_input = FALSE;
-  g_child_watch_add (pid, (GChildWatchFunc)on_msg_entered, tmp_file_name);
+  EnterMsgContext* ctx = enter_message_context_new (tmp_file_name,
+                                                    parent_id);
+  g_child_watch_add (pid, (GChildWatchFunc)on_msg_entered, ctx);
 
 out:
   if (argv != NULL)
@@ -550,10 +632,52 @@ out:
 }
 
 
+static gboolean
+do_publish_thread (const gchar* args)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+      return TRUE;
+    }
+
+  return publish_message (NULL);
+}
+
+
+static gboolean
+do_publish_reply (const gchar* msg_id_str)
+{
+  if (!dscuss_is_logged_in ())
+    {
+      g_printf ("You are not logged in.\n");
+      return TRUE;
+    }
+
+  if (msg_id_str == NULL)
+    {
+      g_printf ("You must specify message ID.\n");
+      return TRUE;
+    }
+  DscussHash* msg_id = dscuss_crypto_hash_from_string (msg_id_str);
+  if (msg_id == NULL)
+    {
+      g_printf ("Malformed hash string.\n");
+      return TRUE;
+    }
+  /* TBD: check that message <msg_id> is stored in the DB. */
+
+  gboolean result = publish_message (msg_id);
+  g_free (msg_id);
+
+  return result;
+}
+
+
 void
-iterate_msg_callback (gboolean success,
-                      DscussMessage* msg,
-                      gpointer user_data)
+list_board_callback (gboolean success,
+                     GList*   board_listing,
+                     gpointer user_data)
 {
   if (!success)
     {
@@ -562,23 +686,28 @@ iterate_msg_callback (gboolean success,
       return;
     }
 
-  if (msg != NULL)
+  const GList* iterator = NULL;
+  for (iterator = board_listing; iterator; iterator = iterator->next)
     {
-      g_printf ("* %s\n%s\n\n",
-                dscuss_crypto_hash_to_string (dscuss_message_get_id (msg)),
-                dscuss_message_get_description (msg));
-      dscuss_message_free (msg);
+      DscussMessage* msg = iterator->data;
+      gchar* topic_str = dscuss_topic_to_string (dscuss_message_get_topic (msg));
+      g_printf ("Topic: %s\n"
+                "Subject: %s\n"
+                "ID: %s\n\n",
+                topic_str,
+                dscuss_message_get_subject (msg),
+                dscuss_crypto_hash_to_string (dscuss_message_get_id (msg)));
+      g_free (topic_str);
     }
-  else
-    {
-      g_printf ("done\n");
-      start_handling_input ();
-    }
+  g_printf ("done\n");
+
+  g_list_free_full (board_listing, (GDestroyNotify)dscuss_message_free);
+  start_handling_input ();
 }
 
 
 static gboolean
-do_list_msg (const gchar* args)
+do_list_board (const gchar* args)
 {
   if (!dscuss_is_logged_in ())
     {
@@ -586,13 +715,111 @@ do_list_msg (const gchar* args)
       return TRUE;
     }
 
-  dscuss_get_messages (iterate_msg_callback, NULL);
+  dscuss_list_board (list_board_callback, NULL);
   return FALSE;
 }
 
 
+/* TBD: move this to dscuss_thread_free? */
 static gboolean
-do_print_msg (const gchar* msg_id_str)
+free_message_node_callback (GNode *node,
+                            gpointer data)
+{
+  dscuss_message_free (node->data);
+  return FALSE;
+}
+
+
+static void
+thread_free (GNode* root)
+{
+  g_node_traverse (root,
+                   G_POST_ORDER,
+                   G_TRAVERSE_ALL,
+                   -1,   /* max_depth */
+                   free_message_node_callback,
+                   NULL);
+  g_node_destroy (root);
+}
+
+
+static void
+print_indent (GNode *node)
+{
+  guint i = 0;
+  for (i = 0; i < g_node_depth (node); i++)
+    {
+      g_printf ("    ");
+    }
+}
+
+
+static gboolean
+print_message_node_callback (GNode* node,
+                             gpointer data)
+{
+  DscussMessage* msg = node->data;
+  gchar* topic_str = NULL;
+
+
+  if (dscuss_message_get_topic (msg) != NULL)
+    topic_str = dscuss_topic_to_string (dscuss_message_get_topic (msg));
+
+  gchar* datetime_str = g_date_time_format (dscuss_message_get_datetime (msg), "%F %T");
+  print_indent (node);
+  g_printf ("Dumping Message entity:\n");
+  print_indent (node);
+  g_printf ("  id:  %s\n", dscuss_crypto_hash_to_string (dscuss_message_get_id (msg)));
+  if (topic_str != NULL)
+    {
+      print_indent (node);
+      g_printf ("  topic:     '%s'\n", topic_str);
+    }
+  print_indent (node);
+  g_printf ("  subject:   '%s'\n", dscuss_message_get_subject (msg));
+  print_indent (node);
+  g_printf ("  text:      '%s'\n", dscuss_message_get_content (msg));
+  print_indent (node);
+  g_printf ("  author_id:  %s\n", dscuss_crypto_hash_to_string (dscuss_message_get_author_id (msg)));
+  print_indent (node);
+  g_printf ("  parent_id:  %s\n", dscuss_crypto_hash_to_string (dscuss_message_get_parent_id (msg)));
+  print_indent (node);
+  g_printf ("  datetime:   %s\n", datetime_str);
+
+  g_free (datetime_str);
+  if (topic_str != NULL)
+     g_free (topic_str);
+
+  return FALSE;
+}
+
+
+static void
+list_thread_callback (gboolean success,
+                      GNode* message_tree,
+                      gpointer user_data)
+{
+  if (!success)
+    {
+      g_printf ("Failed to list thread\n");
+      start_handling_input ();
+      return;
+    }
+
+  g_assert (message_tree != NULL);
+  g_node_traverse (message_tree,
+                   G_PRE_ORDER,
+                   G_TRAVERSE_ALL,
+                   -1,   /* max_depth */
+                   print_message_node_callback,
+                   NULL);
+  thread_free (message_tree);
+  start_handling_input ();
+}
+
+
+static gboolean
+do_list_thread (const gchar* msg_id_str)
 {
   if (!dscuss_is_logged_in ())
     {
@@ -612,28 +839,11 @@ do_print_msg (const gchar* msg_id_str)
       return TRUE;
     }
 
-  DscussMessage* msg = dscuss_get_message (msg_id);
-  if (msg == NULL)
-    {
-      g_printf ("Message not found.\n");
-      goto out;
-    }
-
-  gchar* topic_str = dscuss_topic_to_string (dscuss_message_get_topic (msg));
-  gchar* datetime_str = g_date_time_format (dscuss_message_get_datetime (msg), "%F %T");
-  g_printf ("Dumping Message entity:\n");
-  g_printf ("  topic:     '%s'\n", topic_str);
-  g_printf ("  subject:   '%s'\n", dscuss_message_get_subject (msg));
-  g_printf ("  text:      '%s'\n", dscuss_message_get_content (msg));
-  g_printf ("  author_id:  %s\n", dscuss_crypto_hash_to_string (dscuss_message_get_author_id (msg)));
-  g_printf ("  datetime:   %s\n", datetime_str);
-  g_free (topic_str);
-  g_free (datetime_str);
-  dscuss_message_free (msg);
-
-out:
+  dscuss_list_thread (msg_id,
+                      list_thread_callback,
+                      NULL);
   g_free (msg_id);
-  return TRUE;
+  return FALSE;
 }
 
 
@@ -659,12 +869,6 @@ do_quit (const gchar* args)
 static struct DscussCommand commands[] = {
  /**
   * TBD
-  {"list_category", &do_list_category,
-   gettext_noop ("Use `list_category category_uri' to list head messages in a"
-		 " category")},
-  {"list_thread", &do_list_thread,
-   gettext_noop ("Use `list_thread head_id' to list all messages in a"
-		 " thread")},
   {"subscribe", &do_subscribe,
    gettext_noop ("Use `subscribe category' to subscribe to a category")},
   {"list_subscriptions", &do_list_subscriptions,
@@ -680,14 +884,17 @@ static struct DscussCommand commands[] = {
    "Use `login <nickname>' to login as user <nickname>."},
   {"logout",   &do_logout,
    "Use `logout' to logout from the network."},
-  {"lspeer",   &do_list_peers,
-   "Use `lspeer to list connected peers."},
-  {"msg",      &do_publish_msg,
-   "Use `msg' to publish a message"},
-  {"lsmsg",   &do_list_msg,
-   "Use `lsmsg' to list recent messages."},
-  {"printmsg",   &do_print_msg,
-   "Use `printmsg' to print a particular message."},
+  {"lspeers",   &do_list_peers,
+   "Use `peers to list connected peers."},
+  {"thread",      &do_publish_thread,
+   "Use `thread' to start a new thread"},
+  {"reply",      &do_publish_reply,
+   "Use `reply <id>' to publish a new reply to message <id>"},
+  /* TBD: add optional topic parameter */
+  {"lsboard",   &do_list_board,
+   "Use `board' to list threads on the board."},
+  {"lsthread",   &do_list_thread,
+   "Use `thread <id>' to print all messages in the thread <id>."},
   {"quit",     &do_quit,
    "Use `quit' to terminate " PROG_NAME "."},
   {"help",     &do_help,
