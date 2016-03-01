@@ -84,6 +84,7 @@ typedef enum
 
 } DscussPeerDisconnectReason;
 
+
 /**
  * Callback used for notifying the network subsystem about disconnected peers.
  *
@@ -132,7 +133,7 @@ typedef void (*DscussPeerSendCallback)(DscussPeer* peer,
  * @param peer       Peer to which we've been trying to send
  *                   the entity.
  * @param entity     Received entity.
- * @param result     @c TRUE if the entity has been successfully sent,
+ * @param result     @c TRUE if the entity has been successfully received,
  *                   @c FALSE otherwise.
  * @param user_data  The user data.
  */
@@ -226,19 +227,19 @@ dscuss_peer_set_receive_callback (DscussPeer* peer,
 /**
  * Request performing handshake with the peer.
  *
- * @param peer           Peer to handshake with.
- * @param user           The user we are logged under.
- * @param privkey        The private key of the user (for signing packets).
- * @param subscriptions  List of the topics the user is subscribed to.
- * @param dbh            Handle for the database connection.
- * @param callback       Function to call when handshaking is over.
- * @param user_data      User data to pass to the callback.
+ * @param peer                Peer to handshake with.
+ * @param self                The user we are logged under.
+ * @param self_privkey        The private key of the user (for signing packet).
+ * @param self_subscriptions  List of the topics the user is subscribed to.
+ * @param dbh                 Handle for the database connection.
+ * @param callback            Function to call when handshaking is over.
+ * @param user_data           User data to pass to the callback.
  */
 void
 dscuss_peer_handshake (DscussPeer* peer,
-                       const DscussUser* user,
-                       DscussPrivateKey* privkey,
-                       GSList* subscriptions,
+                       const DscussUser* self,
+                       DscussPrivateKey* self_privkey,
+                       GSList* self_subscriptions,
                        DscussDb* dbh,
                        DscussPeerHandshakeCallback callback,
                        gpointer user_data);

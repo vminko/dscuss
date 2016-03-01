@@ -113,7 +113,7 @@ typedef gboolean (*DscussConnectionReceiveCallback)(DscussConnection* connection
  * @param is_incoming       @c TRUE if @a socket_connection is incoming,
  *                          @c FALSE otherwise.
  *
- * @return New connection handle.
+ * @return  New connection handle.
  */
 DscussConnection*
 dscuss_connection_new (GSocketConnection* socket_connection,
@@ -123,7 +123,7 @@ dscuss_connection_new (GSocketConnection* socket_connection,
  * Frees all memory allocated by a connection. Closes the socket
  * connection in case it was open.
  *
- * @param connection A connection whose memory is going to be freed.
+ * @param  connection A connection whose memory is going to be freed.
  */
 void
 dscuss_connection_free (DscussConnection* connection);
@@ -145,9 +145,9 @@ dscuss_connection_send (DscussConnection* connection,
 /**
  * Composes a one-line text description of a connection.
  *
- * @param connection Connection to compose description for.
+ * @param connection  Connection to compose description for.
  *
- * @return Text description of the connection.
+ * @return  Text description of the connection.
  */
 const gchar*
 dscuss_connection_get_description (DscussConnection* connection);
@@ -169,12 +169,21 @@ dscuss_connection_set_receive_callback (DscussConnection* connection,
 /**
  * Shows if connection is incoming.
  *
- * @param connection Connection to get parameter value of.
+ * @param connection  Connection to get parameter value of.
  *
- * @return @c TRUE if connection is incoming, @c FALSE otherwise.
+ * @return  @c TRUE if connection is incoming, @c FALSE otherwise.
  */
 gboolean
 dscuss_connection_is_incoming (DscussConnection* connection);
+
+
+/**
+ * Stop reading/writing from/to connection.
+ *
+ * @param connection  Connection to cancel I/O for.
+ */
+void
+dscuss_connection_cancel_io (DscussConnection* connection);
 
 
 #ifdef __cplusplus

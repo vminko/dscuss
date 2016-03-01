@@ -483,3 +483,21 @@ dscuss_connection_is_incoming (DscussConnection* connection)
   g_assert (connection != NULL);
   return connection->is_incoming;
 }
+
+
+void
+dscuss_connection_cancel_io (DscussConnection* connection)
+{
+  g_assert (connection != NULL);
+
+  if (connection->cancellable != NULL)
+    {
+      g_debug ("Cancelling I/O of the connection '%s'",
+                dscuss_connection_get_description (connection));
+
+      connection->receive_callback = NULL;
+      g_cancellable_cancel (connection->cancellable);
+      g_object_unref (connection->cancellable);
+      connection->cancellable = g_cancellable_new ();
+    }
+}

@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014-2015  Vitaly Minko
+ * Copyright (C) 2014-2016  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,26 +30,18 @@
 #include <string.h>
 #include <glib.h>
 #include "config.h"
-#include "header.h"
 #include "packet.h"
 #include "message.h"
 #include "util.h"
 #include "connection.h"
 #include "peer.h"
 #include "subscriptions.h"
-#include "payload_hello.h"
+#include "handshake.h"
 
 
-#define DSCUSS_PEER_DESCRIPTION_MAX_LEN        120
-#define DSCUSS_PEER_MAX_TIMESTAMP_DISCREPANCY  300
-#define DSCUSS_PEER_HANDSHAKE_TIMEOUT          15
+#define DSCUSS_PEER_DESCRIPTION_MAX_LEN  120
 
 static gchar description_buf[DSCUSS_PEER_DESCRIPTION_MAX_LEN];
-
-
-struct PeerHandshakeContext;
-static void
-peer_handshake_context_free (struct PeerHandshakeContext* ctx);
 
 
 /**
@@ -92,9 +84,9 @@ struct _DscussPeer
   GHashTable* expected_types;
 
   /**
-   * Context for handshaking.
+   * Handle for handshaking.
    */
-  struct PeerHandshakeContext* handshake_ctx;
+  DscussHandshakeHandle* handshake_handle;
 
   /**
    * TRUE if we've handshaked with this peer.
@@ -141,17 +133,45 @@ peer_send_context_new (DscussPeer* peer,
 
 
 static void
-peer_send_context_free (PeerSendContext* ctx, gboolean result)
+peer_send_context_free (PeerSendContext* ctx)
 {
-  ctx->callback (ctx->peer,
-                 ctx->entity,
-                 result,
-                 ctx->user_data);
   dscuss_entity_unref (ctx->entity);
   g_free (ctx);
 }
 
 /**** End of PeerSendContext *************************************************/
+
+
+/**** PeerHandshakeContext ***************************************************/
+
+typedef struct
+{
+  DscussPeer* peer;
+  DscussPeerHandshakeCallback callback;
+  gpointer user_data;
+} PeerHandshakeContext;
+
+
+static PeerHandshakeContext*
+peer_handshake_context_new (DscussPeer* peer,
+                            DscussPeerHandshakeCallback callback,
+                            gpointer user_data)
+{
+  PeerHandshakeContext* ctx = g_new0 (PeerHandshakeContext, 1);
+  ctx->peer = peer;
+  ctx->callback = callback;
+  ctx->user_data = user_data;
+  return ctx;
+}
+
+
+static void
+peer_handshake_context_free (PeerHandshakeContext* ctx)
+{
+  g_free (ctx);
+}
+
+/**** End of PeerHandshakeContext ********************************************/
 
 
 static gboolean
@@ -253,7 +273,7 @@ dscuss_peer_new (GSocketConnection* socket_connection,
                                             is_incoming);
   peer->disconn_callback = disconn_callback;
   peer->disconn_data = disconn_data;
-  peer->handshake_ctx = NULL;
+  peer->handshake_handle = NULL;
   peer->is_handshaked = FALSE;
   peer->receive_callback = NULL;
   peer->receive_data = NULL;
@@ -280,8 +300,8 @@ dscuss_peer_free_full (DscussPeer* peer,
                           reason_data,
                           peer->disconn_data);
 
-  if (peer->handshake_ctx != NULL)
-    peer_handshake_context_free (peer->handshake_ctx);
+  if (peer->handshake_handle != NULL)
+    dscuss_handshake_cancel (peer->handshake_handle);
 
   dscuss_free_non_null (peer->user, dscuss_user_free);
   dscuss_free_non_null (peer->subscriptions, dscuss_subscriptions_free);
@@ -369,7 +389,11 @@ on_packet_sent (DscussConnection* connection,
              dscuss_packet_get_description (packet),
              dscuss_peer_get_description (ctx->peer));
   dscuss_packet_free ((DscussPacket*) packet);
-  peer_send_context_free (ctx, result);
+  ctx->callback (ctx->peer,
+                 ctx->entity,
+                 result,
+                 ctx->user_data);
+  peer_send_context_free (ctx);
 }
 
 
@@ -460,61 +484,6 @@ dscuss_peer_set_receive_callback (DscussPeer* peer,
 }
 
 
-/**** HANDSHAKING ************************************************************/
-
-/**** PeerHandshakeContext ****/
-
-struct PeerHandshakeContext
-{
-  const DscussUser* user;
-  DscussPrivateKey* privkey;
-  GSList* subscriptions;
-  DscussDb* dbh;
-  DscussPeerHandshakeCallback callback;
-  gpointer user_data;
-  guint handshake_fail_id;
-  guint handshake_timeout_id;
-};
-
-
-static struct PeerHandshakeContext*
-peer_handshake_context_new (const DscussUser* user,
-                            DscussPrivateKey* privkey,
-                            GSList* subscriptions,
-                            DscussDb* dbh,
-                            DscussPeerHandshakeCallback callback,
-                            gpointer user_data)
-{
-  struct PeerHandshakeContext* ctx = g_new0 (struct PeerHandshakeContext, 1);
-  ctx->user = user;
-  ctx->privkey = privkey;
-  ctx->subscriptions = subscriptions;
-  ctx->dbh = dbh;
-  ctx->callback = callback;
-  ctx->user_data = user_data;
-  ctx->handshake_fail_id = 0;
-  ctx->handshake_timeout_id = 0;
-  return ctx;
-}
-
-
-static void
-peer_handshake_context_free (struct PeerHandshakeContext* ctx)
-{
-  if (ctx->handshake_fail_id != 0)
-    {
-      g_source_remove (ctx->handshake_fail_id);
-    }
-  if (ctx->handshake_timeout_id != 0)
-    {
-      g_source_remove (ctx->handshake_timeout_id);
-    }
-  g_free (ctx);
-}
-
-/**** End of PeerHandshakeContext ****/
-
-
 gboolean
 dscuss_peer_is_handshaked (DscussPeer* peer)
 {
@@ -523,394 +492,71 @@ dscuss_peer_is_handshaked (DscussPeer* peer)
 }
 
 
-static gboolean
-peer_handshake_failed (gpointer user_data)
+static void
+on_handshaked (gboolean result,
+               DscussUser* peers_user,
+               GSList* peers_subscriptions,
+               gpointer user_data)
 {
-  DscussPeer* peer = user_data;
+  PeerHandshakeContext* ctx = user_data;
+  g_assert (user_data != NULL);
 
+  DscussPeer* peer = ctx->peer;
   g_assert (peer != NULL);
 
-  g_debug ("Failed to handshake with the peer '%s'",
-           dscuss_peer_get_description (peer));
+  peer->handshake_handle = NULL;
 
-  peer->handshake_ctx->handshake_fail_id = 0;
-
-  dscuss_free_non_null (peer->user, dscuss_user_free);
-  peer->user = NULL;
-  peer->handshake_ctx->callback (peer, FALSE, peer->handshake_ctx->user_data);
-  dscuss_free_non_null (peer->connection, dscuss_connection_free);
-  peer_handshake_context_free (peer->handshake_ctx);
-  peer->handshake_ctx = NULL;
-
-  return FALSE;
-}
-
-
-static void
-peer_handshake_schedule_fail (DscussPeer* peer)
-{
-  if (peer->handshake_ctx->handshake_fail_id != 0)
+  if (result)
     {
-      g_source_remove (peer->handshake_ctx->handshake_fail_id);
-    }
-  peer->handshake_ctx->handshake_fail_id = g_idle_add_full (G_PRIORITY_HIGH,
-                                                            peer_handshake_failed,
-                                                            peer,
-                                                            NULL);
-}
-
-
-static gboolean
-peer_handshake_on_hello_received (DscussConnection* connection,
-                                  DscussPacket* packet,
-                                  gboolean result,
-                                  gpointer user_data)
-{
-  DscussPeer* peer = user_data;
-  gchar* payload = NULL;
-  gsize payload_size = 0;
-  DscussPayloadHello* pld_hello = NULL;
-  GDateTime* datetime_now = NULL;
-  gint64 ts_discrepancy = 0;
-  gboolean handshake_result = FALSE;
-
-  g_debug ("Received Hello from the peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  if (!result)
-    {
-      g_debug ("Handshake error: failed to read Hello from connection '%s'",
-               dscuss_connection_get_description (connection));
-      goto out;
-    }
-
-  DscussPacketType type = dscuss_packet_get_type (packet);
-  if (type != DSCUSS_PACKET_TYPE_HELLO)
-    {
-      g_warning ("Handshake error - protocol violation detected:"
-                 " peer '%s' sent unexpected packet of type '%d'."
-                 " Expected: %d (peer's user for handshaking)",
-                 dscuss_peer_get_description (peer), type,
-                 DSCUSS_PACKET_TYPE_HELLO);
-      goto out;
-    }
-
-  if (!dscuss_packet_verify (packet,
-                             dscuss_user_get_public_key (peer->user)))
-    {
-      g_warning ("Handshake error: signature of the Hello packet is invalid");
-      goto out;
-    }
-
-  dscuss_packet_get_payload (packet,
-                             (const gchar**) &payload,
-                             &payload_size);
-
-  pld_hello = dscuss_payload_hello_deserialize (payload,
-                                                payload_size);
-  if (pld_hello == NULL)
-    {
-      g_warning ("Handshake error: failed to parse the Hello payload");
-      goto out;
-    }
-
-   /* Validate Hello fields */
-  if (memcmp (dscuss_user_get_id (peer->user),
-              dscuss_payload_hello_get_receiver_id (pld_hello),
-              sizeof (DscussHash)))
-    {
-      g_warning ("Handshake error: wrong receiver ID: '%s'",
-                 dscuss_crypto_hash_to_string (dscuss_payload_hello_get_receiver_id (pld_hello)));
-      g_debug ("Expected receiver ID: '%s'",
-                 dscuss_crypto_hash_to_string (dscuss_user_get_id (peer->user)));
-      goto out;
-    }
-
-  datetime_now = g_date_time_new_now_utc ();
-  ts_discrepancy = ABS (g_date_time_to_unix (datetime_now) -
-                        g_date_time_to_unix (dscuss_payload_hello_get_datetime (pld_hello)));
-  if (ts_discrepancy > DSCUSS_PEER_MAX_TIMESTAMP_DISCREPANCY)
-    {
-      g_warning ("Handshake error: timestamp discrepancy exceeds the limit:"
-                 " %" G_GINT64_FORMAT, ts_discrepancy);
-      goto out;
-    }
-
-  /* Finally handshake succeeded */
-  peer->subscriptions = dscuss_subscriptions_copy (dscuss_payload_hello_get_subscriptions (pld_hello));
-  peer->is_handshaked = TRUE;
-  peer->handshake_ctx->callback (peer, TRUE, peer->handshake_ctx->user_data);
-  peer_handshake_context_free (peer->handshake_ctx);
-  peer->handshake_ctx = NULL;
-  handshake_result = TRUE;
-
-  /* Now we expect ordinary entities: messages, TBD: users and operations */
-  g_hash_table_insert (peer->expected_types,
-                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_MSG), NULL);
-
-out:
-  dscuss_free_non_null (packet, dscuss_packet_free);
-  dscuss_free_non_null (datetime_now, g_date_time_unref);
-  dscuss_free_non_null (pld_hello, dscuss_payload_hello_free);
-  if (!handshake_result)
-    peer_handshake_schedule_fail (peer);
-  return FALSE;
-}
-
-
-static void
-peer_handshake_on_hello_sent (DscussConnection* connection,
-                              const DscussPacket* packet,
-                              gboolean result,
-                              gpointer user_data)
-{
-  DscussPeer* peer = user_data;
-
-  dscuss_packet_free ((DscussPacket*) packet);
-
-  if (!result)
-    {
-      g_warning ("Handshake error: failed to send hello to the peer '%s'",
-                 dscuss_peer_get_description (peer));
-      peer_handshake_schedule_fail (peer);
+      g_debug ("Successfully handshaked with the peer '%s'",
+               dscuss_peer_get_description (peer));
+      peer->user = peers_user;
+      peer->subscriptions = peers_subscriptions;
+      peer->is_handshaked = TRUE;
+      /* TBD: find better solution.
+       * dscuss_connection_set_receive_callback will be set via
+       * dscuss_peer_set_receive_callback
+       **/
+      /* Now we expect ordinary entities: messages, TBD: users and operations */
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_MSG), NULL);
     }
   else
     {
-      g_debug ("Hello successfully sent to the peer '%s'",
+      g_debug ("Failed to handshake with the peer '%s'",
                dscuss_peer_get_description (peer));
-
+      dscuss_free_non_null (peer->connection, dscuss_connection_free);
     }
-}
-
-
-static gboolean
-peer_handshake_send_hello (DscussPeer* peer)
-{
-  DscussPayloadHello* pld_hello = NULL;
-  gchar* serialized_hello = NULL;
-  gsize serialized_hello_len = 0;
-  DscussPacket* hello_packet = NULL;
-  gboolean result = FALSE;
-
-  g_assert (peer != NULL);
-
-  g_debug ("Trying to send Hello to the peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  pld_hello = dscuss_payload_hello_new (dscuss_user_get_id (peer->handshake_ctx->user),
-                                        peer->handshake_ctx->subscriptions);
-  if (!dscuss_payload_hello_serialize (pld_hello,
-                                       &serialized_hello,
-                                       &serialized_hello_len))
-    {
-      g_warning ("Handshake error: failed to serialize the Hello payload");
-      goto out;
-    }
-
-  hello_packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_HELLO,
-                                    serialized_hello,
-                                    serialized_hello_len);
-  g_free (serialized_hello);
-  dscuss_packet_sign (hello_packet, peer->handshake_ctx->privkey);
-  dscuss_connection_send (peer->connection,
-                          hello_packet,
-                          peer_handshake_on_hello_sent,
-                          peer);
-  result = TRUE;
-
-out:
-  dscuss_free_non_null (pld_hello, dscuss_payload_hello_free);
-  return result;
-}
-
-
-static gboolean
-peer_handshake_on_user_received (DscussConnection* connection,
-                                 DscussPacket* packet,
-                                 gboolean result,
-                                 gpointer user_data)
-{
-  DscussPeer* peer = user_data;
-  gchar* payload = NULL;
-  gsize payload_size = 0;
-  DscussUser* user = NULL;
-  DscussUser* stored_user = NULL;
-  gboolean handle_user_result = FALSE;
-
-  g_debug ("Received user of the peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  if (!result)
-    {
-      g_debug ("Handshake error: failed to read User from connection '%s'",
-               dscuss_connection_get_description (connection));
-      goto out;
-    }
-
-  DscussPacketType type = dscuss_packet_get_type (packet);
-  if (type != DSCUSS_PACKET_TYPE_USER)
-    {
-      g_warning ("Handshake error - protocol violation detected:"
-                 " peer '%s' sent unexpected packet of type '%d'."
-                 " Expected: %d (peer's user for handshaking)",
-                 dscuss_peer_get_description (peer), type,
-                 DSCUSS_PACKET_TYPE_USER);
-      goto out;
-    }
-
-  g_debug ("Handshaking: got user of the peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  dscuss_packet_get_payload (packet,
-                             (const gchar**) &payload,
-                             &payload_size);
-  user = dscuss_user_deserialize (payload,
-                                  payload_size);
-  if (user == NULL)
-    {
-      g_debug ("Handshake error: failed to parse the User");
-      goto out;
-    }
-
-  /* TBD: optimize: dscuss_db_has_user() */
-  stored_user = dscuss_db_get_user (peer->handshake_ctx->dbh,
-                                    dscuss_user_get_id (user));
-  if (stored_user == NULL)
-    {
-      if (!dscuss_db_put_user (peer->handshake_ctx->dbh, user))
-        {
-          g_warning ("Handshake error:"
-                     " failed to store the user '%s' of the peer '%s'",
-                     dscuss_user_get_description (user),
-                     dscuss_peer_get_description (peer));
-          goto out;
-        }
-    }
-  peer->user = user;
-
-  /* Send our user in response. */
-  if (!peer_handshake_send_hello (peer))
-    {
-      g_warning ("Handshake error: failed to send Hello to the peer");
-      goto out;
-    }
-  dscuss_connection_set_receive_callback (peer->connection,
-                                          peer_handshake_on_hello_received,
-                                          peer);
-  handle_user_result = TRUE;
-
-out:
-  dscuss_free_non_null (packet, dscuss_packet_free);
-  dscuss_free_non_null (stored_user, dscuss_user_free);
-  if (!handle_user_result)
-    {
-      dscuss_free_non_null (user, dscuss_user_free);
-      peer->user = NULL;
-      peer_handshake_schedule_fail (peer);
-    }
-  return handle_user_result;
-}
-
-
-static void
-peer_handshake_on_user_sent (DscussConnection* connection,
-                             const DscussPacket* packet,
-                             gboolean result,
-                             gpointer user_data)
-{
-  DscussPeer* peer = user_data;
-
-  dscuss_packet_free ((DscussPacket*) packet);
-
-  if (!result)
-    {
-      g_warning ("Handshake error: failed to send our user to the peer '%s'",
-                 dscuss_peer_get_description (peer));
-      peer_handshake_schedule_fail (peer);
-    }
-  else
-    {
-      g_debug ("Our user successfully sent to the peer '%s'",
-               dscuss_peer_get_description (peer));
-    }
-}
-
-
-static gboolean
-peer_handshake_send_user (DscussPeer* peer)
-{
-  gchar* serialized_user = NULL;
-  gsize serialized_user_len = 0;
-  DscussPacket* user_packet = NULL;
-
-  g_assert (peer != NULL);
-
-  g_debug ("Trying to send out User to the peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  if (!dscuss_user_serialize (peer->handshake_ctx->user,
-                              &serialized_user,
-                              &serialized_user_len))
-    {
-      g_warning ("Handshake error: failed to serialize the user '%s'",
-                 dscuss_user_get_description (peer->handshake_ctx->user));
-      return FALSE;
-    }
-  user_packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_USER,
-                                   serialized_user,
-                                   serialized_user_len);
-  g_free (serialized_user);
-  /* This packet goes without signature. */
-  dscuss_connection_send (peer->connection,
-                          user_packet,
-                          peer_handshake_on_user_sent,
-                          peer);
-  return TRUE;
+  ctx->callback (ctx->peer,
+                 result,
+                 ctx->user_data);
+  peer_handshake_context_free (ctx);
 }
 
 
 void
 dscuss_peer_handshake (DscussPeer* peer,
-                       const DscussUser* user,
-                       DscussPrivateKey* privkey,
-                       GSList* subscriptions,
+                       const DscussUser* self,
+                       DscussPrivateKey* self_privkey,
+                       GSList* self_subscriptions,
                        DscussDb* dbh,
                        DscussPeerHandshakeCallback callback,
                        gpointer user_data)
 {
-
-  g_assert (peer != NULL);
-  g_assert (user != NULL);
-  g_assert (privkey != NULL);
-  g_assert (subscriptions != NULL);
+  g_assert (self != NULL);
+  g_assert (self_privkey != NULL);
+  g_assert (self_subscriptions != NULL);
   g_assert (callback != NULL);
 
-  g_debug ("Starting handshake process with peer '%s'",
-           dscuss_peer_get_description (peer));
-
-  peer->handshake_ctx = peer_handshake_context_new (user,
-                                                    privkey,
-                                                    subscriptions,
-                                                    dbh,
-                                                    callback,
-                                                    user_data);
-
-  if (!peer_handshake_send_user (peer))
-    {
-      g_warning ("Handshake error: failed to send our user to the peer");
-      peer_handshake_schedule_fail (peer);
-      return;
-    }
-
-  /* Timeout for failing handshake */
-  peer->handshake_ctx->handshake_timeout_id =
-      g_timeout_add_seconds (DSCUSS_PEER_HANDSHAKE_TIMEOUT,
-                             peer_handshake_failed,
-                             peer);
-
-  dscuss_connection_set_receive_callback (peer->connection,
-                                          peer_handshake_on_user_received,
-                                          peer);
+  PeerHandshakeContext* ctx = peer_handshake_context_new (peer,
+                                                          callback,
+                                                          user_data);
+  peer->handshake_handle = dscuss_handshake_start (peer->connection,
+                                                   self,
+                                                   self_privkey,
+                                                   self_subscriptions,
+                                                   dbh,
+                                                   on_handshaked,
+                                                   ctx);
 }
 
-/**** END OF HANDSHAKING *****************************************************/

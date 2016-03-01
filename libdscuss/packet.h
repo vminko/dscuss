@@ -70,6 +70,10 @@ typedef enum
    */
   DSCUSS_PACKET_TYPE_HELLO,
   /*
+   * Used for advertising entities.
+   */
+  DSCUSS_PACKET_TYPE_ADVERT,
+  /*
    * TBD
    */
   DSCUSS_PACKET_TYPE_GET,

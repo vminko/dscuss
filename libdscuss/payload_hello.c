@@ -66,7 +66,7 @@ struct _DscussPayloadHello
 
 
 /**
- * RAW user struct. All fields are in NBO.
+ * RAW hello struct. All fields are in NBO.
  */
 struct _DscussPayloadHelloNBO
 {
