@@ -952,3 +952,55 @@ dscuss_db_get_message_replies (DscussDb* dbh,
                  sqlite3_errmsg (dbh));
     }
 }
+
+
+gboolean
+dscuss_db_has_entity (DscussDb* dbh, const DscussHash* id)
+{
+  sqlite3_stmt *stmt;
+  gboolean result = FALSE;
+
+  g_assert (dbh != NULL);
+  g_assert (id != NULL);
+
+  g_debug ("Looking for entity with id `%s' in the database.",
+           dscuss_crypto_hash_to_string (id));
+  if (db_sqlite3_prepare (dbh,
+                  "SELECT 1 FROM User WHERE Id=?"
+                  "UNION"
+                  "SELECT 1 FROM Message WHERE Id=?"
+                  "UNION"
+                  "SELECT 1 FROM Operation WHERE Id=?",
+                  &stmt) != SQLITE_OK)
+    {
+      g_warning ("Failed to prepare `has_entity' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+      goto out;
+    }
+  if ( (SQLITE_OK != sqlite3_bind_blob (stmt, 1, id, sizeof (DscussHash),
+                                        SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_blob (stmt, 2, id, sizeof (DscussHash),
+                                        SQLITE_TRANSIENT)) ||
+       (SQLITE_OK != sqlite3_bind_blob (stmt, 3, id, sizeof (DscussHash),
+                                        SQLITE_TRANSIENT)) )
+    {
+      g_warning ("Failed to bind parameters to `has_entity' statement"
+                 " with error: %s.", sqlite3_errmsg (dbh));
+      goto out;
+    }
+  if (SQLITE_ROW == sqlite3_step (stmt))
+    {
+      result = TRUE;
+      g_debug ("No such entity in the database.");
+    }
+  g_debug ("Found the entity with the given ID.");
+
+out:
+  if (SQLITE_OK != sqlite3_finalize (stmt))
+    {
+      g_warning ("Failed to finalize `has_entity' statement with error: %s.",
+                 sqlite3_errmsg (dbh));
+    }
+
+  return result;
+}

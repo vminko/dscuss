@@ -156,6 +156,15 @@ dscuss_db_get_message_replies (DscussDb* dbh,
                                DscussDbIterateMessageCallback callback,
                                gpointer user_data);
 
+/**
+ * Test whether DB contains entity with the given ID.
+ *
+ * @param dbh        Database handle.
+ * @param parent_id  ID of the entity to look for.
+ */
+gboolean
+dscuss_db_has_entity (DscussDb* dbh, const DscussHash* id);
+
 
 #ifdef __cplusplus
 }

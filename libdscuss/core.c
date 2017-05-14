@@ -204,14 +204,34 @@ on_new_entity (DscussPeer* peer,
 }
 
 
+static void
+on_entity_sent (DscussPeer* peer,
+                const DscussEntity* entity,
+                gboolean result,
+                gpointer user_data)
+{
+  if (result)
+    g_debug ("Entity '%s' has been successfully sent to '%s'",
+             dscuss_entity_get_description (entity),
+             dscuss_peer_get_description (peer));
+  else
+    g_debug ("Failed to send the entity '%s' to '%s'",
+             dscuss_entity_get_description (entity),
+             dscuss_peer_get_description (peer));
+}
+
+
 static gboolean
-start_receiving_entities (gpointer user_data)
+start_transceiving_entities (gpointer user_data)
 {
   DscussPeer* peer = user_data;
   g_assert (peer != NULL);
   dscuss_peer_set_receive_callback (peer,
                                     on_new_entity,
                                     NULL);
+  dscuss_peer_set_send_callback (peer,
+                                 on_entity_sent,
+                                 NULL);
   return FALSE;
 }
 
@@ -250,8 +270,10 @@ on_peer_handshaked (DscussPeer* peer,
             }
         }
 
-      /* TBD: synchronize with peer */
-      g_idle_add (start_receiving_entities, peer);
+      /* FIXME: synchronize with peer state
+       *        this can lead to invalid read/write when peer gets destroyed
+       *        before calling start_transceiving_entities */
+      g_idle_add (start_transceiving_entities, peer);
     }
   else
     {
@@ -440,7 +462,6 @@ dscuss_register (const gchar* nickname,
 
   g_assert (nickname);
   /* TBD: validate nickname */
-
 
   user_directory = g_build_filename (dscuss_util_get_data_dir (),
                                      nickname, NULL);
@@ -686,23 +707,6 @@ dscuss_iterate ()
 }
 
 
-static void
-on_send_finished (DscussPeer* peer,
-                  const DscussEntity* entity,
-                  gboolean result,
-                  gpointer user_data)
-{
-  if (result)
-    g_debug ("Entity '%s' has been successfully sent to '%s'",
-             dscuss_entity_get_description (entity),
-             dscuss_peer_get_description (peer));
-  else
-    g_debug ("Failed to send the entity '%s' to '%s'",
-             dscuss_entity_get_description (entity),
-             dscuss_peer_get_description (peer));
-}
-
-
 void
 dscuss_send_message (DscussMessage* msg)
 {
@@ -723,9 +727,7 @@ dscuss_send_message (DscussMessage* msg)
         {
           if (!dscuss_peer_send (peer,
                                  (DscussEntity*) msg,
-                                 self->privkey,
-                                 on_send_finished,
-                                 NULL))
+                                 self->privkey))
             g_warning ("Failed to queue message '%s' for delivery"
                        " to the peer '%s'",
                        dscuss_message_get_description (msg),
@@ -988,5 +990,29 @@ dscuss_get_logged_user_private_key ()
   g_assert (self != NULL);
   return self->privkey;
 }
+
+
+#if 0
+GSList*
+dscuss_get_logged_user_subscriptions ()
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  g_assert (self != NULL);
+  return self->subscriptions;
+}
+
+
+DscussDb*
+dscuss_get_logged_user_db_handle ()
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  g_assert (self != NULL);
+  return self->dbh;
+}
+#endif
 
 /*** End of Internal API *****************************************************/

@@ -55,13 +55,13 @@ struct _DscussUser
    */
   guint ref_count;
   /**
-   * User's public key.
-   */
-  DscussPublicKey* pubkey;
-  /**
    * User id - hash of its public key (for convenience).
    */
   DscussHash id;
+  /**
+   * User's public key.
+   */
+  DscussPublicKey* pubkey;
   /**
    * Proof-of-work for the pubkey.
    */

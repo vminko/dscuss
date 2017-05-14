@@ -56,9 +56,14 @@ struct _DscussConnection
   gboolean is_incoming;
 
   /**
-   * Cancel async operations on close.
+   * Cancellable for input operations.
    */
-  GCancellable* cancellable;
+  GCancellable* icancellable;
+
+  /**
+   * Cancellable for output operations.
+   */
+  GCancellable* ocancellable;
 
   /**
    * Called when @c socket_connection receives new entities.
@@ -71,7 +76,7 @@ struct _DscussConnection
   gpointer receive_data;
 
   /**
-   * Queue of outgoing entities.
+   * Queue of outgoing packets.
    */
   GQueue* oqueue;
 
@@ -128,10 +133,13 @@ connecion_send_context_new (DscussConnection* connection,
 static void
 connection_send_context_free_full (ConnectionSendContext* ctx, gboolean result)
 {
-  ctx->callback (ctx->connection,
-                 ctx->packet,
-                 result,
-                 ctx->user_data);
+  if (ctx->callback != NULL)
+    {
+      ctx->callback (ctx->connection,
+                     ctx->packet,
+                     result,
+                     ctx->user_data);
+    }
   g_free (ctx->buffer);
   g_free (ctx);
 }
@@ -161,7 +169,8 @@ dscuss_connection_new (GSocketConnection* socket_connection,
   DscussConnection* connection = g_new0 (DscussConnection, 1);
   connection->socket_connection = socket_connection;
   connection->is_incoming = is_incoming;
-  connection->cancellable = g_cancellable_new ();
+  connection->icancellable = g_cancellable_new ();
+  connection->ocancellable = g_cancellable_new ();
   connection->receive_callback = NULL;
   connection->receive_data = NULL;
   connection->oqueue = g_queue_new ();
@@ -177,10 +186,15 @@ dscuss_connection_free (DscussConnection* connection)
   if (connection == NULL)
     return;
 
-  if (connection->cancellable)
+  if (connection->icancellable)
     {
-      g_cancellable_cancel (connection->cancellable);
-      g_object_unref (connection->cancellable);
+      g_cancellable_cancel (connection->icancellable);
+      g_object_unref (connection->icancellable);
+    }
+  if (connection->ocancellable)
+    {
+      g_cancellable_cancel (connection->ocancellable);
+      g_object_unref (connection->ocancellable);
     }
   g_io_stream_close (G_IO_STREAM (connection->socket_connection), NULL, NULL);
   g_object_unref (connection->socket_connection);
@@ -221,26 +235,27 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
 {
   GOutputStream* out = G_OUTPUT_STREAM (source);
   ConnectionSendContext* ctx = user_data;
-  DscussConnection* connection = ctx->connection;
   GError* error = NULL;
   gssize nwrote;
 
   nwrote = g_output_stream_write_finish (out, res, &error);
+  if (error && g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    {
+      g_debug ("Could not write to the connection:"
+               " operation was canceled");
+      g_error_free (error);
+      return;
+    }
+
+  DscussConnection* connection = ctx->connection;
   if (error)
     {
-      if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        {
-          g_debug ("Could not write to the connection:"
-                   " operation was canceled");
-          g_error_free (error);
-          return;
-        }
       g_warning ("Could not write to the connection '%s': %s",
                  dscuss_connection_get_description (connection),
                  error->message);
       g_error_free (error);
 
-      g_assert (!g_queue_remove (connection->oqueue, ctx));
+      g_assert (g_queue_remove (connection->oqueue, ctx));
       connection_send_context_free_full (ctx, FALSE);
       return;
     }
@@ -261,7 +276,7 @@ ostream_write_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                ctx->length - ctx->offset);
       g_output_stream_write_async (out, ctx->buffer + ctx->offset,
                                    ctx->length - ctx->offset,
-                                   G_PRIORITY_DEFAULT, connection->cancellable,
+                                   G_PRIORITY_DEFAULT, connection->ocancellable,
                                    ostream_write_cb, ctx);
     }
 }
@@ -284,7 +299,7 @@ send_head_packet (DscussConnection* connection)
                dscuss_connection_get_description (connection));
       out = g_io_stream_get_output_stream (G_IO_STREAM (connection->socket_connection));
       g_output_stream_write_async (out, ctx->buffer, ctx->length,
-                                   G_PRIORITY_DEFAULT, connection->cancellable,
+                                   G_PRIORITY_DEFAULT, connection->ocancellable,
                                    ostream_write_cb, ctx);
     }
 }
@@ -401,7 +416,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
               g_input_stream_read_async (in,
                                          connection->read_buf + dscuss_header_get_size (),
                                          packet_size - dscuss_header_get_size (),
-                                         G_PRIORITY_DEFAULT, connection->cancellable,
+                                         G_PRIORITY_DEFAULT, connection->icancellable,
                                          istream_read_cb, connection);
               return;
             }
@@ -435,7 +450,7 @@ istream_read_cb (GObject* source, GAsyncResult* res, gpointer user_data)
                length - connection->read_offset);
       g_input_stream_read_async (in, connection->read_buf + connection->read_offset,
                                  length - connection->read_offset,
-                                 G_PRIORITY_DEFAULT, connection->cancellable,
+                                 G_PRIORITY_DEFAULT, connection->icancellable,
                                  istream_read_cb, connection);
     }
 }
@@ -454,7 +469,7 @@ read_packet (DscussConnection* connection)
   connection->read_offset = 0;
   g_input_stream_read_async (in, connection->read_buf,
                              dscuss_header_get_size (),
-			     G_PRIORITY_DEFAULT, connection->cancellable,
+			     G_PRIORITY_DEFAULT, connection->icancellable,
 			     istream_read_cb, connection);
 }
 
@@ -486,18 +501,50 @@ dscuss_connection_is_incoming (DscussConnection* connection)
 
 
 void
-dscuss_connection_cancel_io (DscussConnection* connection)
+dscuss_connection_cancel_all_io (DscussConnection* connection)
 {
   g_assert (connection != NULL);
 
-  if (connection->cancellable != NULL)
-    {
-      g_debug ("Cancelling I/O of the connection '%s'",
-                dscuss_connection_get_description (connection));
+  dscuss_connection_cancel_io (connection, DSCUSS_CONNECTION_IO_TYPE_RX);
+  dscuss_connection_cancel_io (connection, DSCUSS_CONNECTION_IO_TYPE_TX);
+}
 
-      connection->receive_callback = NULL;
-      g_cancellable_cancel (connection->cancellable);
-      g_object_unref (connection->cancellable);
-      connection->cancellable = g_cancellable_new ();
+
+void
+dscuss_connection_cancel_io (DscussConnection* connection,
+                             DscussConnectionIoType io_type)
+{
+  g_assert (connection != NULL);
+
+  g_debug ("Cancelling I/O of the type %d of the connection '%s'",
+           io_type,
+           dscuss_connection_get_description (connection));
+
+  switch (io_type)
+    {
+    case DSCUSS_CONNECTION_IO_TYPE_TX:
+      if (connection->ocancellable != NULL)
+        {
+          g_queue_free_full (connection->oqueue,
+                             (GDestroyNotify) connecion_send_context_free);
+          connection->oqueue = g_queue_new ();
+          g_cancellable_cancel (connection->ocancellable);
+          g_object_unref (connection->ocancellable);
+          connection->ocancellable = g_cancellable_new ();
+        }
+      break;
+
+    case DSCUSS_CONNECTION_IO_TYPE_RX:
+      if (connection->icancellable != NULL)
+        {
+          connection->receive_callback = NULL;
+          g_cancellable_cancel (connection->icancellable);
+          g_object_unref (connection->icancellable);
+          connection->icancellable = g_cancellable_new ();
+        }
+      break;
+
+    default:
+      g_assert_not_reached ();
     }
 }

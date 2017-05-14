@@ -70,14 +70,17 @@ typedef enum
    */
   DSCUSS_PACKET_TYPE_HELLO,
   /*
-   * Used for advertising entities.
+   * Used for advertising new entities.
    */
-  DSCUSS_PACKET_TYPE_ADVERT,
+  DSCUSS_PACKET_TYPE_ANNOUNCE,
   /*
-   * TBD
+   * Acknowledgment for an announcement.
    */
-  DSCUSS_PACKET_TYPE_GET,
-  DSCUSS_PACKET_TYPE_END,
+  DSCUSS_PACKET_TYPE_ACK,
+  /*
+   * Request for an entity.
+   */
+  DSCUSS_PACKET_TYPE_REQ,
 
   /*
    * Used for checking packet type validity.

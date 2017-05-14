@@ -46,6 +46,7 @@ extern "C" {
 #endif
 
 
+#if 0
 /**
  * Explains an error occurred during interaction via the socket connection.
  */
@@ -61,6 +62,24 @@ typedef enum
   DSCUSS_CONNECTION_ERROR_VIOLATION,
 
 } DscussConnectionError;
+#endif
+
+
+/**
+ * Determines IO type for cancelling and so on.
+ */
+typedef enum
+{
+  /*
+   * Transmission.
+   */
+  DSCUSS_CONNECTION_IO_TYPE_TX = 0,
+  /*
+   * Reception.
+   */
+  DSCUSS_CONNECTION_IO_TYPE_RX,
+
+} DscussConnectionIoType;
 
 
 /**
@@ -176,15 +195,23 @@ dscuss_connection_set_receive_callback (DscussConnection* connection,
 gboolean
 dscuss_connection_is_incoming (DscussConnection* connection);
 
-
 /**
- * Stop reading/writing from/to connection.
+ * Stop all I/O operations (both reading and writing).
  *
  * @param connection  Connection to cancel I/O for.
  */
 void
-dscuss_connection_cancel_io (DscussConnection* connection);
+dscuss_connection_cancel_all_io (DscussConnection* connection);
 
+/**
+ * Cancel I/O operations of a particular type.
+ *
+ * @param connection  Connection to cancel I/O for.
+ * @param io_type     Type of the I/O to cancel.
+ */
+void
+dscuss_connection_cancel_io (DscussConnection* connection,
+                             DscussConnectionIoType io_type);
 
 #ifdef __cplusplus
 }

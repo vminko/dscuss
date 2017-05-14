@@ -30,6 +30,7 @@
 #include <string.h>
 #include <glib.h>
 #include "config.h"
+#include "core.h"
 #include "packet.h"
 #include "message.h"
 #include "util.h"
@@ -85,7 +86,7 @@ handshake_handle_new (DscussConnection* connection,
 }
 
 
-void
+static void
 handshake_handle_free (DscussHandshakeHandle* handle)
 {
   if (handle->fail_id != 0)
@@ -101,6 +102,7 @@ handshake_handle_free (DscussHandshakeHandle* handle)
 }
 
 
+
 static gboolean
 handshake_fail (gpointer user_data)
 {
@@ -111,7 +113,7 @@ handshake_fail (gpointer user_data)
            dscuss_connection_get_description (handle->connection));
 
   handle->fail_id = 0;
-  dscuss_connection_cancel_io (handle->connection);
+  dscuss_connection_cancel_all_io (handle->connection);
   handle->callback (FALSE, NULL, NULL, handle->user_data);
   handshake_handle_free (handle);
 
@@ -212,7 +214,7 @@ handshake_on_hello_received (DscussConnection* connection,
 
   /* Finally handshake succeeded */
   subscriptions = dscuss_subscriptions_copy (dscuss_payload_hello_get_subscriptions (pld_hello));
-  dscuss_connection_cancel_io (handle->connection);
+  dscuss_connection_cancel_all_io (handle->connection);
   handle->callback (TRUE,
                     handle->peers_user,
                     subscriptions,
@@ -488,6 +490,6 @@ void
 dscuss_handshake_cancel (DscussHandshakeHandle* handle)
 {
   g_assert (handle != NULL);
-  dscuss_connection_cancel_io (handle->connection);
+  dscuss_connection_cancel_all_io (handle->connection);
   handshake_handle_free (handle);
 }

@@ -45,8 +45,7 @@ extern "C" {
 
 
 /**
- * Creates digest using password based derivation function with salt
- * and iteration count. Uses SHA512 for hashing.
+ * Calculates SHA512 hash.
  *
  * @param data      Data to hash.
  * @param data_len  Length of @a data.

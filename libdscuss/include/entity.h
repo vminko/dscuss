@@ -35,6 +35,7 @@
 #define DSCUSS_INCLUDE_ENTITY_H
 
 #include <glib.h>
+#include "crypto_hash.h"
 
 
 #ifdef __cplusplus
@@ -76,6 +77,16 @@ typedef struct _DscussEntity DscussEntity;
  */
 DscussEntityType
 dscuss_entity_get_type (const DscussEntity* entity);
+
+/**
+ * Returns ID of an entity.
+ *
+ * @param entity  Entity to get ID of.
+ *
+ * @return  ID of the entity.
+ */
+const DscussHash*
+dscuss_entity_get_id (const DscussEntity* entity);
 
 /**
  * Composes a one-line text description of an entity.

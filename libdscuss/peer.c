@@ -30,18 +30,47 @@
 #include <string.h>
 #include <glib.h>
 #include "config.h"
-#include "packet.h"
-#include "message.h"
-#include "util.h"
 #include "connection.h"
+#include "handshake.h"
+#include "message.h"
+#include "packet.h"
+#include "payload_announcement.h"
 #include "peer.h"
 #include "subscriptions.h"
-#include "handshake.h"
+#include "util.h"
 
 
 #define DSCUSS_PEER_DESCRIPTION_MAX_LEN  120
 
 static gchar description_buf[DSCUSS_PEER_DESCRIPTION_MAX_LEN];
+
+/**
+ * Peer states. Order does matter!
+ */
+typedef enum
+{
+  /*
+   * Initial peer state: only socket connection is established, not handshaked.
+   */
+  PEER_STATE_INIT = 0,
+  /*
+   * Encapsulates a message entity.
+   */
+  PEER_STATE_HANDSHAKING,
+  /*
+   * Encapsulates an operation entity.
+   */
+  PEER_STATE_IDLE,
+  /*
+   * Used for introducing users during handshake.
+   */
+  PEER_STATE_SENDING,
+  /*
+   * Used for advertising new entities.
+   */
+  PEER_STATE_RECEIVING,
+
+} PeerState;
 
 
 /**
@@ -75,6 +104,16 @@ struct _DscussPeer
   gpointer receive_data;
 
   /**
+   * Called when an entity is sent to this peer.
+   */
+  DscussPeerSendCallback send_callback;
+
+  /**
+   * User data for the @c send_callback.
+   */
+  gpointer send_data;
+
+  /**
    * Hash of expected packet types in the following format
    * [type_id -> type_context]
    * where @c type_id is a @a DscussPacketType,
@@ -84,14 +123,24 @@ struct _DscussPeer
   GHashTable* expected_types;
 
   /**
+   * Queue of outgoing entities.
+   */
+  GQueue* oqueue;
+
+  /**
+   * ID of the event source for failing entity announcement.
+   */
+  guint announce_fail_id;
+
+  /**
    * Handle for handshaking.
    */
   DscussHandshakeHandle* handshake_handle;
 
   /**
-   * TRUE if we've handshaked with this peer.
+   * Current state of the peer.
    */
-  gboolean is_handshaked;
+  PeerState state;
 
   /**
    * Peer's user.
@@ -174,16 +223,26 @@ peer_handshake_context_free (PeerHandshakeContext* ctx)
 /**** End of PeerHandshakeContext ********************************************/
 
 
+/**** Function prototypes ****************************************************/
+
+static gboolean
+process_msg (DscussPeer* peer,
+             DscussPacket* packet);
+
+/**** End of function prototypes *********************************************/
+
+
 static gboolean
 on_new_packet (DscussConnection* connection,
                DscussPacket* packet,
-               gboolean result,
+               gboolean result_,
                gpointer user_data)
 {
   DscussPeer* peer = user_data;
   gpointer type_context = NULL;
+  gboolean result = FALSE;
 
-  if (!result)
+  if (!result_)
     {
       g_debug ("Failed to read from connection '%s'",
                dscuss_connection_get_description (connection));
@@ -218,35 +277,35 @@ on_new_packet (DscussConnection* connection,
 
   switch (type)
     {
-    case DSCUSS_PACKET_TYPE_USER:
-      /* TBD */
+    case DSCUSS_PACKET_TYPE_ANNOUNCE:
       g_assert_not_reached ();
+      /* TBD
+      g_debug ("This is an Announcement");
+      result = process_announce (peer, packet, expected_context); */
+      break;
+
+    case DSCUSS_PACKET_TYPE_ACK:
+      g_assert_not_reached ();
+      /* TBD
+      g_debug ("This is an Acknowledgment");
+      result = process_ack (peer, packet, expected_context); */
+      break;
+
+    case DSCUSS_PACKET_TYPE_REQ:
+      g_assert_not_reached ();
+      /* TBD
+      g_debug ("This is a Request");
+      result = process_get (peer, packet, expected_context); */
       break;
 
     case DSCUSS_PACKET_TYPE_MSG:
       g_debug ("This is a Message packet");
+      result = process_msg (peer, packet);
+      break;
 
-      gchar* payload = NULL;
-      gsize payload_size = 0;
-      dscuss_packet_get_payload (packet,
-                                 (const gchar**) &payload,
-                                 &payload_size);
-      DscussMessage* msg = dscuss_message_deserialize (payload,
-                                                       payload_size);
-      if (msg == NULL)
-        {
-          g_warning ("Malformed Message packet: failed to parse.");
-          dscuss_packet_free (packet);
-          peer->receive_callback (peer,
-                                  NULL,
-                                  FALSE,
-                                  peer->receive_data);
-          return FALSE;
-        }
-      peer->receive_callback (peer,
-                              (DscussEntity*) msg,
-                              TRUE,
-                              peer->receive_data);
+    case DSCUSS_PACKET_TYPE_USER:
+      /* TBD */
+      g_assert_not_reached ();
       break;
 
     case DSCUSS_PACKET_TYPE_OPER:
@@ -258,7 +317,7 @@ on_new_packet (DscussConnection* connection,
       g_assert_not_reached ();
     }
   dscuss_packet_free (packet);
-  return TRUE;
+  return result;
 }
 
 
@@ -274,15 +333,17 @@ dscuss_peer_new (GSocketConnection* socket_connection,
   peer->disconn_callback = disconn_callback;
   peer->disconn_data = disconn_data;
   peer->handshake_handle = NULL;
-  peer->is_handshaked = FALSE;
+  peer->state = PEER_STATE_INIT;
   peer->receive_callback = NULL;
   peer->receive_data = NULL;
+  peer->oqueue = g_queue_new ();
+  peer->announce_fail_id = 0;
   peer->user = NULL;
   peer->subscriptions = NULL;
   peer->expected_types = g_hash_table_new_full (g_direct_hash,
                                                 g_direct_equal,
                                                 NULL,
-                                                NULL);
+                                                g_free);
   return peer;
 }
 
@@ -300,6 +361,11 @@ dscuss_peer_free_full (DscussPeer* peer,
                           reason_data,
                           peer->disconn_data);
 
+  if (peer->announce_fail_id != 0)
+    {
+      g_source_remove (peer->announce_fail_id);
+    }
+
   if (peer->handshake_handle != NULL)
     dscuss_handshake_cancel (peer->handshake_handle);
 
@@ -307,6 +373,8 @@ dscuss_peer_free_full (DscussPeer* peer,
   dscuss_free_non_null (peer->subscriptions, dscuss_subscriptions_free);
   dscuss_free_non_null (peer->connection, dscuss_connection_free);
   g_hash_table_destroy (peer->expected_types);
+  g_queue_free_full (peer->oqueue,
+                     (GDestroyNotify) dscuss_entity_unref);
   g_free (peer);
   g_debug ("Peer successfully freed");
 }
@@ -325,7 +393,7 @@ const DscussUser*
 dscuss_peer_get_user (const DscussPeer* peer)
 {
   g_assert (peer != NULL);
-  return (peer->is_handshaked) ? peer->user : NULL;
+  return (peer->state > PEER_STATE_HANDSHAKING) ? peer->user : NULL;
 }
 
 
@@ -333,7 +401,7 @@ const GSList*
 dscuss_peer_get_subscriptions (const DscussPeer* peer)
 {
   g_assert (peer != NULL);
-  return (peer->is_handshaked) ? peer->subscriptions : NULL;
+  return (peer->state > PEER_STATE_HANDSHAKING) ? peer->subscriptions : NULL;
 }
 
 
@@ -344,7 +412,7 @@ dscuss_peer_get_description (DscussPeer* peer)
 
   g_assert (peer != NULL);
 
-  if (peer->is_handshaked)
+  if (peer->state > PEER_STATE_HANDSHAKING)
     {
       id_str = dscuss_data_to_hex ((const gpointer) dscuss_user_get_id(peer->user),
                                    sizeof (DscussHash),
@@ -378,21 +446,471 @@ dscuss_peer_get_connecton_description (DscussPeer* peer)
 
 
 void
+dscuss_peer_set_receive_callback (DscussPeer* peer,
+                                  DscussPeerReceiveCallback callback,
+                                  gpointer user_data)
+{
+  g_assert (peer != NULL);
+  if (peer->receive_callback != NULL)
+    {
+      g_warning ("Attempt to override DscussPeerReceiveCallback");
+      return;
+    }
+  peer->receive_callback = callback;
+  peer->receive_data = user_data;
+  dscuss_connection_set_receive_callback (peer->connection,
+                                          on_new_packet,
+                                          peer);
+}
+
+
+void
+dscuss_peer_set_send_callback (DscussPeer* peer,
+                               DscussPeerSendCallback callback,
+                               gpointer user_data)
+{
+  g_assert (peer != NULL);
+  if (peer->send_callback != NULL)
+    {
+      g_warning ("Attempt to override DscussPeerSendCallback");
+      return;
+    }
+  peer->send_callback = callback;
+  peer->send_data = user_data;
+}
+
+
+/**** SENDING ****************************************************************/
+
+
+gboolean
+process_msg (DscussPeer* peer,
+             DscussPacket* packet)
+{
+  g_assert (peer != NULL);
+  g_assert (packet != NULL);
+
+  gchar* payload = NULL;
+  gsize payload_size = 0;
+  dscuss_packet_get_payload (packet,
+                             (const gchar**) &payload,
+                             &payload_size);
+  DscussMessage* msg = dscuss_message_deserialize (payload,
+                                                   payload_size);
+  if (msg == NULL)
+    {
+      g_warning ("Malformed Message packet: failed to parse.");
+      peer->receive_callback (peer,
+                              NULL,
+                              FALSE,
+                              peer->receive_data);
+      return FALSE;
+    }
+  peer->receive_callback (peer,
+                          (DscussEntity*) msg,
+                          TRUE,
+                          peer->receive_data);
+  return TRUE;
+}
+
+
+#if 0
+static void
+announce_fail (DscussPeer* peer)
+{
+  DscussEntity* entity = NULL;
+
+  g_assert (peer != NULL);
+  entity = g_queue_peek_head (peer->oqueue);
+  g_debug ("Failed to announce '%s' to the peer '%s'",
+           dscuss_entity_get_description (entity),
+           dscuss_peer_get_description (peer));
+
+  peer->send_callback (peer,
+                       entity,
+                       FALSE,
+                       peer->send_data);
+  g_assert (g_queue_remove (peer->oqueue, entity));
+  dscuss_entity_unref (entity);
+
+  peer->state = PEER_STATE_IDLE;
+  /* Now we expect only ANNOUNCE */
+  g_hash_table_remove_all (peer->expected_types);
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_ANNOUNCE), NULL);
+}
+
+
+static void
+announce_schedule_fail (DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  if (peer->announce_fail_id != 0)
+    {
+      g_source_remove (peer->announce_fail_id);
+    }
+  peer->announce_fail_id = g_idle_add_full (G_PRIORITY_HIGH,
+                                            announce_fail,
+                                            peer,
+                                            NULL);
+}
+
+
+static void
+on_announcement_sent (DscussConnection* connection,
+                      const DscussPacket* packet,
+                      gboolean result,
+                      gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  if (!result)
+    g_debug ("Failed to send packet %s to the peer '%s'",
+             dscuss_packet_get_description (packet),
+             dscuss_peer_get_description (peer));
+  dscuss_packet_free ((DscussPacket*) packet);
+  if (!result)
+    {
+      announce_schedule_fail (peer);
+    }
+}
+
+
+static void
+announce_head_entity (DscussPeer* peer)
+{
+  DscussPacket* packet = NULL;
+  gchar* serialized_payload = NULL;
+  gsize serialized_payload_len = 0;
+  DscussPayloadAnnouncement* pld_ann = NULL;
+  DscussEntity* entity = NULL;
+
+  if (g_queue_is_empty (peer->oqueue))
+    {
+      return;
+    }
+
+  peer->state = PEER_STATE_SENDING;
+  /* Now we expect only ACK, REQ and ANNOUNCE */
+  g_hash_table_remove_all (peer->expected_types);
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_ACK), NULL);
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_REQ), NULL);
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_ANNOUNCE), NULL);
+
+  entity = g_queue_peek_head (peer->oqueue);
+  pld_ann = dscuss_payload_announcement_new (dscuss_entity_get_id (entity));
+  if (!dscuss_payload_announcement_serialize (pld_ann,
+                                              &serialized_payload,
+                                              &serialized_payload_len))
+    {
+      g_warning ("Error sending announcement:"
+                 " failed to serialize the Announcement payload");
+      announce_schedule_fail (peer);
+      goto out;
+    }
+
+  packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_ANNOUNCE,
+                              serialized_payload,
+                              serialized_payload_len);
+  dscuss_packet_sign (packet, dscuss_get_logged_user_private_key ());
+  dscuss_connection_send (peer->connection,
+                          packet,
+                          on_announcement_sent,
+                          peer);
+
+out:
+  dscuss_free_non_null (pld_ann, dscuss_payload_announcement_free);
+}
+
+
+static void
+announce_cancel (DscussPeer* peer)
+{
+  g_assert (peer != NULL);
+  if (peer->state != PEER_STATE_SENDING)
+    {
+      return;
+    }
+
+  dscuss_connection_cancel_io (peer->connection,
+                               DSCUSS_CONNECTION_IO_TYPE_TX);
+  peer->state = PEER_STATE_IDLE;
+  g_hash_table_remove_all (peer->expected_types);
+  g_hash_table_insert (peer->expected_types,
+                       GINT_TO_POINTER (DSCUSS_PACKET_TYPE_ANNOUNCE), NULL);
+  if (peer->announce_fail_id != 0)
+    {
+      g_source_remove (peer->announce_fail_id);
+      peer->announce_fail_id = 0;
+    }
+}
+
+
+static void
+on_ack_sent (DscussConnection* connection,
+             const DscussPacket* packet,
+             gboolean result,
+             gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  if (!result)
+    g_debug ("Failed to send packet %s to the peer '%s'",
+             dscuss_packet_get_description (packet),
+             dscuss_peer_get_description (peer));
+  dscuss_packet_free ((DscussPacket*) packet);
+  if (!result)
+    {
+      peer->receive_callback (peer,
+                              NULL,
+                              FALSE,
+                              peer->receive_data);
+    }
+}
+
+
+static void
+on_request_sent (DscussConnection* connection,
+                 const DscussPacket* packet,
+                 gboolean result,
+                 gpointer user_data)
+{
+  DscussPeer* peer = user_data;
+  if (!result)
+    g_debug ("Failed to send packet %s to the peer '%s'",
+             dscuss_packet_get_description (packet),
+             dscuss_peer_get_description (peer));
+  dscuss_packet_free ((DscussPacket*) packet);
+  if (!result)
+    {
+      announce_schedule_fail (peer);
+
+      peer->receive_callback (peer,
+                              NULL,
+                              FALSE,
+                              peer->receive_data);
+      <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+       critical_error () ->>> peer will be closed
+       on_receive always ok!
+    }
+}
+
+
+static gboolean
+process_announce (const DscussPeer* peer,
+                  DscussPacket* packet,
+                  const gpointer expected_context)
+{
+  gchar* payload = NULL;
+  gsize payload_size = 0;
+  DscussPayloadAnnouncement* pld_ann = NULL;
+  DscussPayloadRequest* pld_req = NULL;
+  const DscussHash* entity_id = NULL;
+  DscussHash* expected_entity_id = NULL;
+  DscussPacket* out_packet = NULL;
+
+  g_assert (peer != NULL);
+  g_assert (packet != NULL);
+  if (peer->state == PEER_STATE_SENDING)
+    {
+      /* Collision detected: both peers sent announcement at the same time. */
+      if (dscuss_connection_is_incoming (peer->connection))
+        {
+          /* Just ignore the packet. This peer must handle our announcement
+           * first */
+          return TRUE;
+        }
+      else
+        {
+          /* We have to handle this announcement first. */
+          announce_cancel (peer);
+        }
+    }
+
+  dscuss_packet_get_payload (packet,
+                             (const gchar**) &payload,
+                             &payload_size);
+  pld_ann = dscuss_payload_announcement_deserialize (payload, payload_size);
+  if (pld_ann == NULL)
+    {
+      g_warning ("Malformed Announce packet: failed to parse payload.");
+      peer->receive_callback (peer,
+                              NULL,
+                              FALSE,
+                              peer->receive_data);
+      return FALSE;
+    }
+
+  entity_id = dscuss_payload_announcement_get_entity_id (pld_ann);
+  dscuss_payload_announcement_free (pld_ann);
+  if (dscuss_db_has_entity (dscuss_get_logged_user_db_handle (), entity_id))
+    {
+      /* Send ACK */
+      out_packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_ACK, NULL, 0);
+      dscuss_packet_sign (out_packet, dscuss_get_logged_user_private_key ());
+      dscuss_connection_send (peer->connection,
+                              out_packet,
+                              on_ack_sent,
+                              peer);
+      peer->state = PEER_STATE_IDLE;
+      g_hash_table_remove_all (peer->expected_types);
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_ANNOUNCE), NULL);
+    }
+  else
+    {
+      /* Send REQ */
+      pld_req = dscuss_payload_request_new (dscuss_entity_get_id (entity));
+      if (!dscuss_payload_request_serialize (pld_req,
+                                             &serialized_payload,
+                                             &serialized_payload_len))
+        {
+          g_warning ("Error sending request: failed to serialize the payload");
+          peer->receive_callback (peer,
+                                  NULL,
+                                  FALSE,
+                                  peer->receive_data);
+          dscuss_payload_request_free (pld_req);
+          return FALSE;
+        }
+      dscuss_payload_request_free (pld_req);
+      out_packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_REQ,
+                                      serialized_payload,
+                                      serialized_payload_len);
+      dscuss_packet_sign (out_packet, dscuss_get_logged_user_private_key ());
+      dscuss_connection_send (peer->connection,
+                              out_packet,
+                              on_request_sent,
+                              peer);
+      expected_entity_id = g_memdup (entity_id, sizeof (DscussHash));
+      g_hash_table_remove_all (peer->expected_types);
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_USER),
+                           expected_entity_id);
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_MSG),
+                           expected_entity_id);
+      g_hash_table_insert (peer->expected_types,
+                           GINT_TO_POINTER (DSCUSS_PACKET_TYPE_OPER),
+                           expected_entity_id);
+    }
+  return TRUE;
+}
+
+
+static gboolean
+process_ack (const DscussPeer* peer,
+             DscussPacket* packet,
+             const gpointer expected_context)
+{
+  g_assert (peer != NULL);
+
+  if (peer->send_callback != NULL)
+    {
+      peer->send_callback (peer,
+                           entity,
+                           result,
+                           peer->send_data);
+    }
+  g_assert (g_queue_remove (peer->oqueue, entity));
+  dscuss_entity_unref (entity);
+
+  announcement_finish (peer);
+  return TRUE;
+}
+
+
+static gboolean
+process_get (const DscussPeer* peer,
+             DscussPacket* packet,
+             const gpointer expected_context)
+{
+#if 0
+  DscussMessage* msg = NULL;
+
+  switch (dscuss_entity_get_type (entity))
+    {
+    case DSCUSS_ENTITY_TYPE_USER:
+      g_assert_not_reached ();
+      /* TBD */
+      break;
+
+    case DSCUSS_ENTITY_TYPE_MSG:
+      msg = (DscussMessage*) entity;
+      if (!dscuss_message_serialize (msg,
+                                     &serialized_payload,
+                                     &serialized_payload_len))
+        {
+          g_warning ("Failed to serialize the message '%s'",
+                     dscuss_message_get_description (msg));
+          return FALSE;
+        }
+      packet = dscuss_packet_new (DSCUSS_PACKET_TYPE_MSG,
+                                  serialized_payload,
+                                  serialized_payload_len);
+      dscuss_packet_sign (packet, privkey);
+      g_free (serialized_payload);
+      break;
+
+    case DSCUSS_ENTITY_TYPE_OPER:
+      /* TBD */
+      g_assert_not_reached ();
+      break;
+
+    default:
+      g_assert_not_reached ();
+    }
+#endif
+  return TRUE;
+}
+
+
+gboolean
+dscuss_peer_send (DscussPeer* peer,
+                  DscussEntity* entity)
+{
+  g_assert (peer != NULL);
+  g_assert (entity != NULL);
+
+  g_debug ("Sending entity '%s'",
+           dscuss_entity_get_description (entity));
+
+  dscuss_entity_ref (entity);
+  g_queue_push_tail (peer->oqueue, entity);
+
+  /* Start processing the queue if it was empty. */
+  if (peer->state = PEER_STATE_IDLE)
+    {
+      announce_head_entity (peer);
+    }
+}
+#endif
+
+
+static void
 on_packet_sent (DscussConnection* connection,
                 const DscussPacket* packet,
                 gboolean result,
                 gpointer user_data)
 {
   PeerSendContext* ctx = user_data;
+  g_assert (ctx != NULL);
+  g_assert (ctx->peer != NULL);
+
   if (!result)
     g_debug ("Failed to send packet %s to the peer '%s'",
              dscuss_packet_get_description (packet),
              dscuss_peer_get_description (ctx->peer));
   dscuss_packet_free ((DscussPacket*) packet);
-  ctx->callback (ctx->peer,
-                 ctx->entity,
-                 result,
-                 ctx->user_data);
+
+  if (NULL != ctx->peer->send_callback)
+    {
+      ctx->peer->send_callback (ctx->peer,
+                                ctx->entity,
+                                result,
+                                ctx->peer->send_data);
+    }
   peer_send_context_free (ctx);
 }
 
@@ -400,9 +918,7 @@ on_packet_sent (DscussConnection* connection,
 gboolean
 dscuss_peer_send (DscussPeer* peer,
                   DscussEntity* entity,
-                  DscussPrivateKey* privkey,
-                  DscussPeerSendCallback callback,
-                  gpointer user_data)
+                  DscussPrivateKey* privkey)
 {
   DscussPacket* packet = NULL;
   DscussMessage* msg = NULL;
@@ -454,8 +970,9 @@ dscuss_peer_send (DscussPeer* peer,
 
   PeerSendContext* ctx = peer_send_context_new (peer,
                                                 entity,
-                                                callback,
-                                                user_data);
+                                                peer->send_callback,
+                                                peer->send_data);
+
   dscuss_connection_send (peer->connection,
                           packet,
                           on_packet_sent,
@@ -464,31 +981,13 @@ dscuss_peer_send (DscussPeer* peer,
 }
 
 
-void
-dscuss_peer_set_receive_callback (DscussPeer* peer,
-                                  DscussPeerReceiveCallback callback,
-                                  gpointer user_data)
-{
-  g_assert (peer != NULL);
-  if (peer->receive_callback != NULL ||
-      peer->receive_data != NULL)
-    {
-      g_warning ("Attempt to override DscussPeerReceiveCallback");
-      return;
-    }
-  peer->receive_callback = callback;
-  peer->receive_data = user_data;
-  dscuss_connection_set_receive_callback (peer->connection,
-                                          on_new_packet,
-                                          peer);
-}
-
+/**** HANDSHAKING ************************************************************/
 
 gboolean
 dscuss_peer_is_handshaked (DscussPeer* peer)
 {
   g_assert (peer != NULL);
-  return peer->is_handshaked;
+  return peer->state > PEER_STATE_HANDSHAKING;
 }
 
 
@@ -512,7 +1011,7 @@ on_handshaked (gboolean result,
                dscuss_peer_get_description (peer));
       peer->user = peers_user;
       peer->subscriptions = peers_subscriptions;
-      peer->is_handshaked = TRUE;
+      peer->state = PEER_STATE_IDLE;
       /* TBD: find better solution.
        * dscuss_connection_set_receive_callback will be set via
        * dscuss_peer_set_receive_callback

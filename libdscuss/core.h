@@ -52,7 +52,6 @@ extern "C" {
 const DscussUser*
 dscuss_get_logged_user ();
 
-
 /**
  * Returns private key of the user we're logged under.
  *
@@ -60,6 +59,25 @@ dscuss_get_logged_user ();
  */
 const DscussPrivateKey*
 dscuss_get_logged_user_private_key ();
+
+#if 0
+/**
+ * Returns subscriptions of the user we're logged under.
+ *
+ * @return  Logged user's subscriptions or @c NULL if we're not logged in.
+ */
+GSList*
+dscuss_get_logged_user_subscriptions ();
+
+/**
+ * Returns handle to the connection with the user's database
+ *
+ * @return  Handle to the database connection or
+ *          @c NULL if there is no open DB connection.
+ */
+DscussDb*
+dscuss_get_logged_user_db_handle ();
+#endif
 
 
 #ifdef __cplusplus

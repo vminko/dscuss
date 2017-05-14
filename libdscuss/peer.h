@@ -194,10 +194,6 @@ dscuss_peer_free_full (DscussPeer* peer,
  * @param peer       Peer send the entity to.
  * @param entity     Entity to send.
  * @param privkey    The private key of the user (for signing packet).
- * @param callback   Function to call with the result of the sending, will
- *                   only be called if the entity was successfully inserted
- *                   in the outgoing queue.
- * @param user_data  User data to pass to the callback.
  *
  * @return @c TRUE if the entity is successfully queued for delivery
  *                 (the callback will be called),
@@ -207,9 +203,7 @@ dscuss_peer_free_full (DscussPeer* peer,
 gboolean
 dscuss_peer_send (DscussPeer* peer,
                   DscussEntity* entity,
-                  DscussPrivateKey* privkey,
-                  DscussPeerSendCallback callback,
-                  gpointer user_data);
+                  DscussPrivateKey* privkey);
 
 /**
  * Sets callback for notification about incoming entities and starts reading
@@ -223,6 +217,18 @@ void
 dscuss_peer_set_receive_callback (DscussPeer* peer,
                                   DscussPeerReceiveCallback callback,
                                   gpointer user_data);
+
+/**
+ * Sets callback for notification about results of sending entities to the peer.
+ *
+ * @param peer       Peer to receive entities from.
+ * @param callback   Function to call when an entity has been sent.
+ * @param user_data  User data to pass to the callback.
+ */
+void
+dscuss_peer_set_send_callback (DscussPeer* peer,
+                               DscussPeerSendCallback callback,
+                               gpointer user_data);
 
 /**
  * Request performing handshake with the peer.

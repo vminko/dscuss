@@ -28,12 +28,12 @@
  */
 
 /**
- * @file payload_advertisement.h  Payload of the packet for advertising new
+ * @file payload_announcement.h  Payload of the packet for advertising new
  * entities.
  */
 
-#ifndef DSCUSS_PAYLOAD_ADVERTISEMENT_H
-#define DSCUSS_PAYLOAD_ADVERTISEMENT_H
+#ifndef DSCUSS_PAYLOAD_ANNOUNCEMENT_H
+#define DSCUSS_PAYLOAD_ANNOUNCEMENT_H
 
 #include <glib.h>
 #include "crypto_hash.h"
@@ -45,78 +45,68 @@ extern "C" {
 
 
 /*
- * Advertisement packets are used for propagating new entities through the
+ * Announcement packets are used for propagating new entities through the
  * network with low traffic overhead.
  * When user A sends this packet to user B, user A wants to let user B known
  * that user A has new entity, which may be interesting for user B.
  */
-typedef struct _DscussPayloadAdvertisement DscussPayloadAdvertisement;
+typedef struct _DscussPayloadAnnouncement DscussPayloadAnnouncement;
 
 /**
- * Creates new payload for an advertisement packet.
+ * Creates new payload for an announcement packet.
  *
  * @param id  ID of the entity to advertise.
  *
  * @return New payload.
  */
-DscussPayloadAdvertisement*
-dscuss_payload_advertisement_new (const DscussHash* entity_id);
+DscussPayloadAnnouncement*
+dscuss_payload_announcement_new (const DscussHash* entity_id);
 
 /**
- * Destroys an advertisement payload.
+ * Destroys an announcement payload.
  * Frees all memory allocated by the payload.
  *
- * @param advert  Payload to be destroyed.
+ * @param pld_ann  Payload to be destroyed.
  */
 void
-dscuss_payload_advertisement_free (DscussPayloadAdvertisement* advert);
+dscuss_payload_announcement_free (DscussPayloadAnnouncement* pld_ann);
 
 /**
- * Convert an Advertisement payload to raw data, which can be transmitted via
+ * Convert an Announcement payload to raw data, which can be transmitted via
  * network.
  *
- * @param advert Payload to serialize.
- * @param data    Where to store address of the serialized payload.
- * @param size    @a data size (output parameter).
+ * @param pld_ann  Payload to serialize.
+ * @param data     Where to store address of the serialized payload.
+ * @param size     @a data size (output parameter).
  *
  * @return @c TRUE in case of success, or @c FALSE on error.
  */
 gboolean
-dscuss_payload_advertisement_serialize (const DscussPayloadAdvertisement* advert,
-                                        gchar** data,
-                                        gsize* size);
+dscuss_payload_announcement_serialize (const DscussPayloadAnnouncement* pld_ann,
+                                       gchar** data,
+                                       gsize* size);
 
 /**
- * Create an Advertisement payload from raw data.
+ * Create an Announcement payload from raw data.
  *
  * @param data  Raw data to parse.
  * @param size  Size of @a data.
  *
- * @return  A new Advertisement payload in case of success or @c NULL on error.
+ * @return  A new Announcement payload in case of success or @c NULL on error.
  */
-DscussPayloadAdvertisement*
-dscuss_payload_advertisement_deserialize (const gchar* data,
-                                          gsize size);
+DscussPayloadAnnouncement*
+dscuss_payload_announcement_deserialize (const gchar* data,
+                                         gsize size);
 
 /**
  * Returns ID of the advertised entity.
  *
- * @param advert  Payload to fetch entity ID from.
+ * @param pld_ann  Payload to fetch entity ID from.
  *
  * @return  ID of the new entity.
  */
 const DscussHash*
-dscuss_payload_advertisement_get_entity_id (const DscussPayloadAdvertisement* advert);
-
-/**
- * Returns date and time when the payload was composed.
- *
- * @param advert  Payload to fetch date and time from.
- *
- * @return  Date and time when the payload was composed.
- */
-GDateTime*
-dscuss_payload_advertisement_get_datetime (const DscussPayloadAdvertisement* hello);
+dscuss_payload_announcement_get_entity_id (const DscussPayloadAnnouncement* pld_ann);
 
 
 #ifdef __cplusplus
@@ -124,4 +114,4 @@ dscuss_payload_advertisement_get_datetime (const DscussPayloadAdvertisement* hel
 #endif
 
 
-#endif /* DSCUSS_PAYLOAD_ADVERTISEMENT_H */
+#endif /* DSCUSS_PAYLOAD_ANNOUNCEMENT_H */

@@ -47,6 +47,11 @@ struct _DscussEntity
    * Reference counter.
    */
   guint ref_count;
+  /**
+   * Entity id - hash of some data (depends on type of the entity)..
+   * Supposed to be unique (collisions are not handled).
+   */
+  DscussHash id;
 };
 
 
@@ -54,6 +59,14 @@ DscussEntityType
 dscuss_entity_get_type (const DscussEntity* entity)
 {
   return entity->type;
+}
+
+
+const DscussHash*
+dscuss_entity_get_id (const DscussEntity* entity)
+{
+  g_assert (entity != NULL);
+  return &entity->id;
 }
 
 

@@ -268,7 +268,7 @@ do_login (const gchar* nickname)
 
   if (nickname == NULL || strlen (nickname) == 0)
     {
-      g_printf ("You must to specify a nickname.");
+      g_printf ("You must specify a nickname.\n");
       return TRUE;
     }
 
@@ -290,7 +290,7 @@ do_logout (const gchar* args)
 {
   if (!dscuss_is_logged_in ())
     {
-      g_printf ("You are not logged int.\n");
+      g_printf ("You are not logged in.\n");
     }
   else
     {

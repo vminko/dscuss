@@ -36,9 +36,9 @@
 #define DSCUSS_HANDSHAKE_H
 
 #include <glib.h>
+#include "db.h"
 #include "user.h"
 #include "subscriptions.h"
-#include "db.h"
 
 #ifdef __cplusplus
 extern "C" {

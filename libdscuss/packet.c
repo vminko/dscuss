@@ -30,6 +30,7 @@
 #include <string.h>
 #include <glib.h>
 #include "packet.h"
+#include "util.h"
 
 
 #define DSCUSS_PACKET_DESCRIPTION_MAX_LEN 120
@@ -64,8 +65,7 @@ dscuss_packet_new (DscussPacketType type,
 {
   gsize packet_size = 0;
 
-  g_assert (payload != NULL);
-  g_assert (payload_size >= 0);
+  g_assert (payload == NULL || payload_size >= 0);
 
   DscussPacket* packet = g_new0 (DscussPacket, 1);
   packet_size = dscuss_header_get_size ()
@@ -73,8 +73,11 @@ dscuss_packet_new (DscussPacketType type,
               + sizeof (gsize)
               + sizeof (struct DscussSignature);
   packet->header = dscuss_header_new_full (type, packet_size);
-  packet->payload = g_malloc0 (payload_size);
-  memcpy (packet->payload, payload, payload_size);
+  if (payload_size != 0)
+    {
+      packet->payload = g_malloc0 (payload_size);
+      memcpy (packet->payload, payload, payload_size);
+    }
   return packet;
 }
 
@@ -84,7 +87,7 @@ dscuss_packet_free (DscussPacket* packet)
 {
   g_assert (packet != NULL);
   dscuss_header_free (packet->header);
-  g_free (packet->payload);
+  dscuss_free_non_null (packet->payload, g_free);
   g_free (packet);
 }
 
@@ -113,10 +116,13 @@ dscuss_packet_serialize (const DscussPacket* packet,
                - dscuss_header_get_size ()
                - sizeof (gsize)
                - sizeof (struct DscussSignature);
-  memcpy (digest,
-          packet->payload,
-          payload_size);
-  digest += payload_size;
+  if (payload_size != 0)
+    {
+      memcpy (digest,
+              packet->payload,
+              payload_size);
+      digest += payload_size;
+    }
 
   /* Copy signature */
   sig_size_nbo = g_ntohs (packet->signature_len);
@@ -162,8 +168,11 @@ dscuss_packet_deserialize (const DscussHeader* header,
                    - dscuss_header_get_size ();
   gsize payload_size = data_size - sizeof (gsize)
                      - sizeof (struct DscussSignature);
-  packet->payload = g_malloc0 (payload_size);
-  memcpy (packet->payload, data, payload_size);
+  if (payload_size != 0)
+    {
+      packet->payload = g_malloc0 (payload_size);
+      memcpy (packet->payload, data, payload_size);
+    }
   memcpy (&sig_size_nbo,
           data + payload_size,
           sizeof (sig_size_nbo));

@@ -262,57 +262,13 @@ message_new_but_signature (DscussTopic* topic,
 }
 
 
-DscussMessage*
-dscuss_message_new_thread (DscussTopic* topic,
-                           const gchar* subject,
-                           const gchar* text)
-{
-  if (!dscuss_is_logged_in ())
-    return NULL;
-
-  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
-  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
-
-  DscussMessage* msg = dscuss_message_new_int (topic,
-                                               NULL, /* parent_id */
-                                               subject,
-                                               text,
-                                               author_id,
-                                               privkey);
-  message_dump (msg);
-  return msg;
-}
-
-
-DscussMessage*
-dscuss_message_new_reply (const DscussHash* parent_id,
-                          const gchar* subject,
-                          const gchar* text)
-{
-  if (!dscuss_is_logged_in ())
-    return NULL;
-
-  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
-  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
-
-  DscussMessage* msg = dscuss_message_new_int (NULL, /* topic */
-                                               parent_id,
-                                               subject,
-                                               text,
-                                               author_id,
-                                               privkey);
-  message_dump (msg);
-  return msg;
-}
-
-
-DscussMessage*
-dscuss_message_new_int (DscussTopic* topic,
-                        const DscussHash* parent_id,
-                        const gchar* subject,
-                        const gchar* text,
-                        const DscussHash* author_id,
-                        const DscussPrivateKey* privkey)
+static DscussMessage*
+message_new_int (DscussTopic* topic,
+                 const DscussHash* parent_id,
+                 const gchar* subject,
+                 const gchar* text,
+                 const DscussHash* author_id,
+                 const DscussPrivateKey* privkey)
 {
   gchar* all_but_signature = NULL;
   gsize all_but_signature_size = 0;
@@ -347,6 +303,50 @@ dscuss_message_new_int (DscussTopic* topic,
     }
   g_free (all_but_signature);
 
+  return msg;
+}
+
+
+DscussMessage*
+dscuss_message_new_thread (DscussTopic* topic,
+                           const gchar* subject,
+                           const gchar* text)
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
+  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
+
+  DscussMessage* msg = message_new_int (topic,
+                                        NULL, /* parent_id */
+                                        subject,
+                                        text,
+                                        author_id,
+                                        privkey);
+  message_dump (msg);
+  return msg;
+}
+
+
+DscussMessage*
+dscuss_message_new_reply (const DscussHash* parent_id,
+                          const gchar* subject,
+                          const gchar* text)
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
+  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
+
+  DscussMessage* msg = message_new_int (NULL, /* topic */
+                                        parent_id,
+                                        subject,
+                                        text,
+                                        author_id,
+                                        privkey);
+  message_dump (msg);
   return msg;
 }
 
@@ -469,8 +469,6 @@ dscuss_message_deserialize (const gchar* data,
   guint16 signature_len_nbo = 0;
   DscussMessage* msg = NULL;
 
-  g_assert (data != NULL);
-
   if (size < sizeof (struct _DscussMessageNBO))
     {
       g_warning ("Size of the raw data is too small."
@@ -479,6 +477,9 @@ dscuss_message_deserialize (const gchar* data,
                  size,  sizeof (struct _DscussMessageNBO));
       return NULL;
     }
+
+  g_assert (data != NULL);
+
   msg_nbo = (struct _DscussMessageNBO*) data;
   digest += sizeof (struct _DscussMessageNBO);
 
