@@ -63,14 +63,36 @@ extern "C" {
  *          @c NULL in case of incorrect parameters.
  */
 DscussMessage*
-dscuss_message_new_full (DscussTopic* topic,
-                         const DscussHash* parent_id,
-                         const gchar* subject,
-                         const gchar* text,
-                         const DscussHash* author_id,
-                         GDateTime* datetime,
-                         const struct DscussSignature* signature,
-                         gsize signature_len);
+dscuss_message_new (DscussTopic* topic,
+                    const DscussHash* parent_id,
+                    const gchar* subject,
+                    const gchar* text,
+                    const DscussHash* author_id,
+                    GDateTime* datetime,
+                    const struct DscussSignature* signature,
+                    gsize signature_len);
+
+/**
+ * Creates a new message entity with all fields supplied.
+ * Either @a topic or @a parent_id must be @c NULL.
+ *
+ * @param topic          Topic the message will belong to.
+ * @param parent_id      ID of the parent message.
+ * @param subject        Subject of the message.
+ * @param text           Plain next message content.
+ * @param author_id      ID of the author of the message.
+ * @param privkey        Private key to sign the message with.
+ *
+ * @return  Newly created message entity or
+ *          @c NULL in case of incorrect parameters.
+ */
+DscussMessage*
+dscuss_message_new_my (DscussTopic* topic,
+                       const DscussHash* parent_id,
+                       const gchar* subject,
+                       const gchar* text,
+                       const DscussHash* author_id,
+                       const DscussPrivateKey* privkey);
 
 /**
  * Convert a message to raw data, which can be transmitted via network.
@@ -129,6 +151,14 @@ dscuss_message_get_signature (const DscussMessage* msg);
  */
 gsize
 dscuss_message_get_signature_length (const DscussMessage* msg);
+
+/**
+ * Prints all message fields to log file.
+ *
+ * @param msg  Message to dump.
+ */
+void
+dscuss_message_dump_to_log (const DscussMessage* msg);
 
 
 #ifdef __cplusplus

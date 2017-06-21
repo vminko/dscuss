@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2017  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,16 +28,17 @@
  */
 
 /**
- * @file api.h  Internal API of libdiscuss.
+ * @file backend.h  Internal API of libdiscuss.
+ * FIXME: it should be just include/backend.h
  */
 
 
-#ifndef DSCUSS_CORE_H
-#define DSCUSS_CORE_H
+#ifndef DSCUSS_BACKEND_H
+#define DSCUSS_BACKEND_H
 
 #include <glib.h>
 #include "crypto.h"
-#include "include/core.h"
+#include "include/backend.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,4 +85,4 @@ dscuss_get_logged_user_db_handle ();
 }
 #endif
 
-#endif /* DSCUSS_CORE_H */
+#endif /* DSCUSS_BACKEND_H */

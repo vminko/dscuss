@@ -402,7 +402,7 @@ entered_msg_read_from_file (const gchar* tmp_file_name,
         }
 
       if (line == NULL)
-	break;
+        break;
 
       if (read_topic && topic == NULL)
         {
@@ -510,15 +510,15 @@ on_msg_entered (GPid pid, int status, gpointer user_data)
     {
       if (ctx->parent_id)
         {
-          msg = dscuss_message_new_reply (ctx->parent_id,
-                                          em->subject,
-                                          em->text);
+          msg = dscuss_create_reply (ctx->parent_id,
+                                     em->subject,
+                                     em->text);
         }
       else
         {
-          msg = dscuss_message_new_thread (em->topic,
-                                           em->subject,
-                                           em->text);
+          msg = dscuss_create_thread (em->topic,
+                                      em->subject,
+                                      em->text);
         }
       dscuss_send_message (msg);
       dscuss_entity_unref ((DscussEntity*) msg);
@@ -609,8 +609,8 @@ publish_message (const DscussHash* parent_id)
     }
 
   rc = g_spawn_async (NULL, argv, NULL,
-		      G_SPAWN_CHILD_INHERITS_STDIN | G_SPAWN_DO_NOT_REAP_CHILD,
-		      NULL, NULL, &pid, &error);
+                      G_SPAWN_CHILD_INHERITS_STDIN | G_SPAWN_DO_NOT_REAP_CHILD,
+                      NULL, NULL, &pid, &error);
   if (!rc)
     {
       g_printf ("Failed to start the `EDITOR': %s.\n", error->message);
@@ -873,7 +873,7 @@ static struct DscussCommand commands[] = {
    gettext_noop ("Use `subscribe category' to subscribe to a category")},
   {"list_subscriptions", &do_list_subscriptions,
    gettext_noop ("Use `list_subscriptions' to list all categories you are"
-		 " subscribed to")},
+                 " subscribed to")},
   {"unsubscribe", &do_unsubscribe,
    gettext_noop ("Use `unsubscribe category' to unsubscribe from a category")},
   */
@@ -884,16 +884,16 @@ static struct DscussCommand commands[] = {
    "Use `login <nickname>' to login as user <nickname>."},
   {"logout",   &do_logout,
    "Use `logout' to logout from the network."},
-  {"lspeers",   &do_list_peers,
+  {"lspeers",  &do_list_peers,
    "Use `peers to list connected peers."},
-  {"thread",      &do_publish_thread,
+  {"mkthread", &do_publish_thread,
    "Use `thread' to start a new thread"},
-  {"reply",      &do_publish_reply,
+  {"reply",    &do_publish_reply,
    "Use `reply <id>' to publish a new reply to message <id>"},
   /* TBD: add optional topic parameter */
-  {"lsboard",   &do_list_board,
+  {"lsboard",  &do_list_board,
    "Use `board' to list threads on the board."},
-  {"lsthread",   &do_list_thread,
+  {"lsthread", &do_list_thread,
    "Use `thread <id>' to print all messages in the thread <id>."},
   {"quit",     &do_quit,
    "Use `quit' to terminate " PROG_NAME "."},
@@ -911,16 +911,16 @@ do_help (const gchar* args)
   int i = 0;
 
   while ((NULL != args) &&
-	 (0 != strlen (args)) && (commands[i].action != &do_help))
+         (0 != strlen (args)) && (commands[i].action != &do_help))
     {
       if (0 ==
-	  g_ascii_strncasecmp (&args[1],
+          g_ascii_strncasecmp (&args[1],
                                &commands[i].command[1],
                                strlen (args) - 1))
-	{
-	  g_printf ("%s\n", commands[i].helptext);
-	  return TRUE;
-	}
+        {
+          g_printf ("%s\n", commands[i].helptext);
+          return TRUE;
+        }
       i++;
     }
 

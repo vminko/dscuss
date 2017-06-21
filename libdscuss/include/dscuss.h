@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2017  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 #define DSCUSS_INCLUDE_DSCUSS_H
 
 
-#include "core.h"
+#include "backend.h"
 #include "peer.h"
 #include "topic.h"
 #include "entity.h"

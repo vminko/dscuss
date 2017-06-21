@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014  Vitaly Minko
+ * Copyright (C) 2014-2017  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,13 +28,12 @@
  */
 
 /**
- * @file include/core.h  Defines the API of libdiscuss.
- * @brief Contains core subroutines, which should be moved to a separate file.
+ * @file include/backend.h  Provides API for the UI frontend.
  */
 
 
-#ifndef DSCUSS_INCLUDE_CORE_H
-#define DSCUSS_INCLUDE_CORE_H
+#ifndef DSCUSS_INCLUDE_BACKEND_H
+#define DSCUSS_INCLUDE_BACKEND_H
 
 #include <glib.h>
 #include "message.h"
@@ -218,6 +217,36 @@ const GSList*
 dscuss_get_peers (void);
 
 /**
+ * Creates a new thread.
+ * Date and time will be the current date and time.
+ *
+ * @param topic    Topic the thread will belong to.
+ * @param subject  Subject of the message.
+ * @param text     Plain next message content.
+ *
+ * @return  Newly created message entity.
+ */
+DscussMessage*
+dscuss_create_thread (DscussTopic* topic,
+                      const gchar* subject,
+                      const gchar* text);
+
+/**
+ * Creates a reply to another message.
+ * Date and time will be the current date and time.
+ *
+ * @param parent_id  ID of the parent message.
+ * @param subject    Subject of the message.
+ * @param text       Plain next message content.
+ *
+ * @return  Newly created message entity.
+ */
+DscussMessage*
+dscuss_create_reply (const DscussHash* parent_id,
+                     const gchar* subject,
+                     const gchar* text);
+
+/**
  * Send a message to the network.
  *
  * Actually the message will be just copied the outgoing buffer. So it does not
@@ -281,4 +310,4 @@ dscuss_list_thread (const DscussHash* thread_root_id,
 }
 #endif
 
-#endif /* DSCUSS_INCLUDE_CORE_H */
+#endif /* DSCUSS_INCLUDE_BACKEND_H */

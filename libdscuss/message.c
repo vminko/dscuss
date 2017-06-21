@@ -29,7 +29,6 @@
 
 #include <string.h>
 #include <glib.h>
-#include "core.h"
 #include "crypto_hash.h"
 #include "util.h"
 #include "message.h"
@@ -132,8 +131,8 @@ struct _DscussMessageNBO
 };
 
 
-static void
-message_dump (const DscussMessage* msg)
+void
+dscuss_message_dump_to_log (const DscussMessage* msg)
 {
   gchar* datetime_str = NULL;
   gchar* signature_str = NULL;
@@ -262,13 +261,13 @@ message_new_but_signature (DscussTopic* topic,
 }
 
 
-static DscussMessage*
-message_new_int (DscussTopic* topic,
-                 const DscussHash* parent_id,
-                 const gchar* subject,
-                 const gchar* text,
-                 const DscussHash* author_id,
-                 const DscussPrivateKey* privkey)
+DscussMessage*
+dscuss_message_new_my (DscussTopic* topic,
+                       const DscussHash* parent_id,
+                       const gchar* subject,
+                       const gchar* text,
+                       const DscussHash* author_id,
+                       const DscussPrivateKey* privkey)
 {
   gchar* all_but_signature = NULL;
   gsize all_but_signature_size = 0;
@@ -308,58 +307,14 @@ message_new_int (DscussTopic* topic,
 
 
 DscussMessage*
-dscuss_message_new_thread (DscussTopic* topic,
-                           const gchar* subject,
-                           const gchar* text)
-{
-  if (!dscuss_is_logged_in ())
-    return NULL;
-
-  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
-  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
-
-  DscussMessage* msg = message_new_int (topic,
-                                        NULL, /* parent_id */
-                                        subject,
-                                        text,
-                                        author_id,
-                                        privkey);
-  message_dump (msg);
-  return msg;
-}
-
-
-DscussMessage*
-dscuss_message_new_reply (const DscussHash* parent_id,
-                          const gchar* subject,
-                          const gchar* text)
-{
-  if (!dscuss_is_logged_in ())
-    return NULL;
-
-  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
-  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
-
-  DscussMessage* msg = message_new_int (NULL, /* topic */
-                                        parent_id,
-                                        subject,
-                                        text,
-                                        author_id,
-                                        privkey);
-  message_dump (msg);
-  return msg;
-}
-
-
-DscussMessage*
-dscuss_message_new_full (DscussTopic* topic,
-                         const DscussHash* parent_id,
-                         const gchar* subject,
-                         const gchar* text,
-                         const DscussHash* author_id,
-                         GDateTime* datetime,
-                         const struct DscussSignature* signature,
-                         gsize signature_len)
+dscuss_message_new (DscussTopic* topic,
+                    const DscussHash* parent_id,
+                    const gchar* subject,
+                    const gchar* text,
+                    const DscussHash* author_id,
+                    GDateTime* datetime,
+                    const struct DscussSignature* signature,
+                    gsize signature_len)
 {
   g_assert (signature != NULL);
   g_assert (signature_len != 0);
@@ -388,7 +343,7 @@ dscuss_message_new_full (DscussTopic* topic,
           sizeof (struct DscussSignature));
   msg->signature_len = signature_len;
 
-  message_dump (msg);
+  dscuss_message_dump_to_log (msg);
 
   return msg;
 }
@@ -423,7 +378,7 @@ dscuss_message_serialize (const DscussMessage* msg,
   g_assert (data != NULL);
   g_assert (size != NULL);
 
-  message_dump (msg);
+  dscuss_message_dump_to_log (msg);
 
   message_serialize_all_but_signature (msg,
                                        &all_but_signature,
@@ -526,14 +481,14 @@ dscuss_message_deserialize (const gchar* data,
           digest,
           sizeof (struct DscussSignature));
 
-  msg = dscuss_message_new_full (topic,
-                                 &msg_nbo->parent_id,
-                                 subject,
-                                 text,
-                                 &msg_nbo->author_id,
-                                 datetime,
-                                 &signature,
-                                 g_ntohs (signature_len_nbo));
+  msg = dscuss_message_new (topic,
+                            &msg_nbo->parent_id,
+                            subject,
+                            text,
+                            &msg_nbo->author_id,
+                            datetime,
+                            &signature,
+                            g_ntohs (signature_len_nbo));
 
   g_date_time_unref (datetime);
   g_free (text);
@@ -541,7 +496,7 @@ dscuss_message_deserialize (const gchar* data,
   g_free (topic_str);
 
   if (msg != NULL)
-    message_dump (msg);
+    dscuss_message_dump_to_log (msg);
 
   return msg;
 }

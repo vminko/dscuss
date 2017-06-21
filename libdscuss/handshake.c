@@ -30,7 +30,6 @@
 #include <string.h>
 #include <glib.h>
 #include "config.h"
-#include "core.h"
 #include "packet.h"
 #include "message.h"
 #include "util.h"

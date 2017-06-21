@@ -30,7 +30,7 @@
 /**
  * @file include/peer.h  A peer connected to us.
  * @brief Peer provides a high-level API for communication with other nodes:
- * sending/receiving entities, syncing, etc.  All peers are handled by core.
+ * sending/receiving entities, syncing, etc.
  */
 
 

@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014-2015  Vitaly Minko
+ * Copyright (C) 2015-2017  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,36 +49,6 @@ extern "C" {
  * Handle for a message.
  */
 typedef struct _DscussMessage DscussMessage;
-
-/**
- * Creates a new thread.
- * Date and time will be current date and time.
- *
- * @param topic    Topic the thread will belong to.
- * @param subject  Subject of the message.
- * @param text     Plain next message content.
- *
- * @return  Newly created message entity.
- */
-DscussMessage*
-dscuss_message_new_thread (DscussTopic* topic,
-                           const gchar* subject,
-                           const gchar* text);
-
-/**
- * Creates a reply to another message.
- * Date and time will be current date and time.
- *
- * @param parent_id  ID of the parent message.
- * @param subject    Subject of the message.
- * @param text       Plain next message content.
- *
- * @return  Newly created message entity.
- */
-DscussMessage*
-dscuss_message_new_reply (const DscussHash* parent_id,
-                          const gchar* subject,
-                          const gchar* text);
 
 /**
  * Destroys a message entity.

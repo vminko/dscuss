@@ -1,6 +1,6 @@
 /**
  * This file is part of Dscuss.
- * Copyright (C) 2014-2015  Vitaly Minko
+ * Copyright (C) 2014-2017  Vitaly Minko
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include "util.h"
 #include "topic.h"
 #include "subscriptions.h"
-#include "core.h"
+#include "backend.h"
 
 
 struct LoggedUser
@@ -339,6 +339,14 @@ dscuss_uninit ()
   while (g_main_context_pending (NULL))
     g_main_context_iteration (NULL, TRUE);
 }
+
+
+void
+dscuss_iterate ()
+{
+  g_main_context_iteration (NULL, TRUE);
+}
+
 
 /*** RegisterContext *********************************************************/
 
@@ -700,10 +708,47 @@ dscuss_get_peers (void)
 }
 
 
-void
-dscuss_iterate ()
+DscussMessage*
+dscuss_create_thread (DscussTopic* topic,
+                      const gchar* subject,
+                      const gchar* text)
 {
-  g_main_context_iteration (NULL, TRUE);
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
+  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
+
+  DscussMessage* msg = dscuss_message_new_my (topic,
+                                              NULL, /* parent_id */
+                                              subject,
+                                              text,
+                                              author_id,
+                                              privkey);
+  dscuss_message_dump_to_log (msg);
+  return msg;
+}
+
+
+DscussMessage*
+dscuss_create_reply (const DscussHash* parent_id,
+                     const gchar* subject,
+                     const gchar* text)
+{
+  if (!dscuss_is_logged_in ())
+    return NULL;
+
+  const DscussHash* author_id = dscuss_user_get_id (dscuss_get_logged_user ());
+  const DscussPrivateKey* privkey = dscuss_get_logged_user_private_key ();
+
+  DscussMessage* msg = dscuss_message_new_my (NULL, /* topic */
+                                              parent_id,
+                                              subject,
+                                              text,
+                                              author_id,
+                                              privkey);
+  dscuss_message_dump_to_log (msg);
+  return msg;
 }
 
 

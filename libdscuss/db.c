@@ -748,7 +748,7 @@ dscuss_db_get_message (DscussDb* dbh, const DscussHash* id)
     }
   topic = db_get_message_topic (dbh, id);
   datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
-  msg = dscuss_message_new_full (
+  msg = dscuss_message_new (
             topic,
             (DscussHash *) sqlite3_column_blob  (stmt, 4),             /* parent_id */
             (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
@@ -838,7 +838,7 @@ dscuss_db_get_root_messages (DscussDb* dbh,
       topic = db_get_message_topic (dbh,
                                     (DscussHash *) sqlite3_column_blob (stmt, 6));
       datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
-      msg = dscuss_message_new_full (
+      msg = dscuss_message_new (
                 topic,
                 NULL,
                 (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
@@ -927,7 +927,7 @@ dscuss_db_get_message_replies (DscussDb* dbh,
           continue;
         }
       datetime = g_date_time_new_from_unix_utc (sqlite3_column_int64 (stmt, 2));
-      msg = dscuss_message_new_full (
+      msg = dscuss_message_new (
                 NULL,
                 parent_id,
                 (const gchar*) sqlite3_column_text  (stmt, 0),             /* subject */
