@@ -41,18 +41,12 @@ func EmergeUser(
 	regdate time.Time,
 	signer *Signer) (*User, error) {
 
-	uu, err := newUnsignedUser(nickname, info, signer.public(), proof, regdate)
-	if err != nil {
-		Logf(ERROR, "Can't create UnsignedUser %s: %v", err)
-		return nil, err
-	}
+	uu := newUnsignedUser(nickname, info, signer.public(), proof, regdate)
 	juser, err := json.Marshal(uu)
 	if err != nil {
 		Log(ERROR, "Can't marshal UnsignedUser: "+err.Error())
 		return nil, ErrInternal
 	}
-	Logf(DEBUG, "Dumping Unsigned User %s", nickname)
-	Log(DEBUG, string(juser))
 	sig, err := signer.sign(juser)
 	if err != nil {
 		Log(ERROR, "Can't sign JSON-encoded user: "+err.Error())
@@ -60,4 +54,16 @@ func EmergeUser(
 	}
 
 	return &User{UnsignedUser: *uu, Sig: sig}, nil
+}
+
+func newUser(
+	nickname string,
+	info string,
+	pubkey *PublicKey,
+	proof ProofOfWork,
+	regdate time.Time,
+	sig Signature) *User {
+
+	uu := newUnsignedUser(nickname, info, pubkey, proof, regdate)
+	return &User{UnsignedUser: *uu, Sig: sig}
 }

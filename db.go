@@ -20,6 +20,7 @@ package dscuss
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 // globalDB stores global network data.
@@ -49,13 +50,13 @@ func open(fileName string) (*globalDB, error) {
 		"  Proof           UNSIGNED BIG INT NOT NULL," +
 		"  Nickname        TEXT NOT NULL," +
 		"  Info            TEXT," +
-		"  Timestamp       INTEGER NOT NULL," +
+		"  Timestamp       TIMESTAMP NOT NULL," +
 		"  Signature       BLOB NOT NULL)")
 	exec("CREATE TABLE IF NOT EXISTS  Message (" +
 		"  Id              BLOB PRIMARY KEY," +
 		"  Subject         TEXT," +
 		"  Content         TEXT," +
-		"  Timestamp       UNSIGNED BIG INT NOT NULL," +
+		"  Timestamp       TIMESTAMP NOT NULL," +
 		"  Author_id       BLOB NOT NULL," +
 		"  Parent_id       BLOB NOT NULL," +
 		"  Signature       BLOB NOT NULL," +
@@ -66,7 +67,7 @@ func open(fileName string) (*globalDB, error) {
 		"  Reason          INTEGER NOT NULL," +
 		"  Comment         TEXT," +
 		"  Author_id       BLOB NOT NULL," +
-		"  Timestamp       UNSIGNED BIG INT NOT NULL," +
+		"  Timestamp       TIMESTAMP NOT NULL," +
 		"  Signature       BLOB NOT NULL," +
 		"  FOREIGN KEY (Author_id) REFERENCES User(Id))")
 	exec("CREATE TABLE IF NOT EXISTS  Operation_on_User (" +
@@ -97,34 +98,37 @@ func open(fileName string) (*globalDB, error) {
 	return (*globalDB)(db), nil
 }
 
-func (gdb *globalDB) close(fileName string) error {
+func (gdb *globalDB) close() error {
 	db := (*sql.DB)(gdb)
-	return db.Close()
+	err := db.Close()
+	if err != nil {
+		Logf(ERROR, "Unable to close the database: %v", err)
+		return ErrDatabase
+	}
+	return nil
 }
 
 func (gdb *globalDB) putUser(user *User) error {
 	Logf(DEBUG, "Adding user `%s' to the database.", user.Nickname)
 
+	query := `
+	INSERT INTO User
+	( Id,
+	  Public_key,
+	  Proof,
+	  Nickname,
+	  Info,
+	  Timestamp,
+	  Signature )
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
 	db := (*sql.DB)(gdb)
-	stmt, err := db.Prepare("INSERT INTO User " +
-		"( Id," +
-		"  Public_key," +
-		"  Proof," +
-		"  Nickname," +
-		"  Info," +
-		"  Timestamp," +
-		"  Signature ) " +
-		"VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := db.Prepare(query)
 	if err != nil {
-		panic("error preparing 'putUser' statement: %s" + err.Error())
+		Logf(FATAL, "Error preparing 'putUser' statement: %v", err)
 	}
 
-	pkpem, err := user.PubKey.encode()
-	if err != nil {
-		Logf(ERROR, "Can't encode %s's public key: %s", user.Nickname, err.Error())
-		return ErrInternal
-	}
-
+	pkpem := user.PubKey.encode()
 	_, err = stmt.Exec(
 		user.ID[:],
 		pkpem,
@@ -140,4 +144,57 @@ func (gdb *globalDB) putUser(user *User) error {
 	}
 
 	return nil
+}
+
+func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
+	Logf(DEBUG, "Fetching user with id '%x' from the database.", eid)
+
+	var nickname string
+	var info string
+	var proof ProofOfWork
+	var regdate time.Time
+	var encodedSig []byte
+	var encodedKey []byte
+	query := `
+	SELECT Public_key,
+	       Proof,
+	       Nickname,
+	       Info,
+	       Timestamp,
+	       Signature
+	FROM User WHERE Id=?
+	`
+
+	db := (*sql.DB)(gdb)
+	err := db.QueryRow(query, eid[:]).Scan(
+		&encodedKey,
+		&proof,
+		&nickname,
+		&info,
+		&regdate,
+		&encodedSig)
+	switch {
+	case err == sql.ErrNoRows:
+		Log(WARNING, "No user with that ID.")
+		return nil, ErrNoSuchEntity
+	case err != nil:
+		Logf(ERROR, "Error fetching user from the database: %v", err)
+		return nil, ErrDatabase
+	default:
+		Log(DEBUG, "The user found successfully")
+	}
+
+	sig, err := parseSignature(encodedSig)
+	if err != nil {
+		Logf(ERROR, "Can't parse signature fetched from DB: %v", err)
+		return nil, ErrParsing
+	}
+	pubkey, err := parsePublicKey(encodedKey)
+	if err != nil {
+		Logf(ERROR, "Can't parse public key fetched from DB: %v", err)
+		return nil, ErrParsing
+	}
+
+	u := newUser(nickname, info, pubkey, proof, regdate, sig)
+	return u, nil
 }

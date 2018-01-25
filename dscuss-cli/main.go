@@ -118,8 +118,34 @@ func doRegister(c *ishell.Context) {
 	}
 }
 
-func doLogin(c *ishell.Context)             { c.Println("Not implemented yet.") }
-func doLogout(c *ishell.Context)            { c.Println("Not implemented yet.") }
+func doLogin(c *ishell.Context) {
+	if dscuss.IsLoggedIn() {
+		c.Println("You are already logged into the network." +
+			"You need to 'logout' before logging in as another user.")
+		return
+	}
+
+	if len(c.Args) != 1 {
+		c.Println(c.Cmd.HelpText())
+	}
+	nickname := c.Args[0]
+	/* TBD: validate nickname */
+
+	err := dscuss.Login(nickname)
+	if err != nil {
+		c.Printf("Failed to log in as %s: %v\n", nickname, err)
+	}
+}
+
+func doLogout(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+	} else {
+		c.Println("Logging out...")
+		dscuss.Logout()
+	}
+}
+
 func doListPeers(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doMakeThread(c *ishell.Context)        { c.Println("Not implemented yet.") }
 func doMakeReply(c *ishell.Context)         { c.Println("Not implemented yet.") }

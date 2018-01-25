@@ -22,7 +22,7 @@ package dscuss
 // Main backend file. Implements API exposed to the user.
 
 import (
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -34,7 +34,9 @@ import (
 )
 
 type loginInfo struct {
-	cfg *config
+	user    *User
+	gDB     *globalDB
+	privKey *privateKey
 }
 
 const (
@@ -45,12 +47,11 @@ const (
 	logFileName            string = "dscuss.log"
 	cfgFileName            string = "config"
 	privKeyFileName        string = "privkey.pem"
-	powFileName            string = "proof_of_work"
 	globalDatabaseFileName string = "global.db"
 )
 
 var (
-	li      *loginInfo
+	logInf  *loginInfo
 	logFile *os.File
 	cfgDir  string
 )
@@ -110,7 +111,7 @@ func Register(nickname, info string) error {
 		return ErrWrongNickname
 	}
 	userDir := filepath.Join(cfgDir, nickname)
-	Logf(DEBUG, "Using the following user directory: %s", userDir)
+	Logf(DEBUG, "Register uses the following user directory: %s", userDir)
 
 	err := os.Mkdir(userDir, 0755)
 	if err != nil {
@@ -123,49 +124,39 @@ func Register(nickname, info string) error {
 		}
 	}
 
-	privkey, err := newPrivateKey()
+	privKey, err := newPrivateKey()
 	if err != nil {
 		Logf(ERROR, "Can't generate new private key: %v", err)
 		return ErrInternal
 	}
-	privkeyPEM, err := privkey.encode()
+	privKeyPEM := privKey.encode()
+	privKeyPath := filepath.Join(userDir, privKeyFileName)
+	err = ioutil.WriteFile(privKeyPath, privKeyPEM, 0600)
 	if err != nil {
-		Logf(ERROR, "Can't encode the private key to PEM format: %v", err)
-		return ErrInternal
-	}
-	privkeyPath := filepath.Join(userDir, privKeyFileName)
-	err = ioutil.WriteFile(privkeyPath, privkeyPEM, 0600)
-	if err != nil {
-		Logf(ERROR, "Can't save private key as file %s: %v", privkeyPath, err)
+		Logf(ERROR, "Can't save private key as file %s: %v", privKeyPath, err)
 		return ErrFilesystem
 	}
 
-	pubPem, err := privkey.public().encode()
-	if err != nil {
-		Logf(ERROR, "Can't encode public key %v", err)
-		return err
-	}
-	pow := newPowFinder(pubPem)
+	pow := newPowFinder(privKey.public().encode())
 	proof := pow.find()
-	pbuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(pbuf, uint64(proof))
-	powPath := filepath.Join(userDir, powFileName)
-	err = ioutil.WriteFile(privkeyPath, pbuf, 0644)
-	if err != nil {
-		Logf(ERROR, "Can't save proof-of-work as file %s: %v", powPath, err)
-		return ErrFilesystem
-	}
-
-	user, err := EmergeUser(nickname, info, proof, time.Now(), &Signer{privkey})
+	user, err := EmergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
 	if err != nil {
 		Logf(ERROR, "Can't create new user %s: %v", nickname, err)
 		return err
 	}
+	if debug {
+		juser, err := json.Marshal(user)
+		if err != nil {
+			Logf(ERROR, "Can't marshall %v", err)
+		}
+		Logf(DEBUG, "Dumping emerged User %s:", nickname)
+		Log(DEBUG, string(juser))
+	}
 
-	globalDatabasePath := filepath.Join(cfgDir, globalDatabaseFileName)
+	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
 	db, err := open(globalDatabasePath)
 	if err != nil {
-		Logf(ERROR, "Can't open the database file %s: %v", powPath, err)
+		Logf(ERROR, "Can't open global database file %s: %v", globalDatabasePath, err)
 		return ErrDatabase
 	}
 	err = db.putUser(user)
@@ -173,6 +164,80 @@ func Register(nickname, info string) error {
 		Logf(ERROR, "Can't add user '%s' to the database: %v", user.Nickname, err)
 		return ErrDatabase
 	}
+	err = db.close()
+	if err != nil {
+		Logf(ERROR, "Can't close global database: %v", err)
+		return ErrDatabase
+	}
 
+	return nil
+}
+
+func IsLoggedIn() bool {
+	return logInf != nil
+}
+
+func Login(nickname string) error {
+	if logInf != nil {
+		Logf(ERROR, "Login attempt when %s is already logged in", logInf.user.Nickname)
+		return ErrAlreadyLoggedIn
+	}
+
+	userDir := filepath.Join(cfgDir, nickname)
+	Logf(DEBUG, "Login uses the following user directory: %s", userDir)
+	if _, err := os.Stat(userDir); os.IsNotExist(err) {
+		return ErrFilesystem
+	}
+
+	privKeyPath := filepath.Join(userDir, privKeyFileName)
+	privKeyPem, err := ioutil.ReadFile(privKeyPath)
+	if err != nil {
+		Logf(ERROR, "Can't read private key from file %s: %v", privKeyPath, err)
+		return ErrFilesystem
+	}
+
+	privKey, err := parsePrivateKey(privKeyPem)
+	if err != nil {
+		Logf(ERROR, "Error parsing private key from file %s: %v", privKeyPath, err)
+		return err
+	}
+
+	eid := newEntityID(privKey.public().encode())
+	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
+	db, err := open(globalDatabasePath)
+	if err != nil {
+		Logf(ERROR, "Can't open global database file %s: %v", globalDatabasePath, err)
+		return ErrDatabase
+	}
+	u, err := db.getUser(&eid)
+	if err != nil {
+		Logf(ERROR, "Can't fetch the user with id '%x' from the database: %v", eid, err)
+		return err
+	}
+	if debug {
+		juser, _ := json.Marshal(u)
+		Log(DEBUG, "Dumping fetched User:")
+		Log(DEBUG, string(juser))
+	}
+	/* TBD:
+	   read subscriptions
+	   initialize network subsystem
+	*/
+
+	logInf = &loginInfo{
+		user:    u,
+		gDB:     db,
+		privKey: privKey,
+	}
+
+	return nil
+}
+
+func Logout() error {
+	err := logInf.gDB.close()
+	if err != nil {
+		Logf(ERROR, "Can't close global database: %v", err)
+		return ErrDatabase
+	}
 	return nil
 }

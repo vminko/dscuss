@@ -18,6 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package dscuss
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 )
@@ -34,6 +35,10 @@ const (
 )
 
 type EntityID [32]byte
+
+func newEntityID(data []byte) EntityID {
+	return sha256.Sum256(data)
+}
 
 func (eid EntityID) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + base64.StdEncoding.EncodeToString(eid[:]) + `"`), nil

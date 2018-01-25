@@ -22,11 +22,15 @@ import (
 )
 
 var (
-	ErrInternal          = errors.New("internal error")
-	ErrDatabase          = errors.New("database error")
-	ErrFilesystem        = errors.New("filesystem error")
-	ErrParsing           = errors.New("error parsing input data")
-	ErrConfig            = errors.New("error handling config file")
+	ErrInternal     = errors.New("internal error")
+	ErrDatabase     = errors.New("database error")
+	ErrFilesystem   = errors.New("filesystem error")
+	ErrParsing      = errors.New("error parsing input data")
+	ErrConfig       = errors.New("error handling config file")
+	ErrNoSuchEntity = errors.New("can't find requested entity")
+	// User-related errors
 	ErrWrongNickname     = errors.New("unacceptable nickname")
+	ErrAlreadyLoggedIn   = errors.New("another user is already logged in")
 	ErrAlreadyRegistered = errors.New("such user is already registered")
+	ErrNoSuchUser        = errors.New("can't find specified user")
 )

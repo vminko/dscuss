@@ -20,6 +20,7 @@ package dscuss
 // Some parts copied from github.com/gtank/cryptopasta/.
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -27,9 +28,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"math/big"
-	"strings"
 )
 
 type privateKey ecdsa.PrivateKey
@@ -83,30 +82,29 @@ func parsePrivateKey(encodedKey []byte) (*privateKey, error) {
 }
 
 // encode encodes an ECDSA private key to PEM format.
-func (key *privateKey) encode() ([]byte, error) {
+func (key *privateKey) encode() []byte {
 	derKey, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
 	if err != nil {
-		Logf(ERROR, "Can't encode private key %v", err)
-		return nil, ErrInternal
+		Logf(FATAL, "MarshalECPrivateKey failed to encode private key %v", err)
 	}
-
-	keyBlock := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: derKey,
-	}
-
-	return pem.EncodeToMemory(keyBlock), nil
+	return pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: derKey,
+		},
+	)
 }
 
 // public returns the public key corresponding to the private key.
 func (key *privateKey) public() *PublicKey {
+	var pubKey *PublicKey
 	cryptoPub := (*ecdsa.PrivateKey)(key).Public()
-	if ecdsaPub, ok := (cryptoPub).(*ecdsa.PublicKey); ok {
-		pubKey := (*PublicKey)(ecdsaPub)
-		return pubKey
-	} else {
-		panic(fmt.Sprintf("wrong cryptoPub type: %T", cryptoPub))
+	ecdsaPub, ok := (cryptoPub).(*ecdsa.PublicKey)
+	if !ok {
+		Logf(FATAL, "Wrong cryptoPub type: %T", cryptoPub)
 	}
+	pubKey = (*PublicKey)(ecdsaPub)
+	return pubKey
 }
 
 // parsePublicKey decodes a DER-encoded ECDSA public key.
@@ -119,39 +117,35 @@ func parsePublicKey(encodedKey []byte) (*PublicKey, error) {
 
 	ecdsaPub, ok := pub.(*ecdsa.PublicKey)
 	if !ok {
-		panic("data was not an ECDSA public key")
+		Log(FATAL, "Data was not an ECDSA public key")
 	}
 
 	return (*PublicKey)(ecdsaPub), nil
 }
 
 // encode encodes an ECDSA public key to DER format.
-func (key *PublicKey) encode() ([]byte, error) {
+func (key *PublicKey) encode() []byte {
 	derBytes, err := x509.MarshalPKIXPublicKey((*ecdsa.PublicKey)(key))
 	if err != nil {
-		Logf(ERROR, "MarshalPKIXPublicKey failed: %v", err)
-		return nil, ErrInternal
+		Logf(FATAL, "MarshalPKIXPublicKey failed to encode public key: : %v", err)
 	}
-
-	return derBytes, nil
+	return derBytes
 }
 
 // MarshalJSON returns the JSON encoded key.
 func (key *PublicKey) MarshalJSON() ([]byte, error) {
-	der, err := key.encode()
-	if err != nil {
-		return nil, err
-	}
+	der := key.encode()
 	b64der := base64.RawURLEncoding.EncodeToString(der)
 	return []byte(`"` + string(b64der) + `"`), nil
 }
 
 // UnmarshalJSON decodes b and sets result to *key.
 func (key *PublicKey) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), "\"")
-	der, err := base64.RawURLEncoding.DecodeString(s)
+	trimmed := bytes.Trim(b, "\"")
+	der := make([]byte, base64.RawURLEncoding.DecodedLen(len(trimmed)))
+	_, err := base64.RawURLEncoding.Decode(der, trimmed)
 	if err != nil {
-		Logf(WARNING, "Can't decode base64-encoded pubkey '%s'", s)
+		Logf(WARNING, "Can't decode base64-encoded pubkey '%s'", trimmed)
 		return ErrParsing
 	}
 	res, err := parsePublicKey(der)
@@ -204,8 +198,9 @@ func (sig Signature) encode() string {
 
 // parseSignature decodes an ECDSA signature according to
 // https://tools.ietf.org/html/rfc7515#appendix-A.3.1
-func parseSignature(b64sig string) (Signature, error) {
-	sig, err := base64.RawURLEncoding.DecodeString(b64sig)
+func parseSignature(b64sig []byte) (Signature, error) {
+	sig := make([]byte, base64.RawURLEncoding.DecodedLen(len(b64sig)))
+	_, err := base64.RawURLEncoding.Decode(sig, b64sig)
 	if err != nil {
 		Logf(ERROR, "Can't decode base64-encoded signture %x", b64sig)
 		return nil, ErrParsing
@@ -215,12 +210,13 @@ func parseSignature(b64sig string) (Signature, error) {
 
 // marshaljson returns the json encoded key.
 func (sig Signature) MarshalJSON() ([]byte, error) {
-	return []byte(sig.encode()), nil
+	return []byte(`"` + sig.encode() + `"`), nil
 }
 
 // unmarshaljson decodes b and sets result to *sig.
 func (sig *Signature) UnmarshalJSON(b []byte) error {
-	res, err := parseSignature(string(b))
+	trimmed := bytes.Trim(b, "\"")
+	res, err := parseSignature(trimmed)
 	if err == nil {
 		*sig = res
 	}

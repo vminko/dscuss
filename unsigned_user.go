@@ -18,7 +18,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package dscuss
 
 import (
-	"crypto/sha256"
 	"time"
 )
 
@@ -39,22 +38,19 @@ func newUnsignedUser(
 	info string,
 	pubkey *PublicKey,
 	proof ProofOfWork,
-	regdate time.Time) (*UnsignedUser, error) {
+	regdate time.Time) *UnsignedUser {
 
-	pubPem, err := pubkey.encode()
-	if err != nil {
-		Logf(ERROR, "Can't encode public key %v", err)
-		return nil, err
+	return &UnsignedUser{
+		Entity: Entity{
+			Type: EntityTypeUser,
+			ID:   newEntityID(pubkey.encode()),
+		},
+		PubKey:   *pubkey,
+		Proof:    proof,
+		Nickname: nickname,
+		Info:     info,
+		RegDate:  regdate,
 	}
-	uu := new(UnsignedUser)
-	uu.Type = EntityTypeUser
-	uu.ID = sha256.Sum256(pubPem)
-	uu.PubKey = *pubkey
-	uu.Proof = proof
-	uu.Nickname = nickname
-	uu.Info = info
-	uu.RegDate = regdate
-	return uu, nil
 }
 
 func (u *UnsignedUser) Description() string {

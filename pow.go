@@ -52,7 +52,7 @@ func newPowFinder(data []byte) *powFinder {
 func (pf *powFinder) find() ProofOfWork {
 	var proof uint64 = 0
 
-	Logf(DEBUG, "Looking for proof-of-work for \"%s\"...", pf.data)
+	Logf(DEBUG, "Looking for proof-of-work for %x", pf.data)
 	for proof < math.MaxUint64 {
 		if pf.isValid(ProofOfWork(proof)) {
 			Logf(DEBUG, "PoW is found: \"%d\"", proof)
@@ -67,7 +67,7 @@ func (pf *powFinder) find() ProofOfWork {
 	if proof == math.MaxUint64 {
 		// The probability of this case is very close to 0.
 		// It's OK to panic here in the proof-of-concept version.
-		panic("Failed to find proof-of-work")
+		Log(FATAL, "Failed to find proof-of-work")
 	}
 
 	return ProofOfWork(proof)
@@ -80,7 +80,7 @@ func (pf *powFinder) isValid(proof ProofOfWork) bool {
 	// The recommended parameters for interactive logins as of 2017.
 	key, err := scrypt.Key(data, []byte(powSalt), 32768, 8, 1, powKeyLenBytes)
 	if err != nil {
-		panic("Incorrect key derivation parameters")
+		Log(FATAL, "Incorrect key derivation parameters")
 	}
 	keyInt.SetBytes(key[:])
 	Logf(DEBUG, "Pow: scrypt key is %s, expected %s", keyInt.String(), (*pf.target).String())
