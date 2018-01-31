@@ -1,0 +1,72 @@
+Title:      Proof-of-work
+Summary:    Details about proof-of-work implementation.
+Copyright:  (c) 2018 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       31 Jan 2018
+Web:        http://vminko.org/dscuss/pow
+
+
+Purpose
+-------
+
+Proof-of-work (PoW) in Dscuss is used for resistance against flooding. PoW is
+just a `uint64` number, which is sent along with users' public key. Hash of
+user's public key plus PoW must has a determined number of leading zero bits
+(see below).  It should be hard to find such a PoW. Hence the selected hashing
+function is [scrypt][scrpt]. Peers are forced to do this work before
+participating in discussion, otherwise their messages will be dropped.
+
+
+Math
+----
+
+Average time to find a PoW is
+
+    Tavg = C * 2 ^ n
+
+Where _C_ is a constant, which depends on peer's CPU performance and _n_ is
+the number of leading zeros in the resulting hash.
+
+The time to find PoW (_T_) is actually a random variable, which has a
+[geometric distribution][geom].  _Tavg_ is the expected value of this variable.
+The real distribution of time to find an 8-bit (as an example) PoW is shown on
+the histogram below. The histogram is drawn for 10,000 values.
+
+![Histogram][hist]
+
+The number of required leading zero bits is set to `16` for the
+proof-of-concept version. In this case, _Tavg_ is about 20 minutes on `Intel(R)
+Core(TM) i7-4790k CPU @ 4.0GHz` or 1 hour 27 minutes on `Intel(R) Core(TM) 2
+Duo P8600 @ 2.40GHz`.
+
+
+Benchmarking
+------------
+
+How to benchmark proof-of-work on your system:
+
+1. Disable `debug` in dscuss.go.
+2. Run `utils/benchmark_pow.sh [bit_num] [count]`  
+   where,  
+   `bit_num` is the number of leading zero bits in PoW (can be 8 or 16);  
+   `count` specifies how many times to run the test.  
+
+for example:
+
+    utils/benchmark_pow.sh 16 50
+
+This test takes about 12 hours on Intel Core i7-4790k.
+
+When the benchmark is over, you will see the results: the _Tavg_ and the histogram:
+
+	The benchmark is over.
+    The average time to find proof is: 22.2161
+    The histogram is ready: pow_histogram.png.
+
+In `benchmark.log` you will find details about each test run.
+
+
+[geom]: https://en.wikipedia.org/wiki/Geometric_distribution
+[scrpt]: http://en.wikipedia.org/wiki/Scrypt
+[hist]: /storage/dscuss/illustrations/8bit_pow_histogram.png

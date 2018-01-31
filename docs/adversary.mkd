@@ -1,0 +1,55 @@
+Title:      Adversary model
+Summary:    Description of the adversary types in Dscuss.
+Copyright:  (c) 2016 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       02 Jan 2016
+Web:        http://vminko.org/dscuss/adversary
+
+
+Common assumptions
+------------------
+
+* Adversarial nodes can violate the protocol.
+* Adversary can not break cryptography.
+* The computational power of the adversary is comparable to the computational
+power of the average modern PC.
+
+
+Adversary in physical vicinity
+------------------------------
+
+* Attacker can compromise user's private key. The user is responsible for
+maintaining his or her private key in a safe location.
+
+
+Adversary, who has achieved social infiltration
+-----------------------------------------------
+
+* Temporary disturb user by sending unsolicited messages (SPAM) and/or malicious
+operations. The user can quickly clean the attacker's data out and warn other
+users about the malicious peer.
+
+
+Local network adversary
+-----------------------
+
+* Adversary can have many participating nodes in the network and the nodes are
+free to collaborate out-of-band.
+* As any other peer in the network, adversarial nodes can see:
+    - who is participating with them in the network;
+    - subscriptions of the participants;
+    - unencrypted data (messages and operations) distributed via adversarial
+    nodes.
+* Adversary can block some communication routes into the network, but a node is
+always able to communicate with at least one other node that is not controlled
+by an adversary.
+
+
+Global network adversary
+------------------------
+
+* All the local network adversary can do.
+* Adversary can not interrupt communications between arbitrary nodes in the
+network.
+

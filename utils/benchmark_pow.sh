@@ -19,7 +19,7 @@ Usage:
     $0 [bit_num] [count]
 where,
     [bit_num] is either 8 or 16. Default value is ${BIT_NUM}.
-    [count] specifies how many times to run [test_name]. Default value is ${COUNT}.
+    [count] specifies how many times to run the test. Default value is ${COUNT}.
 EOF
     exit 1
 fi

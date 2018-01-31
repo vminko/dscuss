@@ -1,0 +1,106 @@
+Title:      Dscuss
+Name:       Dscuss
+Summary:    Project of developing a decentralized network for public discussion.
+Copyright:  (c) 2011-2015 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Web:        http://vminko.org/dscuss
+Sort by:    Date
+Date:       25 Jan 2018
+Priority:   4
+
+
+**Dscuss** is a free software for public discussion. It builds an unstructured pure
+P2P topic-based publish-subscribe network. Currently it's in early development.
+
+
+The idea of the project
+-----------------------
+
+The purpose of Dscuss is quite similar to the [Internet forums][forum_wiki], but
+there is one fundamental difference -- social equality of all members involved
+(i.e no owners, no moderators, etc).
+
+This leads to the following key features, which will be provided by Dscuss:
+
+* _Decentralization_. All the information will be stored on the users' machines.
+* _Personal censorship_. Every user will be able to manage her own copy of data
+  and may share her management operations (edit message, remove message, ban
+  user and so on) with others, who would like to accept them.
+
+Besides that, Dscuss is designed to provide the following features:
+
+* _Data authenticity_
+* _Data integrity_
+* _Data availability_
+* _SPAM resistance_ 
+* _Flood resistance_
+
+Dscuss is not intended to provide anonymity. However, this can probably be
+achieved using anonymizers like [Tor][tor_home]
+
+[forum_wiki]: http://en.wikipedia.org/wiki/Internet_forum
+[tor_home]: https://www.torproject.org/
+
+
+Dependencies
+------------
+
+Dscuss is written in Go and currently has the following dependencies:
+
+* [github.com/abiosoft/ishell][ish_home] - Library for creating interactive cli applications.
+* [github.com/mattn/go-sqlite3][gosql] - [SQLite][sql_home] driver.
+* [golang.org/x/crypto/scrypt][scrpt] - Library implementing "Stronger Key
+  Derivation via Sequential Memory-Hard Functions".
+
+Initially Dscuss was supposed to be built on top of the [GNUnet][gn_home]
+framework, but later it was considered not suitable for the purposes of Dscuss.
+
+[ish_home]: https://github.com/abiosoft/ishell
+[sql_home]: http://www.sqlite.org/
+[gosql]: https://github.com/mattn/go-sqlite3
+[scrpt]: https://godoc.org/golang.org/x/crypto/scrypt
+[gn_home]: http://gnunet.org/
+
+
+How to get the source code
+--------------------------
+
+The source code is available under GPL3.  To fetch the latest source code from
+the git repository, run the following command:
+
+    git clone git://vminko.org/dscuss
+
+To compile the source code run `make` in the root of the downloaded directory.
+
+
+Progress of development
+-----------------------
+
+What is done so far:
+
+* Command-line interface.
+* The crypto subsystem.
+* Basics of the storage subsystem.
+* Registration (via proof-of-work).
+
+What is planned for the proof-of-concept version:
+
+* The network subsystem.
+* Bootstrapping (via list of rendezvous nodes).
+* Membership (maintaining connections with other peers).
+* Subscription to categories (by editing a text file).
+* Handshaking.
+* Publishing a message.
+* Listing a category.
+* Threading (replying to messages).
+* Operations on messages and users.
+* Database synchronization with other peers.
+* Bootstrapping (via DHT).
+
+
+Similar projects
+----------------
+
+[Osiris](http://www.osiris-sps.org/) -- a freeware program for creating
+decentralized web portals.

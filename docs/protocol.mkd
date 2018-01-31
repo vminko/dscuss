@@ -1,0 +1,119 @@
+Title:      Protocol
+Summary:    This article describes the Dscuss protocol.
+Copyright:  (c) 2015-2016 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       18 Sep 2016
+Web:        http://vminko.org/dscuss/protocol
+
+
+Disclaimer
+----------
+
+This article does not contain any kind of introduction and may not be easy to
+understand without studying the source code.  Please contact me via email
+(mentioned at the bottom of the page) if you are interested in details.
+
+TBD: add an introduction and describe entity types, packet types and so on.
+
+
+Brief description of the protocol
+---------------------------------
+
+* It's __connection oriented__, which means that data exchange is reliable,
+  sequenced and non-duplicated. In order to achieve that, TCP is used as a
+  transport protocol. Peers handshake before sending entities, peers send
+  an acknowledgment after successful delivery.
+* It's __binary__, which means that packets contain binary data structures
+  rather than text strings.
+* Protocol __connections are multiplexed__ - all communication between two peers
+  is performed through one TCP connection.
+* __Packet exchange is synchronous__ - a peer sends one packet and waits for
+  response before sending another packet. The only exception to this rule is the
+  handshaking process, where packet exchange is asynchronous.
+
+
+Peer states
+-----------
+
+The image below represents the state diagram of some peer from the local peer
+view.
+
+![peer statechart][psd_img]
+View in [full][psd_img] resolution.
+
+[The source][psd_src] of the scheme can be opened and edited in [Dia][dia].
+
+
+[psd_img]: /storage/dscuss/illustrations/peer_state_diagram.png
+[psd_src]: /storage/dscuss/illustrations/sources/peer_state_diagram.dia
+[dia]: https://wiki.gnome.org/Apps/Dia/
+
+
+Sequence diagrams
+-----------------
+
+__Handshaking between two peers__ :  
+![Handshaking][hnds]
+
+__Publishing new entities__ :  
+![Publishing][pub]
+
+
+Algorithms
+----------
+
+__Processing advertisement__ :  
+![Flowchart][pradv]  
+View in [full][pradv] resolution.
+
+__Processing incoming entities__ :  
+![Flowchart][princ]  
+View in [full][princ] resolution.
+
+__Processing list of pending entities__ :  
+![Flowchart][prpnd]  
+View in [full][prpnd] resolution.
+
+__Processing user__ :  
+![Flowchart][prusr]
+
+__Processing message__ :  
+![Flowchart][prmsg]  
+View in [full][prmsg] resolution.
+
+__Processing operation__ :  
+![Flowchart][propr]  
+View in [full][propr] resolution.
+
+__Advertising user__ :  
+![Flowchart][advusr]  
+View in [full][advusr] resolution.
+
+__Advertising message__ :  
+![Flowchart][advmsg]  
+View in [full][advmsg] resolution.
+
+__Advertising operation__ :  
+![Flowchart][advopr]  
+View in [full][advopr] resolution.
+
+
+Sources
+-------
+
+The sources of the schemes are available [here][src].
+
+
+[hnds]: /storage/dscuss/illustrations/handshaking.png
+[pub]: /storage/dscuss/illustrations/publishing.png
+[pradv]: /storage/dscuss/illustrations/process_advert.png 
+[princ]: /storage/dscuss/illustrations/process_incoming_entity.png 
+[prpnd]: /storage/dscuss/illustrations/process_pending_entities.png
+[prmsg]: /storage/dscuss/illustrations/process_msg.png
+[propr]: /storage/dscuss/illustrations/process_oper.png
+[prusr]: /storage/dscuss/illustrations/process_user.png
+[advusr]: /storage/dscuss/illustrations/advertise_user.png
+[advmsg]: /storage/dscuss/illustrations/advertise_message.png
+[advopr]: /storage/dscuss/illustrations/advertise_oper.png
+[src]: /storage/dscuss/illustrations/sources/
