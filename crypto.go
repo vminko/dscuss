@@ -55,42 +55,41 @@ func newPrivateKey() (*privateKey, error) {
 	return (*privateKey)(key), err
 }
 
-// parsePrivateKey decodes a PEM-encoded ECDSA private key.
-func parsePrivateKey(encodedKey []byte) (*privateKey, error) {
-	var block *pem.Block
-
-	for {
-		block, encodedKey = pem.Decode(encodedKey)
-		if block == nil {
-			Log(ERROR, "Failed to find EC PRIVATE KEY in PEM data")
-			return nil, ErrParsing
-		}
-		if block.Type == "EC PRIVATE KEY" {
-			break
-		} else {
-			continue
-		}
-	}
-
-	privkey, err := x509.ParseECPrivateKey(block.Bytes)
+// parsePrivateKeyFromDER decodes a PEM-encoded ECDSA private key.
+func parsePrivateKeyFromDER(der []byte) (*privateKey, error) {
+	privkey, err := x509.ParseECPrivateKey(der)
 	if err != nil {
 		Logf(ERROR, "Can't parse private key %v", err)
 		return nil, ErrParsing
 	}
-
 	return (*privateKey)(privkey), nil
 }
 
-// encode encodes an ECDSA private key to PEM format.
-func (key *privateKey) encode() []byte {
-	derKey, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
+// parsePrivateKeyFromPEM decodes a PEM-encoded ECDSA private key.
+func parsePrivateKeyFromPEM(encodedKey []byte) (*privateKey, error) {
+	block, encodedKey := pem.Decode(encodedKey)
+	if block.Type != "EC PRIVATE KEY" {
+		Log(ERROR, "Failed to find EC PRIVATE KEY in PEM data")
+		return nil, ErrParsing
+	}
+	return parsePrivateKeyFromDER(block.Bytes)
+}
+
+// encodeToDER encodes an ECDSA private key to DER format.
+func (key *privateKey) encodeToDER() []byte {
+	der, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
 	if err != nil {
 		Logf(FATAL, "MarshalECPrivateKey failed to encode private key %v", err)
 	}
+	return der
+}
+
+// encodeToPEM encodes an ECDSA private key to PEM format.
+func (key *privateKey) encodeToPEM() []byte {
 	return pem.EncodeToMemory(
 		&pem.Block{
 			Type:  "EC PRIVATE KEY",
-			Bytes: derKey,
+			Bytes: key.encodeToDER(),
 		},
 	)
 }
@@ -107,8 +106,8 @@ func (key *privateKey) public() *PublicKey {
 	return pubKey
 }
 
-// parsePublicKey decodes a DER-encoded ECDSA public key.
-func parsePublicKey(encodedKey []byte) (*PublicKey, error) {
+// parsePublicKeyFromDER decodes a DER-encoded ECDSA public key.
+func parsePublicKeyFromDER(encodedKey []byte) (*PublicKey, error) {
 	pub, err := x509.ParsePKIXPublicKey(encodedKey)
 	if err != nil {
 		Logf(WARNING, "Can't parse public key %v", err)
@@ -123,8 +122,19 @@ func parsePublicKey(encodedKey []byte) (*PublicKey, error) {
 	return (*PublicKey)(ecdsaPub), nil
 }
 
-// encode encodes an ECDSA public key to DER format.
-func (key *PublicKey) encode() []byte {
+// parsePublicKeyFromPEM decodes a PEM-encoded ECDSA public key.
+func parsePublicKeyFromPEM(encodedKey []byte) (*PublicKey, error) {
+
+	block, encodedKey := pem.Decode(encodedKey)
+	if block.Type != "EC PUBLIC KEY" {
+		Log(ERROR, "Failed to find EC PUBLIC KEY in PEM data")
+		return nil, ErrParsing
+	}
+	return parsePublicKeyFromDER(block.Bytes)
+}
+
+// encodeToDER encodes an ECDSA public key to DER format.
+func (key *PublicKey) encodeToDER() []byte {
 	derBytes, err := x509.MarshalPKIXPublicKey((*ecdsa.PublicKey)(key))
 	if err != nil {
 		Logf(FATAL, "MarshalPKIXPublicKey failed to encode public key: : %v", err)
@@ -132,9 +142,19 @@ func (key *PublicKey) encode() []byte {
 	return derBytes
 }
 
+// encodeToPEM encodes an ECDSA public key to PEM format.
+func (key *PublicKey) encodeToPEM() []byte {
+	return pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "EC PUBLIC KEY",
+			Bytes: key.encodeToDER(),
+		},
+	)
+}
+
 // MarshalJSON returns the JSON encoded key.
 func (key *PublicKey) MarshalJSON() ([]byte, error) {
-	der := key.encode()
+	der := key.encodeToDER()
 	b64der := base64.RawURLEncoding.EncodeToString(der)
 	return []byte(`"` + string(b64der) + `"`), nil
 }
@@ -148,7 +168,7 @@ func (key *PublicKey) UnmarshalJSON(b []byte) error {
 		Logf(WARNING, "Can't decode base64-encoded pubkey '%s'", trimmed)
 		return ErrParsing
 	}
-	res, err := parsePublicKey(der)
+	res, err := parsePublicKeyFromDER(der)
 	if res != nil {
 		*key = *res
 	}

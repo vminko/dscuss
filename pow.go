@@ -23,10 +23,12 @@ import (
 	"golang.org/x/crypto/scrypt"
 	"math"
 	"math/big"
+	"runtime"
+	"sync/atomic"
 )
 
 const (
-	powTargetBits  = 4 /*TBD: customise for release version */
+	powTargetBits  = 16 /*TBD: must be set to 16 in release version */
 	powKeyLenBytes = 32
 	powSalt        = "dscuss-proof-of-work"
 )
@@ -36,60 +38,80 @@ type ProofOfWork uint64
 // powFinder implements proof-of-work algorithm (also known as Hashcash).
 // Proof-of-work is used in Dscuss to protect against Sybil attack.
 type powFinder struct {
-	data   []byte
-	target *big.Int
+	data    []byte
+	target  *big.Int
+	counter uint64
 }
 
 func newPowFinder(data []byte) *powFinder {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(powKeyLenBytes*8-powTargetBits))
-
-	pf := &powFinder{data, target}
-
+	pf := &powFinder{data, target, 0}
 	return pf
 }
 
-func (pf *powFinder) find() ProofOfWork {
-	var proof uint64 = 0
+// setComplexity changes number of target bits in the proof-of-work.
+// The higher value you set, the harder it will be to find PoW.
+// The maximum value of TargetBitNum is powKeyLenBytes*8.
+// Should only be used for benchmarking.
+func (pf *powFinder) setComplexity(targetBitNum int) {
+	pf.target = big.NewInt(1)
+	pf.target.Lsh(pf.target, uint(powKeyLenBytes*8-targetBitNum))
+}
 
-	Logf(DEBUG, "Looking for proof-of-work for %x", pf.data)
-	for proof < math.MaxUint64 {
-		if pf.isValid(ProofOfWork(proof)) {
-			Logf(DEBUG, "PoW is found: \"%d\"", proof)
-			Logf(DEBUG, "PoW hash is: [% x]", pf.data[:])
-			break
-		} else {
-			Logf(DEBUG, "PoW: trying %d", proof)
-			proof++
+func (pf *powFinder) worker(i int, result chan uint64, stop chan struct{}) {
+	for nonce := uint64(0); nonce < math.MaxUint64; {
+		nonce := atomic.AddUint64(&pf.counter, 1)
+		select {
+		case <-stop:
+			return
+		default:
+			Logf(DEBUG, "Worker #%d is trying PoW %d", i, nonce)
+			if pf.isValid(nonce) {
+				Logf(DEBUG, "Worker #%d has found PoW: \"%d\"", i, nonce)
+				result <- nonce
+				return
+			}
 		}
 	}
+	result <- 0
+}
 
-	if proof == math.MaxUint64 {
+func (pf *powFinder) find() ProofOfWork {
+	Logf(DEBUG, "Looking for proof-of-work for %x", pf.data)
+	result := make(chan uint64)
+	stop := make(chan struct{})
+	for i := 0; i < runtime.NumCPU(); i++ {
+		Logf(DEBUG, "Starting PoW wroker #%d", i)
+		go pf.worker(i, result, stop)
+	}
+	proof := <-result
+	close(stop)
+	Logf(DEBUG, "PoW is found: %d", proof)
+	if proof == 0 {
 		// The probability of this case is very close to 0.
 		// It's OK to panic here in the proof-of-concept version.
 		Log(FATAL, "Failed to find proof-of-work")
 	}
-
 	return ProofOfWork(proof)
 }
 
-func (pf *powFinder) isValid(proof ProofOfWork) bool {
+func (pf *powFinder) isValid(nonce uint64) bool {
 	var keyInt big.Int
 	var key []byte
-	data := pf.prepareData(proof)
+	data := pf.prepareData(nonce)
 	// The recommended parameters for interactive logins as of 2017.
 	key, err := scrypt.Key(data, []byte(powSalt), 32768, 8, 1, powKeyLenBytes)
 	if err != nil {
 		Log(FATAL, "Incorrect key derivation parameters")
 	}
 	keyInt.SetBytes(key[:])
-	Logf(DEBUG, "Pow: scrypt key is %s, expected %s", keyInt.String(), (*pf.target).String())
 	return keyInt.Cmp(pf.target) == -1
 }
 
-func (pf *powFinder) prepareData(nonce ProofOfWork) []byte {
+func (pf *powFinder) prepareData(nonce uint64) []byte {
 	nbuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(nbuf, uint64(nonce))
+	binary.BigEndian.PutUint64(nbuf, nonce)
 	data := bytes.Join(
 		[][]byte{
 			pf.data,

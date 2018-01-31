@@ -43,7 +43,7 @@ const (
 	Name                   string = "Dscuss"
 	Version                string = "proof-of-concept"
 	DefaultCfgDir          string = "~/.dscuss"
-	debug                  bool   = true
+	debug                  bool   = false
 	logFileName            string = "dscuss.log"
 	cfgFileName            string = "config"
 	privKeyFileName        string = "privkey.pem"
@@ -129,7 +129,7 @@ func Register(nickname, info string) error {
 		Logf(ERROR, "Can't generate new private key: %v", err)
 		return ErrInternal
 	}
-	privKeyPEM := privKey.encode()
+	privKeyPEM := privKey.encodeToPEM()
 	privKeyPath := filepath.Join(userDir, privKeyFileName)
 	err = ioutil.WriteFile(privKeyPath, privKeyPEM, 0600)
 	if err != nil {
@@ -137,7 +137,8 @@ func Register(nickname, info string) error {
 		return ErrFilesystem
 	}
 
-	pow := newPowFinder(privKey.public().encode())
+	pow := newPowFinder(privKey.public().encodeToDER())
+	Log(INFO, string(privKey.public().encodeToPEM()))
 	proof := pow.find()
 	user, err := EmergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
 	if err != nil {
@@ -196,13 +197,13 @@ func Login(nickname string) error {
 		return ErrFilesystem
 	}
 
-	privKey, err := parsePrivateKey(privKeyPem)
+	privKey, err := parsePrivateKeyFromPEM(privKeyPem)
 	if err != nil {
 		Logf(ERROR, "Error parsing private key from file %s: %v", privKeyPath, err)
 		return err
 	}
 
-	eid := newEntityID(privKey.public().encode())
+	eid := newEntityID(privKey.public().encodeToDER())
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
 	db, err := open(globalDatabasePath)
 	if err != nil {

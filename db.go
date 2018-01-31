@@ -128,7 +128,7 @@ func (gdb *globalDB) putUser(user *User) error {
 		Logf(FATAL, "Error preparing 'putUser' statement: %v", err)
 	}
 
-	pkpem := user.PubKey.encode()
+	pkpem := user.PubKey.encodeToDER()
 	_, err = stmt.Exec(
 		user.ID[:],
 		pkpem,
@@ -189,7 +189,7 @@ func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
 		Logf(ERROR, "Can't parse signature fetched from DB: %v", err)
 		return nil, ErrParsing
 	}
-	pubkey, err := parsePublicKey(encodedKey)
+	pubkey, err := parsePublicKeyFromDER(encodedKey)
 	if err != nil {
 		Logf(ERROR, "Can't parse public key fetched from DB: %v", err)
 		return nil, ErrParsing

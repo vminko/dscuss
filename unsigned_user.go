@@ -43,7 +43,7 @@ func newUnsignedUser(
 	return &UnsignedUser{
 		Entity: Entity{
 			Type: EntityTypeUser,
-			ID:   newEntityID(pubkey.encode()),
+			ID:   newEntityID(pubkey.encodeToDER()),
 		},
 		PubKey:   *pubkey,
 		Proof:    proof,
