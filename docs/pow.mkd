@@ -37,8 +37,8 @@ the histogram below. The histogram is drawn for 10,000 values.
 
 The number of required leading zero bits is set to `16` for the
 proof-of-concept version. In this case, _Tavg_ is about 20 minutes on `Intel(R)
-Core(TM) i7-4790k CPU @ 4.0GHz` or 1 hour 27 minutes on `Intel(R) Core(TM) 2
-Duo P8600 @ 2.40GHz`.
+Core(TM) i7-4790k CPU @ 4.0GHz` or 2 hours on `Intel(R) Core(TM) 2 Duo P8600 @
+2.40GHz`.
 
 
 Benchmarking

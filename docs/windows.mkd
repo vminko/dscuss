@@ -1,0 +1,33 @@
+Title:      Developing on Windows
+Summary:    This page contains various notes describing Windows-specific aspects
+            of Dscuss development.
+Copyright:  (c) 2018 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       5 Feb 2018
+Web:        http://vminko.org/dscuss/windows
+
+
+Introduction
+------------
+
+Dscuss is a cross-platform solution. Despite the fact that the main target OS
+for Dscuss is GNU/Linux, Dscuss also supports Windows. This page contains
+various notes describing Windows-specific aspects of Dscuss development.
+
+
+GCC
+---
+
+Dscuss uses the following SQLite driver: [github.com/mattn/go-sqlite3][gosql].
+This driver requires GCC compiler, because it has some parts written in C.
+Therefore in order to compile Dscuss on Windows you must have GCC installed.
+There are several different suites, which provide GCC compiler for Windows.
+There is the well known [Cygwin][cgw] and [MinGW][mgw]. But the recommended
+compiler suite is [TDM-GCC][tdm]. It's the only verified suite, which is known
+to work well with Dscuss.
+
+[gosql]: https://github.com/mattn/go-sqlite3
+[tdm]: http://tdm-gcc.tdragon.net/about
+[mgw]: http://www.mingw.org/
+[cgw]: http://cygwin.com/
