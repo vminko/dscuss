@@ -140,7 +140,7 @@ func Register(nickname, info string) error {
 	pow := newPowFinder(privKey.public().encodeToDER())
 	Log(INFO, string(privKey.public().encodeToPEM()))
 	proof := pow.find()
-	user, err := EmergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
+	user, err := emergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
 	if err != nil {
 		Logf(ERROR, "Can't create new user %s: %v", nickname, err)
 		return err

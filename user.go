@@ -31,10 +31,10 @@ type User struct {
 	Sig Signature
 }
 
-// EmergeUser creates a new user entity. It should only be called when
+// emergeUser creates a new user entity. It should only be called when
 // signature is not known yet.  Signature will be created using the provided
 // signer.
-func EmergeUser(
+func emergeUser(
 	nickname string,
 	info string,
 	proof ProofOfWork,

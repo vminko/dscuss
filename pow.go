@@ -67,7 +67,7 @@ func (pf *powFinder) worker(i int, result chan uint64, stop chan struct{}) {
 			return
 		default:
 			Logf(DEBUG, "Worker #%d is trying PoW %d", i, nonce)
-			if pf.isValid(nonce) {
+			if pf.validate(nonce) {
 				Logf(DEBUG, "Worker #%d has found PoW: \"%d\"", i, nonce)
 				result <- nonce
 				return
@@ -96,7 +96,7 @@ func (pf *powFinder) find() ProofOfWork {
 	return ProofOfWork(proof)
 }
 
-func (pf *powFinder) isValid(nonce uint64) bool {
+func (pf *powFinder) validate(nonce uint64) bool {
 	var keyInt big.Int
 	var key []byte
 	data := pf.prepareData(nonce)
