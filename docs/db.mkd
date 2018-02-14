@@ -11,9 +11,9 @@ Dscuss uses SQLite DBMS for storing data. The scheme of the database is represen
 
 ![database scheme][db_img]
 
-[The source][db_src] of the scheme can be opened and edited in [Dia][dia].
+The Dscuss git repository contains the source file of the scheme. It can be
+opened and edited in [Dia][dia].
 
 
 [db_img]: /storage/dscuss/illustrations/database.png
-[db_src]: /storage/dscuss/illustrations/sources/database.dia
 [dia]: https://wiki.gnome.org/Apps/Dia/

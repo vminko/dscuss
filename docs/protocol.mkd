@@ -42,11 +42,11 @@ view.
 ![peer statechart][psd_img]
 View in [full][psd_img] resolution.
 
-[The source][psd_src] of the scheme can be opened and edited in [Dia][dia].
+The Dscuss git repository contains the source file of the scheme. It can be
+opened and edited in [Dia][dia].
 
 
 [psd_img]: /storage/dscuss/illustrations/peer_state_diagram.png
-[psd_src]: /storage/dscuss/illustrations/sources/peer_state_diagram.dia
 [dia]: https://wiki.gnome.org/Apps/Dia/
 
 

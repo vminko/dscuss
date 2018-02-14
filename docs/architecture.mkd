@@ -34,9 +34,9 @@ Class diagram of the Dscuss application is represented below.
 ![class_diagram][class_dia_img]
 View in [full][class_dia_img] resolution.
 
-[The source][class_dia_src] of the scheme can be opened and edited in [Dia][dia].
+The Dscuss git repository contains the source file of the scheme. It can be
+opened and edited in [Dia][dia].
 
 
 [class_dia_img]: /storage/dscuss/illustrations/class_dia.png
-[class_dia_src]: /storage/dscuss/illustrations/sources/class_dia.dia
 [dia]: https://wiki.gnome.org/Apps/Dia/
