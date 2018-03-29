@@ -38,8 +38,8 @@ func newUnsignedUser(
 	info string,
 	pubkey *PublicKey,
 	proof ProofOfWork,
-	regdate time.Time) *UnsignedUser {
-
+	regdate time.Time,
+) *UnsignedUser {
 	return &UnsignedUser{
 		Entity: Entity{
 			Type: EntityTypeUser,

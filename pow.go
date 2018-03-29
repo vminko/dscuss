@@ -24,11 +24,12 @@ import (
 	"math"
 	"math/big"
 	"runtime"
+	"sync"
 	"sync/atomic"
 )
 
 const (
-	powTargetBits  = 16 /*TBD: must be set to 16 in release version */
+	powTargetBits  = 8 /*TBD: must be set to 16 in release version */
 	powKeyLenBytes = 32
 	powSalt        = "dscuss-proof-of-work"
 )
@@ -59,40 +60,49 @@ func (pf *powFinder) setComplexity(targetBitNum int) {
 	pf.target.Lsh(pf.target, uint(powKeyLenBytes*8-targetBitNum))
 }
 
-func (pf *powFinder) worker(i int, result chan uint64, stop chan struct{}) {
+func (pf *powFinder) worker(
+	workerID int,
+	resultChan chan uint64,
+	stopChan chan struct{},
+	wg *sync.WaitGroup,
+) {
+	defer wg.Done()
 	for nonce := uint64(0); nonce < math.MaxUint64; {
 		nonce := atomic.AddUint64(&pf.counter, 1)
 		select {
-		case <-stop:
+		case <-stopChan:
 			return
 		default:
-			Logf(DEBUG, "Worker #%d is trying PoW %d", i, nonce)
+			Logf(DEBUG, "Worker #%d is trying PoW %d", workerID, nonce)
 			if pf.validate(nonce) {
-				Logf(DEBUG, "Worker #%d has found PoW: \"%d\"", i, nonce)
-				result <- nonce
+				Logf(DEBUG, "Worker #%d has found PoW: \"%d\"", workerID, nonce)
+				resultChan <- nonce
 				return
 			}
 		}
 	}
-	result <- 0
+	resultChan <- 0
 }
 
 func (pf *powFinder) find() ProofOfWork {
 	Logf(DEBUG, "Looking for proof-of-work for %x", pf.data)
-	result := make(chan uint64)
-	stop := make(chan struct{})
+	resultChan := make(chan uint64)
+	stopChan := make(chan struct{})
+	var wg sync.WaitGroup
 	for i := 0; i < runtime.NumCPU(); i++ {
 		Logf(DEBUG, "Starting PoW wroker #%d", i)
-		go pf.worker(i, result, stop)
+		wg.Add(1)
+		go pf.worker(i, resultChan, stopChan, &wg)
 	}
-	proof := <-result
-	close(stop)
-	Logf(DEBUG, "PoW is found: %d", proof)
+	proof := <-resultChan
+	close(stopChan)
+	wg.Wait()
 	if proof == 0 {
 		// The probability of this case is very close to 0.
 		// It's OK to panic here in the proof-of-concept version.
 		Log(FATAL, "Failed to find proof-of-work")
 	}
+	Logf(DEBUG, "PoW is found: %d", proof)
 	return ProofOfWork(proof)
 }
 

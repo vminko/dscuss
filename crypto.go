@@ -124,7 +124,6 @@ func parsePublicKeyFromDER(encodedKey []byte) (*PublicKey, error) {
 
 // parsePublicKeyFromPEM decodes a PEM-encoded ECDSA public key.
 func parsePublicKeyFromPEM(encodedKey []byte) (*PublicKey, error) {
-
 	block, encodedKey := pem.Decode(encodedKey)
 	if block.Type != "EC PUBLIC KEY" {
 		Log(ERROR, "Failed to find EC PUBLIC KEY in PEM data")

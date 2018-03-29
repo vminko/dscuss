@@ -22,6 +22,7 @@ package dscuss
 import (
 	"fmt"
 	"log"
+	"runtime"
 )
 
 const (
@@ -32,30 +33,40 @@ const (
 	FATAL
 )
 
-func Logf(level int, format string, args ...interface{}) {
+// caller returns the name of the third function in the current stack.
+func caller() string {
+	pc := make([]uintptr, 10)
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[2])
+	return fmt.Sprintf("[%s]", f.Name())
+}
+
+func logf(level int, format string, args ...interface{}) {
 	switch level {
 	case DEBUG:
 		if debug {
-			log.Printf("DEBUG: "+format, args...)
+			log.Printf("DEBUG "+caller()+" "+format, args...)
 		}
 	case INFO:
-		log.Printf("INFO: "+format, args...)
+		log.Printf("INFO "+caller()+" "+format, args...)
 	case WARNING:
-		log.Printf("WARNING: "+format, args...)
+		log.Printf("WARNING "+caller()+" "+format, args...)
 	case ERROR:
-		log.Printf("ERROR: "+format, args...)
+		log.Printf("ERROR "+caller()+" "+format, args...)
 	case FATAL:
 		fmt.Printf("FATAL ERROR: "+format+"\n", args...)
-		log.Fatalf("FATAL: "+format, args...)
+		log.Fatalf("FATAL "+caller()+" "+format, args...)
 	default:
 		panic("Unknown log level.")
 	}
 }
 
-func Log(level int, msg string) {
-	Logf(level, "%s", msg)
+// Logf is required to make caller() happy. This wrapper adjusts the Logf caller
+// position in the stack.
+func Logf(level int, format string, args ...interface{}) {
+	logf(level, format, args...)
 }
 
-func panicf() {
-
+func Log(level int, msg string) {
+	logf(level, "%s", msg)
 }

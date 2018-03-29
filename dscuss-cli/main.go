@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	argConfig  = flag.String("config", dscuss.DefaultCfgDir, "Directory with config files to use")
+	argConfig  = flag.String("config", dscuss.DefaultDir, "Directory with config files to use")
 	argVersion = flag.Bool("version", false, "Display version of the program and exit")
 	argHelp    = flag.Bool("help", false, "Print help message and exit")
 )

@@ -39,8 +39,8 @@ func emergeUser(
 	info string,
 	proof ProofOfWork,
 	regdate time.Time,
-	signer *Signer) (*User, error) {
-
+	signer *Signer,
+) (*User, error) {
 	uu := newUnsignedUser(nickname, info, signer.public(), proof, regdate)
 	juser, err := json.Marshal(uu)
 	if err != nil {
@@ -62,8 +62,17 @@ func newUser(
 	pubkey *PublicKey,
 	proof ProofOfWork,
 	regdate time.Time,
-	sig Signature) *User {
-
+	sig Signature,
+) *User {
 	uu := newUnsignedUser(nickname, info, pubkey, proof, regdate)
 	return &User{UnsignedUser: *uu, Sig: sig}
+}
+
+func (u *User) String() string {
+	userStr, err := json.Marshal(u)
+	if err != nil {
+		Logf(ERROR, "Can't marshal the user %s: %v", u.Nickname, err)
+		return "[Failed to marshal the user]"
+	}
+	return string(userStr)
 }

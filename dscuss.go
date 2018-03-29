@@ -22,7 +22,6 @@ package dscuss
 // Main backend file. Implements API exposed to the user.
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -33,65 +32,79 @@ import (
 	"time"
 )
 
-type loginInfo struct {
-	user    *User
-	gDB     *globalDB
-	privKey *privateKey
+type ctxKey string
+type loginContext struct {
+	user   *User
+	gDB    *globalDB
+	signer *Signer
 }
 
 const (
 	Name                   string = "Dscuss"
 	Version                string = "proof-of-concept"
-	DefaultCfgDir          string = "~/.dscuss"
-	debug                  bool   = false
+	DefaultDir             string = "~/.dscuss"
 	logFileName            string = "dscuss.log"
-	cfgFileName            string = "config"
+	cfgFileName            string = "config.json"
 	privKeyFileName        string = "privkey.pem"
 	globalDatabaseFileName string = "global.db"
+	debug                  bool   = true
 )
 
 var (
-	logInf  *loginInfo
-	logFile *os.File
-	cfgDir  string
+	logFile  *os.File
+	dir      string
+	cfg      *config
+	loginCtx *loginContext
+	pp       *peerPool
 )
 
-func Init(dir string) error {
-	if dir == "" {
-		cfgDir = DefaultCfgDir
+func Init(initDir string) error {
+	if initDir == "" {
+		dir = DefaultDir
 	} else {
-		cfgDir = dir
+		dir = initDir
 	}
 
-	if cfgDir[:2] == "~/" {
+	if dir[:2] == "~/" {
 		usr, err := user.Current()
 		if err != nil {
 			Log(ERROR, "Can't get get current OS user: "+err.Error())
 			return ErrInternal
 		}
-		cfgDir = filepath.Join(usr.HomeDir, cfgDir[2:])
+		dir = filepath.Join(usr.HomeDir, dir[2:])
 	}
 
-	if _, err := os.Stat(cfgDir); os.IsNotExist(err) {
-		err = os.MkdirAll(cfgDir, 0700)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0700)
 		if err != nil {
-			Log(ERROR, "Can't create directory "+cfgDir+": "+err.Error())
+			Log(ERROR, "Can't create directory "+dir+": "+err.Error())
 			return ErrFilesystem
 		}
 	}
 
-	var logPath string = filepath.Join(cfgDir, logFileName)
+	var logPath string = filepath.Join(dir, logFileName)
 	logFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		Log(ERROR, "Can't open log file: "+err.Error())
 		return ErrFilesystem
 	}
 	log.SetOutput(logFile)
+
+	var cfgPath string = filepath.Join(dir, cfgFileName)
+	cfg, err = newConfig(cfgPath)
+	if err != nil {
+		Log(ERROR, "Can't process config file: "+err.Error())
+		return err
+	}
+
 	Log(DEBUG, "Dscuss successfully iniitialized.")
 	return nil
 }
 
 func Uninit() {
+	if IsLoggedIn() {
+		Logout()
+	}
 	logFile.Close()
 	Log(DEBUG, "Dscuss successfully uniniitialized.")
 }
@@ -100,8 +113,8 @@ func FullVersion() string {
 	return fmt.Sprintf("%s version: %s, built with %s.\n", Name, Version, runtime.Version())
 }
 
-func CfgDir() string {
-	return cfgDir
+func Dir() string {
+	return dir
 }
 
 func Register(nickname, info string) error {
@@ -110,7 +123,7 @@ func Register(nickname, info string) error {
 	if nickname == "" {
 		return ErrWrongNickname
 	}
-	userDir := filepath.Join(cfgDir, nickname)
+	userDir := filepath.Join(dir, nickname)
 	Logf(DEBUG, "Register uses the following user directory: %s", userDir)
 
 	err := os.Mkdir(userDir, 0755)
@@ -146,12 +159,8 @@ func Register(nickname, info string) error {
 		return err
 	}
 	if debug {
-		juser, err := json.Marshal(user)
-		if err != nil {
-			Logf(ERROR, "Can't marshall %v", err)
-		}
 		Logf(DEBUG, "Dumping emerged User %s:", nickname)
-		Log(DEBUG, string(juser))
+		Log(DEBUG, user.String())
 	}
 
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
@@ -175,16 +184,16 @@ func Register(nickname, info string) error {
 }
 
 func IsLoggedIn() bool {
-	return logInf != nil
+	return loginCtx != nil
 }
 
 func Login(nickname string) error {
-	if logInf != nil {
-		Logf(ERROR, "Login attempt when %s is already logged in", logInf.user.Nickname)
+	if loginCtx != nil {
+		Logf(ERROR, "Login attempt when %s is already logged in", loginCtx.user.Nickname)
 		return ErrAlreadyLoggedIn
 	}
 
-	userDir := filepath.Join(cfgDir, nickname)
+	userDir := filepath.Join(dir, nickname)
 	Logf(DEBUG, "Login uses the following user directory: %s", userDir)
 	if _, err := os.Stat(userDir); os.IsNotExist(err) {
 		return ErrFilesystem
@@ -216,29 +225,36 @@ func Login(nickname string) error {
 		return err
 	}
 	if debug {
-		juser, _ := json.Marshal(u)
 		Log(DEBUG, "Dumping fetched User:")
-		Log(DEBUG, string(juser))
+		Log(DEBUG, u.String())
 	}
 	/* TBD:
 	   read subscriptions
 	   initialize network subsystem
 	*/
 
-	logInf = &loginInfo{
-		user:    u,
-		gDB:     db,
-		privKey: privKey,
+	loginCtx = &loginContext{
+		user:   u,
+		gDB:    db,
+		signer: &Signer{privKey},
 	}
+
+	pp = newPeerPool(cfg, dir, loginCtx)
+	pp.start()
 
 	return nil
 }
 
 func Logout() error {
-	err := logInf.gDB.close()
+	if !IsLoggedIn() {
+		return nil
+	}
+	err := loginCtx.gDB.close()
 	if err != nil {
 		Logf(ERROR, "Can't close global database: %v", err)
 		return ErrDatabase
 	}
+	pp.stop()
+	loginCtx = nil
 	return nil
 }

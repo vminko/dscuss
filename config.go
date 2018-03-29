@@ -22,31 +22,65 @@ package dscuss
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 )
 
-type config struct {
-	Port uint16
+type NetworkConfig struct {
+	Address         string
+	Bootstrappers   []string
+	MaxInConnCount  uint32
+	MaxOutConnCount uint32
 }
 
-func NewConfig(path string) (*config, error) {
-	// Default config values are defined here.
-	var c = config{
-		Port: 8004,
+type config struct {
+	Network NetworkConfig
+}
+
+var defaultConfig = config{
+	Network: NetworkConfig{
+		Address:         ":8004",
+		Bootstrappers:   []string{"addrlist"},
+		MaxInConnCount:  10,
+		MaxOutConnCount: 10,
+	},
+}
+
+func (c *config) save(path string) error {
+	cfgStr, err := json.MarshalIndent(c, "", "	")
+	if err != nil {
+		Logf(ERROR, "Can't marshal config: %v", err)
+		return err
 	}
+	err = ioutil.WriteFile(path, []byte(cfgStr), 0644)
+	if err != nil {
+		Logf(ERROR, "Can't save config file to %s: %v", path, err)
+		return err
+	}
+	return nil
+}
+
+func newConfig(path string) (*config, error) {
+	var c = defaultConfig
 
 	file, err := os.Open(path)
 	if err != nil {
-		Logf(ERROR, "Can't open config file %s: %v", path, err)
-		return nil, ErrFilesystem
+		Logf(WARNING, "Can't open config file %s: %v", path, err)
+		err = c.save(path)
+		if err != nil {
+			Logf(FATAL, "Can't save default config file to %s: %v", path, err)
+		}
+		return &c, nil
 	}
 
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&c)
 	if err != nil {
-		Logf(ERROR, "Can't decode json file %s: %v", err)
+		Logf(ERROR, "Error decoding json file %s: %v", err)
 		return nil, ErrConfig
 	}
+
+	/* TBD: validate parameters */
 
 	return &c, nil
 }
