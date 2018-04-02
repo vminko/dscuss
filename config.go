@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"vminko.org/dscuss/log"
 )
 
 type NetworkConfig struct {
@@ -49,12 +50,12 @@ var defaultConfig = config{
 func (c *config) save(path string) error {
 	cfgStr, err := json.MarshalIndent(c, "", "	")
 	if err != nil {
-		Logf(ERROR, "Can't marshal config: %v", err)
+		log.Errorf("Can't marshal config: %v", err)
 		return err
 	}
 	err = ioutil.WriteFile(path, []byte(cfgStr), 0644)
 	if err != nil {
-		Logf(ERROR, "Can't save config file to %s: %v", path, err)
+		log.Errorf("Can't save config file to %s: %v", path, err)
 		return err
 	}
 	return nil
@@ -65,10 +66,10 @@ func newConfig(path string) (*config, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		Logf(WARNING, "Can't open config file %s: %v", path, err)
+		log.Warningf("Can't open config file %s: %v", path, err)
 		err = c.save(path)
 		if err != nil {
-			Logf(FATAL, "Can't save default config file to %s: %v", path, err)
+			log.Fatalf("Can't save default config file to %s: %v", path, err)
 		}
 		return &c, nil
 	}
@@ -76,7 +77,7 @@ func newConfig(path string) (*config, error) {
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&c)
 	if err != nil {
-		Logf(ERROR, "Error decoding json file %s: %v", err)
+		log.Errorf("Error decoding json file %s: %v", err)
 		return nil, ErrConfig
 	}
 

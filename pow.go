@@ -26,6 +26,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"vminko.org/dscuss/log"
 )
 
 const (
@@ -73,9 +74,9 @@ func (pf *powFinder) worker(
 		case <-stopChan:
 			return
 		default:
-			Logf(DEBUG, "Worker #%d is trying PoW %d", workerID, nonce)
+			log.Debugf("Worker #%d is trying PoW %d", workerID, nonce)
 			if pf.validate(nonce) {
-				Logf(DEBUG, "Worker #%d has found PoW: \"%d\"", workerID, nonce)
+				log.Debugf("Worker #%d has found PoW: \"%d\"", workerID, nonce)
 				resultChan <- nonce
 				return
 			}
@@ -85,12 +86,12 @@ func (pf *powFinder) worker(
 }
 
 func (pf *powFinder) find() ProofOfWork {
-	Logf(DEBUG, "Looking for proof-of-work for %x", pf.data)
+	log.Debugf("Looking for proof-of-work for %x", pf.data)
 	resultChan := make(chan uint64)
 	stopChan := make(chan struct{})
 	var wg sync.WaitGroup
 	for i := 0; i < runtime.NumCPU(); i++ {
-		Logf(DEBUG, "Starting PoW wroker #%d", i)
+		log.Debugf("Starting PoW wroker #%d", i)
 		wg.Add(1)
 		go pf.worker(i, resultChan, stopChan, &wg)
 	}
@@ -100,9 +101,9 @@ func (pf *powFinder) find() ProofOfWork {
 	if proof == 0 {
 		// The probability of this case is very close to 0.
 		// It's OK to panic here in the proof-of-concept version.
-		Log(FATAL, "Failed to find proof-of-work")
+		log.Fatal("Failed to find proof-of-work")
 	}
-	Logf(DEBUG, "PoW is found: %d", proof)
+	log.Debugf("PoW is found: %d", proof)
 	return ProofOfWork(proof)
 }
 
@@ -113,7 +114,7 @@ func (pf *powFinder) validate(nonce uint64) bool {
 	// The recommended parameters for interactive logins as of 2017.
 	key, err := scrypt.Key(data, []byte(powSalt), 32768, 8, 1, powKeyLenBytes)
 	if err != nil {
-		Log(FATAL, "Incorrect key derivation parameters")
+		log.Fatal("Incorrect key derivation parameters")
 	}
 	keyInt.SetBytes(key[:])
 	return keyInt.Cmp(pf.target) == -1

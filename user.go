@@ -20,6 +20,7 @@ package dscuss
 import (
 	"encoding/json"
 	"time"
+	"vminko.org/dscuss/log"
 )
 
 // User is an UnsignedUser with a signature. It also identifies and describes a
@@ -44,12 +45,12 @@ func emergeUser(
 	uu := newUnsignedUser(nickname, info, signer.public(), proof, regdate)
 	juser, err := json.Marshal(uu)
 	if err != nil {
-		Log(ERROR, "Can't marshal UnsignedUser: "+err.Error())
+		log.Error("Can't marshal UnsignedUser: " + err.Error())
 		return nil, ErrInternal
 	}
 	sig, err := signer.sign(juser)
 	if err != nil {
-		Log(ERROR, "Can't sign JSON-encoded user: "+err.Error())
+		log.Error("Can't sign JSON-encoded user: " + err.Error())
 		return nil, ErrInternal
 	}
 
@@ -71,7 +72,7 @@ func newUser(
 func (u *User) String() string {
 	userStr, err := json.Marshal(u)
 	if err != nil {
-		Logf(ERROR, "Can't marshal the user %s: %v", u.Nickname, err)
+		log.Errorf("Can't marshal the user %s: %v", u.Nickname, err)
 		return "[Failed to marshal the user]"
 	}
 	return string(userStr)

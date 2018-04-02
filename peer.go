@@ -20,6 +20,7 @@ package dscuss
 import (
 	"sync"
 	"time"
+	"vminko.org/dscuss/log"
 )
 
 // peer is responsible for communication with other nodes.
@@ -50,10 +51,10 @@ func (p *peer) run() {
 	for {
 		select {
 		case <-p.stopChan:
-			Log(DEBUG, "Stop requested")
+			log.Debug("Stop requested")
 			return
 		case <-pulser.C:
-			Log(DEBUG, "Peer is idle...")
+			log.Debug("Peer is idle...")
 		}
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
+	"vminko.org/dscuss/log"
 )
 
 // globalDB stores global network data.
@@ -29,7 +30,7 @@ type globalDB sql.DB
 func open(fileName string) (*globalDB, error) {
 	db, err := sql.Open("sqlite3", fileName)
 	if err != nil {
-		Logf(ERROR, "Unable to open SQLite connection: %s", err.Error())
+		log.Errorf("Unable to open SQLite connection: %s", err.Error())
 		return nil, ErrDatabase
 	}
 
@@ -91,7 +92,7 @@ func open(fileName string) (*globalDB, error) {
 		"  UNIQUE (Tag_id, Message_id))")
 	// TBD: create indexes?
 	if execErr != nil {
-		Logf(ERROR, "Unable to initialize the database: %s", execErr.Error())
+		log.Errorf("Unable to initialize the database: %s", execErr.Error())
 		return nil, ErrDatabase
 	}
 
@@ -102,14 +103,14 @@ func (gdb *globalDB) close() error {
 	db := (*sql.DB)(gdb)
 	err := db.Close()
 	if err != nil {
-		Logf(ERROR, "Unable to close the database: %v", err)
+		log.Errorf("Unable to close the database: %v", err)
 		return ErrDatabase
 	}
 	return nil
 }
 
 func (gdb *globalDB) putUser(user *User) error {
-	Logf(DEBUG, "Adding user `%s' to the database.", user.Nickname)
+	log.Debugf("Adding user `%s' to the database.", user.Nickname)
 
 	query := `
 	INSERT INTO User
@@ -125,7 +126,7 @@ func (gdb *globalDB) putUser(user *User) error {
 	db := (*sql.DB)(gdb)
 	stmt, err := db.Prepare(query)
 	if err != nil {
-		Logf(FATAL, "Error preparing 'putUser' statement: %v", err)
+		log.Fatalf("Error preparing 'putUser' statement: %v", err)
 	}
 
 	pkpem := user.PubKey.encodeToDER()
@@ -139,7 +140,7 @@ func (gdb *globalDB) putUser(user *User) error {
 		user.Sig.encode(),
 	)
 	if err != nil {
-		Logf(ERROR, "Can't execute 'putUser' statement: %s", err.Error())
+		log.Errorf("Can't execute 'putUser' statement: %s", err.Error())
 		return ErrDatabase
 	}
 
@@ -147,7 +148,7 @@ func (gdb *globalDB) putUser(user *User) error {
 }
 
 func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
-	Logf(DEBUG, "Fetching user with id '%x' from the database.", eid)
+	log.Debugf("Fetching user with id '%x' from the database.", eid)
 
 	var nickname string
 	var info string
@@ -175,23 +176,23 @@ func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
 		&encodedSig)
 	switch {
 	case err == sql.ErrNoRows:
-		Log(WARNING, "No user with that ID.")
+		log.Warning("No user with that ID.")
 		return nil, ErrNoSuchEntity
 	case err != nil:
-		Logf(ERROR, "Error fetching user from the database: %v", err)
+		log.Errorf("Error fetching user from the database: %v", err)
 		return nil, ErrDatabase
 	default:
-		Log(DEBUG, "The user found successfully")
+		log.Debug("The user found successfully")
 	}
 
 	sig, err := parseSignature(encodedSig)
 	if err != nil {
-		Logf(ERROR, "Can't parse signature fetched from DB: %v", err)
+		log.Errorf("Can't parse signature fetched from DB: %v", err)
 		return nil, ErrParsing
 	}
 	pubkey, err := parsePublicKeyFromDER(encodedKey)
 	if err != nil {
-		Logf(ERROR, "Can't parse public key fetched from DB: %v", err)
+		log.Errorf("Can't parse public key fetched from DB: %v", err)
 		return nil, ErrParsing
 	}
 

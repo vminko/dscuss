@@ -24,12 +24,12 @@ package dscuss
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"time"
+	"vminko.org/dscuss/log"
 )
 
 type ctxKey string
@@ -68,7 +68,7 @@ func Init(initDir string) error {
 	if dir[:2] == "~/" {
 		usr, err := user.Current()
 		if err != nil {
-			Log(ERROR, "Can't get get current OS user: "+err.Error())
+			log.Error("Can't get get current OS user: " + err.Error())
 			return ErrInternal
 		}
 		dir = filepath.Join(usr.HomeDir, dir[2:])
@@ -77,7 +77,7 @@ func Init(initDir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0700)
 		if err != nil {
-			Log(ERROR, "Can't create directory "+dir+": "+err.Error())
+			log.Error("Can't create directory " + dir + ": " + err.Error())
 			return ErrFilesystem
 		}
 	}
@@ -85,19 +85,20 @@ func Init(initDir string) error {
 	var logPath string = filepath.Join(dir, logFileName)
 	logFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		Log(ERROR, "Can't open log file: "+err.Error())
+		log.Error("Can't open log file: " + err.Error())
 		return ErrFilesystem
 	}
 	log.SetOutput(logFile)
+	log.SetDebug(debug)
 
 	var cfgPath string = filepath.Join(dir, cfgFileName)
 	cfg, err = newConfig(cfgPath)
 	if err != nil {
-		Log(ERROR, "Can't process config file: "+err.Error())
+		log.Error("Can't process config file: " + err.Error())
 		return err
 	}
 
-	Log(DEBUG, "Dscuss successfully iniitialized.")
+	log.Error("Dscuss successfully iniitialized.")
 	return nil
 }
 
@@ -105,8 +106,8 @@ func Uninit() {
 	if IsLoggedIn() {
 		Logout()
 	}
+	log.Debug("Dscuss successfully uniniitialized.")
 	logFile.Close()
-	Log(DEBUG, "Dscuss successfully uniniitialized.")
 }
 
 func FullVersion() string {
@@ -119,64 +120,64 @@ func Dir() string {
 
 func Register(nickname, info string) error {
 	// TBD: validate nickname. It must contain only [\w\d\._]
-	Logf(DEBUG, "Registering user %s", nickname)
+	log.Debugf("Registering user %s", nickname)
 	if nickname == "" {
 		return ErrWrongNickname
 	}
 	userDir := filepath.Join(dir, nickname)
-	Logf(DEBUG, "Register uses the following user directory: %s", userDir)
+	log.Debugf("Register uses the following user directory: %s", userDir)
 
 	err := os.Mkdir(userDir, 0755)
 	if err != nil {
 		if os.IsExist(err) {
-			Logf(INFO, "Looks like the user %s is already registered", nickname)
+			log.Infof("Looks like the user %s is already registered", nickname)
 			return ErrAlreadyRegistered
 		} else {
-			Log(ERROR, "Can't create directory "+userDir+": "+err.Error())
+			log.Errorf("Can't create directory " + userDir + ": " + err.Error())
 			return ErrFilesystem
 		}
 	}
 
 	privKey, err := newPrivateKey()
 	if err != nil {
-		Logf(ERROR, "Can't generate new private key: %v", err)
+		log.Errorf("Can't generate new private key: %v", err)
 		return ErrInternal
 	}
 	privKeyPEM := privKey.encodeToPEM()
 	privKeyPath := filepath.Join(userDir, privKeyFileName)
 	err = ioutil.WriteFile(privKeyPath, privKeyPEM, 0600)
 	if err != nil {
-		Logf(ERROR, "Can't save private key as file %s: %v", privKeyPath, err)
+		log.Errorf("Can't save private key as file %s: %v", privKeyPath, err)
 		return ErrFilesystem
 	}
 
 	pow := newPowFinder(privKey.public().encodeToDER())
-	Log(INFO, string(privKey.public().encodeToPEM()))
+	log.Info(string(privKey.public().encodeToPEM()))
 	proof := pow.find()
 	user, err := emergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
 	if err != nil {
-		Logf(ERROR, "Can't create new user %s: %v", nickname, err)
+		log.Errorf("Can't create new user %s: %v", nickname, err)
 		return err
 	}
 	if debug {
-		Logf(DEBUG, "Dumping emerged User %s:", nickname)
-		Log(DEBUG, user.String())
+		log.Debugf("Dumping emerged User %s:", nickname)
+		log.Debug(user.String())
 	}
 
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
 	db, err := open(globalDatabasePath)
 	if err != nil {
-		Logf(ERROR, "Can't open global database file %s: %v", globalDatabasePath, err)
+		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
 		return ErrDatabase
 	}
 	err = db.putUser(user)
 	if err != nil {
-		Logf(ERROR, "Can't add user '%s' to the database: %v", user.Nickname, err)
+		log.Errorf("Can't add user '%s' to the database: %v", user.Nickname, err)
 		return ErrDatabase
 	}
 	err = db.close()
 	if err != nil {
-		Logf(ERROR, "Can't close global database: %v", err)
+		log.Errorf("Can't close global database: %v", err)
 		return ErrDatabase
 	}
 
@@ -189,12 +190,12 @@ func IsLoggedIn() bool {
 
 func Login(nickname string) error {
 	if loginCtx != nil {
-		Logf(ERROR, "Login attempt when %s is already logged in", loginCtx.user.Nickname)
+		log.Errorf("Login attempt when %s is already logged in", loginCtx.user.Nickname)
 		return ErrAlreadyLoggedIn
 	}
 
 	userDir := filepath.Join(dir, nickname)
-	Logf(DEBUG, "Login uses the following user directory: %s", userDir)
+	log.Debugf("Login uses the following user directory: %s", userDir)
 	if _, err := os.Stat(userDir); os.IsNotExist(err) {
 		return ErrFilesystem
 	}
@@ -202,13 +203,13 @@ func Login(nickname string) error {
 	privKeyPath := filepath.Join(userDir, privKeyFileName)
 	privKeyPem, err := ioutil.ReadFile(privKeyPath)
 	if err != nil {
-		Logf(ERROR, "Can't read private key from file %s: %v", privKeyPath, err)
+		log.Errorf("Can't read private key from file %s: %v", privKeyPath, err)
 		return ErrFilesystem
 	}
 
 	privKey, err := parsePrivateKeyFromPEM(privKeyPem)
 	if err != nil {
-		Logf(ERROR, "Error parsing private key from file %s: %v", privKeyPath, err)
+		log.Errorf("Error parsing private key from file %s: %v", privKeyPath, err)
 		return err
 	}
 
@@ -216,17 +217,17 @@ func Login(nickname string) error {
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
 	db, err := open(globalDatabasePath)
 	if err != nil {
-		Logf(ERROR, "Can't open global database file %s: %v", globalDatabasePath, err)
+		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
 		return ErrDatabase
 	}
 	u, err := db.getUser(&eid)
 	if err != nil {
-		Logf(ERROR, "Can't fetch the user with id '%x' from the database: %v", eid, err)
+		log.Errorf("Can't fetch the user with id '%x' from the database: %v", eid, err)
 		return err
 	}
 	if debug {
-		Log(DEBUG, "Dumping fetched User:")
-		Log(DEBUG, u.String())
+		log.Debug("Dumping fetched User:")
+		log.Debug(u.String())
 	}
 	/* TBD:
 	   read subscriptions
@@ -251,7 +252,7 @@ func Logout() error {
 	}
 	err := loginCtx.gDB.close()
 	if err != nil {
-		Logf(ERROR, "Can't close global database: %v", err)
+		log.Errorf("Can't close global database: %v", err)
 		return ErrDatabase
 	}
 	pp.stop()

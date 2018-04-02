@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/abiosoft/ishell"
 	"vminko.org/dscuss"
+	"vminko.org/dscuss/log"
 )
 
 const (
@@ -193,11 +194,11 @@ func main() {
 	if err != nil {
 		panic("Could not initialize Dscuss: " + err.Error())
 	}
-	dscuss.Logf(dscuss.DEBUG, "Using CLI version %s.", cliVersion)
+	log.Debugf("Using CLI version %s.", cliVersion)
 
 	runShell()
 
-	dscuss.Logf(dscuss.DEBUG, "Stopping Dscuss...")
+	log.Debug("Stopping Dscuss...")
 	dscuss.Uninit()
 	fmt.Println("Dscuss stopped.")
 }

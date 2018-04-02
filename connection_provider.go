@@ -27,6 +27,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"vminko.org/dscuss/log"
 )
 
 const (
@@ -111,7 +112,7 @@ func newConnectionProvider(
 			)
 			err := readAddresses(addrFilePath, cp.outAddrs)
 			if err != nil {
-				Logf(WARNING, "Can't read node addresses from file %s", addrFilePath)
+				log.Warningf("Can't read node addresses from file %s", addrFilePath)
 			}
 		/* TBD:
 		case "dht":
@@ -131,7 +132,7 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 func readAddresses(path string, outAddrs *addressMap) error {
 	file, err := os.Open(path)
 	if err != nil {
-		Logf(ERROR, "Can't open file %s: %v", path, err)
+		log.Errorf("Can't open file %s: %v", path, err)
 		return ErrFilesystem
 	}
 	defer file.Close()
@@ -142,28 +143,28 @@ func readAddresses(path string, outAddrs *addressMap) error {
 		var hostPortRe = regexp.MustCompile(HostPortRegex)
 		var ipPortRe = regexp.MustCompile(IPPortRegex)
 		if !hostPortRe.MatchString(line) && !ipPortRe.MatchString(line) {
-			Logf(WARNING, "'%s' is not a valid peer address, ignoring it.", line)
-			Log(WARNING, "Valid peer address is either host:port or ip:port.")
+			log.Warningf("'%s' is not a valid peer address, ignoring it.", line)
+			log.Warning("Valid peer address is either host:port or ip:port.")
 			continue
 		}
 
 		if _, ok := outAddrs.Load(line); ok {
-			Logf(WARNING, "Duplicated peer address: '%s'!", line)
+			log.Warningf("Duplicated peer address: '%s'!", line)
 			continue
 		}
-		Logf(DEBUG, "Found peer address %s", line)
+		log.Debugf("Found peer address %s", line)
 		outAddrs.Store(line, false)
 	}
 
 	if err := scanner.Err(); err != nil {
-		Logf(ERROR, "Error scanning file %s: %v", path, err)
+		log.Errorf("Error scanning file %s: %v", path, err)
 		return ErrFilesystem
 	}
 	return nil
 }
 
 func (cp *connectionProvider) start() {
-	Logf(DEBUG, "Starting connectionProvider")
+	log.Debugf("Starting connectionProvider")
 	cp.wg.Add(3)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
@@ -171,14 +172,14 @@ func (cp *connectionProvider) start() {
 }
 
 func (cp *connectionProvider) stop() {
-	Logf(DEBUG, "Stopping connectionProvider")
+	log.Debugf("Stopping connectionProvider")
 	close(cp.stopChan)
 	if cp.listener != nil {
 		cp.listener.Close()
 	}
 	cp.wg.Wait()
 	close(cp.outChan)
-	Logf(DEBUG, "connectionProvider stopped")
+	log.Debugf("connectionProvider stopped")
 }
 
 func (cp *connectionProvider) newConnChan() chan *connection {
@@ -190,32 +191,32 @@ func (cp *connectionProvider) listenIncomingConnections() {
 	defer cp.wg.Done()
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", cp.hostport)
 	if err != nil {
-		Logf(FATAL, "Can't resolve %s: %v", cp.hostport, err)
+		log.Fatalf("Can't resolve %s: %v", cp.hostport, err)
 	}
 	cp.listener, err = net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		Logf(FATAL, "Can't start listening on %s: %v", cp.hostport, err)
+		log.Fatalf("Can't start listening on %s: %v", cp.hostport, err)
 	}
 	for {
-		Logf(DEBUG, "Listening incoming connections on %s.", cp.hostport)
+		log.Debugf("Listening incoming connections on %s.", cp.hostport)
 		select {
 		case <-cp.stopChan:
-			Log(DEBUG, "Stop requested")
+			log.Debug("Stop requested")
 			return
 		default:
 		}
 		if atomic.LoadUint32(&cp.inConnCount) >= maxInConnCount {
-			Log(DEBUG, "Reached maxInConnCount, skipping Accept()")
+			log.Debug("Reached maxInConnCount, skipping Accept()")
 			time.Sleep(time.Second * time.Duration(ConnectionProviderLatency))
 			continue
 		}
-		Log(DEBUG, "Trying to accept incoming connection...")
+		log.Debug("Trying to accept incoming connection...")
 		conn, err := cp.listener.Accept()
 		if err != nil {
-			Logf(WARNING, "Error accepting connection: %v", err)
+			log.Warningf("Error accepting connection: %v", err)
 			continue
 		}
-		Logf(INFO, "Established new connection with %s", conn.RemoteAddr().String())
+		log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 		atomic.AddUint32(&cp.inConnCount, 1)
 		dconn := newConnection(conn, false)
 		cp.outChan <- dconn
@@ -225,25 +226,25 @@ func (cp *connectionProvider) listenIncomingConnections() {
 func (cp *connectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	var maxOutConnCount = cp.cfg.Network.MaxOutConnCount
 	if isUsed {
-		Logf(DEBUG, "%s is already used, skipping it", addr)
+		log.Debugf("%s is already used, skipping it", addr)
 		return true
 	}
-	Logf(DEBUG, "Trying to connect to %s", addr)
+	log.Debugf("Trying to connect to %s", addr)
 	d := net.Dialer{}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionProviderLatency)
 	defer cancel()
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		Logf(INFO, "Can't establish TCP connection with %s: %v", addr, err)
+		log.Infof("Can't establish TCP connection with %s: %v", addr, err)
 		return true
 	}
-	Logf(INFO, "Established new connection with %s", conn.RemoteAddr().String())
+	log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 	atomic.AddUint32(&cp.outConnCount, 1)
 	cp.outAddrs.Store(addr, true)
 	dconn := newConnection(conn, true)
 	cp.outChan <- dconn
 	if atomic.LoadUint32(&cp.outConnCount) == maxOutConnCount {
-		Log(DEBUG, "Reached maxOutConnCount, breaking dialing loop")
+		log.Debug("Reached maxOutConnCount, breaking dialing loop")
 		return false
 	}
 	return true
@@ -255,17 +256,17 @@ func (cp *connectionProvider) establishOutgoingConnections() {
 	for {
 		select {
 		case <-cp.stopChan:
-			Log(DEBUG, "Stop requested")
+			log.Debug("Stop requested")
 			return
 		default:
 		}
 		if atomic.LoadUint32(&cp.outConnCount) >= maxOutConnCount {
-			Log(DEBUG, "Reached maxOutConnCount, skipping dialing loop")
+			log.Debug("Reached maxOutConnCount, skipping dialing loop")
 		} else {
 			cp.outAddrs.Range(func(addr string, isUsed bool) bool {
 				select {
 				case <-cp.stopChan:
-					Log(DEBUG, "Stop requested")
+					log.Debug("Stop requested")
 					return false
 				default:
 					return cp.tryToConnect(addr, isUsed)
@@ -279,17 +280,17 @@ func (cp *connectionProvider) establishOutgoingConnections() {
 func (cp *connectionProvider) handleClosedConnections() {
 	defer cp.wg.Done()
 	for {
-		Log(DEBUG, "Handling closed connections...")
+		log.Debug("Handling closed connections...")
 		select {
 		case <-cp.stopChan:
-			Log(DEBUG, "Stop requested")
+			log.Debug("Stop requested")
 			return
 		case addr := <-cp.releaseChan:
-			Log(DEBUG, "Releasing address "+addr)
+			log.Debug("Releasing address " + addr)
 			isUsed, ok := cp.outAddrs.Load(addr)
 			if ok {
 				if !isUsed {
-					Logf(ERROR, "Attempt to release unused address %s", addr)
+					log.Errorf("Attempt to release unused address %s", addr)
 				}
 				cp.outAddrs.Store(addr, false)
 				// decrement outConnCount
@@ -299,7 +300,7 @@ func (cp *connectionProvider) handleClosedConnections() {
 				atomic.AddUint32(&cp.inConnCount, ^uint32(0))
 			}
 		default:
-			Log(DEBUG, "Nothing to close...")
+			log.Debug("Nothing to close...")
 			time.Sleep(time.Second * ConnectionProviderLatency)
 			continue
 		}

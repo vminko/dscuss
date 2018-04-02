@@ -19,6 +19,7 @@ package dscuss
 
 import (
 	"sync"
+	"vminko.org/dscuss/log"
 )
 
 // Responsible for accounting peers and managing peer lifecycle.
@@ -47,7 +48,7 @@ func newPeerPool(cfg *config, dir string, loginCtx *loginContext) *peerPool {
 }
 
 func (pp *peerPool) start() {
-	Logf(DEBUG, "Starting peerPool")
+	log.Debugf("Starting peerPool")
 	pp.selfWG.Add(2)
 	go pp.listenNewConnections()
 	go pp.listenClosedPeers()
@@ -55,19 +56,19 @@ func (pp *peerPool) start() {
 }
 
 func (pp *peerPool) stop() {
-	Logf(DEBUG, "Stopping peerPool")
+	log.Debugf("Stopping peerPool")
 	pp.cp.stop()
 	close(pp.stopPeersChan)
 	pp.peerWG.Wait()
 	close(pp.closeChan)
 	pp.selfWG.Wait()
-	Logf(DEBUG, "peerPool stopped")
+	log.Debugf("peerPool stopped")
 }
 
 func (pp *peerPool) listenNewConnections() {
 	defer pp.selfWG.Done()
 	for conn := range pp.cp.newConnChan() {
-		Logf(DEBUG, "New connection appeared")
+		log.Debugf("New connection appeared")
 		pp.peerWG.Add(1)
 		peer := newPeer(conn, pp.closeChan, pp.stopPeersChan, &pp.peerWG)
 		pp.peers = append(pp.peers, peer)

@@ -29,6 +29,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
+	"vminko.org/dscuss/log"
 )
 
 type privateKey ecdsa.PrivateKey
@@ -59,7 +60,7 @@ func newPrivateKey() (*privateKey, error) {
 func parsePrivateKeyFromDER(der []byte) (*privateKey, error) {
 	privkey, err := x509.ParseECPrivateKey(der)
 	if err != nil {
-		Logf(ERROR, "Can't parse private key %v", err)
+		log.Errorf("Can't parse private key %v", err)
 		return nil, ErrParsing
 	}
 	return (*privateKey)(privkey), nil
@@ -69,7 +70,7 @@ func parsePrivateKeyFromDER(der []byte) (*privateKey, error) {
 func parsePrivateKeyFromPEM(encodedKey []byte) (*privateKey, error) {
 	block, encodedKey := pem.Decode(encodedKey)
 	if block.Type != "EC PRIVATE KEY" {
-		Log(ERROR, "Failed to find EC PRIVATE KEY in PEM data")
+		log.Error("Failed to find EC PRIVATE KEY in PEM data")
 		return nil, ErrParsing
 	}
 	return parsePrivateKeyFromDER(block.Bytes)
@@ -79,7 +80,7 @@ func parsePrivateKeyFromPEM(encodedKey []byte) (*privateKey, error) {
 func (key *privateKey) encodeToDER() []byte {
 	der, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
 	if err != nil {
-		Logf(FATAL, "MarshalECPrivateKey failed to encode private key %v", err)
+		log.Fatalf("MarshalECPrivateKey failed to encode private key %v", err)
 	}
 	return der
 }
@@ -100,7 +101,7 @@ func (key *privateKey) public() *PublicKey {
 	cryptoPub := (*ecdsa.PrivateKey)(key).Public()
 	ecdsaPub, ok := (cryptoPub).(*ecdsa.PublicKey)
 	if !ok {
-		Logf(FATAL, "Wrong cryptoPub type: %T", cryptoPub)
+		log.Fatalf("Wrong cryptoPub type: %T", cryptoPub)
 	}
 	pubKey = (*PublicKey)(ecdsaPub)
 	return pubKey
@@ -110,13 +111,13 @@ func (key *privateKey) public() *PublicKey {
 func parsePublicKeyFromDER(encodedKey []byte) (*PublicKey, error) {
 	pub, err := x509.ParsePKIXPublicKey(encodedKey)
 	if err != nil {
-		Logf(WARNING, "Can't parse public key %v", err)
+		log.Warningf("Can't parse public key %v", err)
 		return nil, ErrParsing
 	}
 
 	ecdsaPub, ok := pub.(*ecdsa.PublicKey)
 	if !ok {
-		Log(FATAL, "Data was not an ECDSA public key")
+		log.Fatal("Data was not an ECDSA public key")
 	}
 
 	return (*PublicKey)(ecdsaPub), nil
@@ -126,7 +127,7 @@ func parsePublicKeyFromDER(encodedKey []byte) (*PublicKey, error) {
 func parsePublicKeyFromPEM(encodedKey []byte) (*PublicKey, error) {
 	block, encodedKey := pem.Decode(encodedKey)
 	if block.Type != "EC PUBLIC KEY" {
-		Log(ERROR, "Failed to find EC PUBLIC KEY in PEM data")
+		log.Error("Failed to find EC PUBLIC KEY in PEM data")
 		return nil, ErrParsing
 	}
 	return parsePublicKeyFromDER(block.Bytes)
@@ -136,7 +137,7 @@ func parsePublicKeyFromPEM(encodedKey []byte) (*PublicKey, error) {
 func (key *PublicKey) encodeToDER() []byte {
 	derBytes, err := x509.MarshalPKIXPublicKey((*ecdsa.PublicKey)(key))
 	if err != nil {
-		Logf(FATAL, "MarshalPKIXPublicKey failed to encode public key: : %v", err)
+		log.Fatalf("MarshalPKIXPublicKey failed to encode public key: : %v", err)
 	}
 	return derBytes
 }
@@ -164,7 +165,7 @@ func (key *PublicKey) UnmarshalJSON(b []byte) error {
 	der := make([]byte, base64.RawURLEncoding.DecodedLen(len(trimmed)))
 	_, err := base64.RawURLEncoding.Decode(der, trimmed)
 	if err != nil {
-		Logf(WARNING, "Can't decode base64-encoded pubkey '%s'", trimmed)
+		log.Warningf("Can't decode base64-encoded pubkey '%s'", trimmed)
 		return ErrParsing
 	}
 	res, err := parsePublicKeyFromDER(der)
@@ -180,7 +181,7 @@ func sign(data []byte, privkey *privateKey) (Signature, error) {
 
 	r, s, err := ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(privkey), digest[:])
 	if err != nil {
-		Logf(ERROR, "Can't sign data using private key %s %v", privkey, err)
+		log.Errorf("Can't sign data using private key %s %v", privkey, err)
 		return nil, ErrInternal
 	}
 
@@ -221,7 +222,7 @@ func parseSignature(b64sig []byte) (Signature, error) {
 	sig := make([]byte, base64.RawURLEncoding.DecodedLen(len(b64sig)))
 	_, err := base64.RawURLEncoding.Decode(sig, b64sig)
 	if err != nil {
-		Logf(ERROR, "Can't decode base64-encoded signture %x", b64sig)
+		log.Errorf("Can't decode base64-encoded signture %x", b64sig)
 		return nil, ErrParsing
 	}
 	return sig, nil
