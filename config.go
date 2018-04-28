@@ -28,8 +28,8 @@ import (
 )
 
 type NetworkConfig struct {
-	Address         string
-	Bootstrappers   []string
+	HostPort        string
+	AddressProvider string
 	MaxInConnCount  uint32
 	MaxOutConnCount uint32
 }
@@ -40,8 +40,8 @@ type config struct {
 
 var defaultConfig = config{
 	Network: NetworkConfig{
-		Address:         ":8004",
-		Bootstrappers:   []string{"addrlist"},
+		HostPort:        ":8004",
+		AddressProvider: "addrlist",
 		MaxInConnCount:  10,
 		MaxOutConnCount: 10,
 	},

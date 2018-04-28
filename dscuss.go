@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2017  Vitaly Minko
+Copyright (C) 2017-2018  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,15 +29,27 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+	"vminko.org/dscuss/crypto"
+	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p"
+	"vminko.org/dscuss/sqlite"
 )
 
-type ctxKey string
 type loginContext struct {
-	user   *User
-	gDB    *globalDB
-	signer *Signer
+	user   *entity.User
+	gDB    *sqlite.Database
+	signer *crypto.Signer
 }
+
+/*type LocalUser interface {
+	EntityProvider
+	EntityConsumer
+	Register()
+	Login()
+	Logout()
+	IsLoggedIn()
+}*/
 
 const (
 	Name                   string = "Dscuss"
@@ -47,6 +59,7 @@ const (
 	cfgFileName            string = "config.json"
 	privKeyFileName        string = "privkey.pem"
 	globalDatabaseFileName string = "global.db"
+	addressListFileName    string = "addresses"
 	debug                  bool   = true
 )
 
@@ -55,7 +68,7 @@ var (
 	dir      string
 	cfg      *config
 	loginCtx *loginContext
-	pp       *peerPool
+	pp       *p2p.PeerPool
 )
 
 func Init(initDir string) error {
@@ -138,12 +151,12 @@ func Register(nickname, info string) error {
 		}
 	}
 
-	privKey, err := newPrivateKey()
+	privKey, err := crypto.NewPrivateKey()
 	if err != nil {
 		log.Errorf("Can't generate new private key: %v", err)
 		return ErrInternal
 	}
-	privKeyPEM := privKey.encodeToPEM()
+	privKeyPEM := privKey.EncodeToPEM()
 	privKeyPath := filepath.Join(userDir, privKeyFileName)
 	err = ioutil.WriteFile(privKeyPath, privKeyPEM, 0600)
 	if err != nil {
@@ -151,10 +164,10 @@ func Register(nickname, info string) error {
 		return ErrFilesystem
 	}
 
-	pow := newPowFinder(privKey.public().encodeToDER())
-	log.Info(string(privKey.public().encodeToPEM()))
-	proof := pow.find()
-	user, err := emergeUser(nickname, info, proof, time.Now(), &Signer{privKey})
+	pow := crypto.NewPowFinder(privKey.Public().EncodeToDER())
+	log.Info(string(privKey.Public().EncodeToPEM()))
+	proof := pow.Find()
+	user, err := entity.EmergeUser(nickname, info, proof, time.Now(), crypto.NewSigner(privKey))
 	if err != nil {
 		log.Errorf("Can't create new user %s: %v", nickname, err)
 		return err
@@ -165,17 +178,17 @@ func Register(nickname, info string) error {
 	}
 
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
-	db, err := open(globalDatabasePath)
+	db, err := sqlite.Open(globalDatabasePath)
 	if err != nil {
 		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
 		return ErrDatabase
 	}
-	err = db.putUser(user)
+	err = db.PutUser(user)
 	if err != nil {
 		log.Errorf("Can't add user '%s' to the database: %v", user.Nickname, err)
 		return ErrDatabase
 	}
-	err = db.close()
+	err = db.Close()
 	if err != nil {
 		log.Errorf("Can't close global database: %v", err)
 		return ErrDatabase
@@ -207,20 +220,20 @@ func Login(nickname string) error {
 		return ErrFilesystem
 	}
 
-	privKey, err := parsePrivateKeyFromPEM(privKeyPem)
+	privKey, err := crypto.ParsePrivateKeyFromPEM(privKeyPem)
 	if err != nil {
 		log.Errorf("Error parsing private key from file %s: %v", privKeyPath, err)
 		return err
 	}
 
-	eid := newEntityID(privKey.public().encodeToDER())
+	eid := entity.NewID(privKey.Public().EncodeToDER())
 	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
-	db, err := open(globalDatabasePath)
+	db, err := sqlite.Open(globalDatabasePath)
 	if err != nil {
 		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
 		return ErrDatabase
 	}
-	u, err := db.getUser(&eid)
+	u, err := db.GetUser(&eid)
 	if err != nil {
 		log.Errorf("Can't fetch the user with id '%x' from the database: %v", eid, err)
 		return err
@@ -237,11 +250,32 @@ func Login(nickname string) error {
 	loginCtx = &loginContext{
 		user:   u,
 		gDB:    db,
-		signer: &Signer{privKey},
+		signer: crypto.NewSigner(privKey),
 	}
 
-	pp = newPeerPool(cfg, dir, loginCtx)
-	pp.start()
+	var ap p2p.AddressProvider
+	switch cfg.Network.AddressProvider {
+	case "addrlist":
+		addrFilePath := filepath.Join(
+			dir,
+			addressListFileName,
+		)
+		ap = p2p.NewAddressList(addrFilePath)
+	/* TBD:
+	case "dht":
+		icase "dns":
+	*/
+	default:
+		panic("Unknown address provider " + cfg.Network.AddressProvider)
+	}
+
+	cp := p2p.NewConnectionProvider(
+		ap, cfg.Network.HostPort,
+		cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount,
+	)
+
+	pp = p2p.NewPeerPool(cp)
+	pp.Start()
 
 	return nil
 }
@@ -250,12 +284,12 @@ func Logout() error {
 	if !IsLoggedIn() {
 		return nil
 	}
-	err := loginCtx.gDB.close()
+	err := loginCtx.gDB.Close()
 	if err != nil {
 		log.Errorf("Can't close global database: %v", err)
 		return ErrDatabase
 	}
-	pp.stop()
+	pp.Stop()
 	loginCtx = nil
 	return nil
 }

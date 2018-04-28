@@ -15,57 +15,56 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package p2p
 
 import (
 	"sync"
 	"vminko.org/dscuss/log"
 )
 
-// Responsible for accounting peers and managing peer lifecycle.
-type peerPool struct {
-	cfg             *config
-	loginCtx        *loginContext
-	cp              *connectionProvider
-	closeChan       chan *peer
+// Responsible for managing peers. It creates new peers, accounts peers and
+// manages peer life cycle. But it has nothing to do with Entity transferring.
+type PeerPool struct {
+	//	loginCtx        *loginContext
+	cp              *ConnectionProvider
+	closeChan       chan *Peer
 	stopPeersChan   chan struct{}
 	addrReleaseChan chan string
-	peers           []*peer
+	peers           []*Peer
 	peerWG          sync.WaitGroup
 	selfWG          sync.WaitGroup
 }
 
-func newPeerPool(cfg *config, dir string, loginCtx *loginContext) *peerPool {
+func NewPeerPool(cp *ConnectionProvider) *PeerPool {
 	addrReleaseChan := make(chan string)
-	return &peerPool{
-		cfg:             cfg,
-		loginCtx:        loginCtx,
-		cp:              newConnectionProvider(cfg, dir, loginCtx, addrReleaseChan),
-		closeChan:       make(chan *peer),
+	return &PeerPool{
+		//		loginCtx:        loginCtx,
+		cp:              cp,
+		closeChan:       make(chan *Peer),
 		stopPeersChan:   make(chan struct{}),
 		addrReleaseChan: addrReleaseChan,
 	}
 }
 
-func (pp *peerPool) start() {
-	log.Debugf("Starting peerPool")
+func (pp *PeerPool) Start() {
+	log.Debugf("Starting PeerPool")
 	pp.selfWG.Add(2)
 	go pp.listenNewConnections()
 	go pp.listenClosedPeers()
-	pp.cp.start()
+	pp.cp.Start()
 }
 
-func (pp *peerPool) stop() {
-	log.Debugf("Stopping peerPool")
-	pp.cp.stop()
+func (pp *PeerPool) Stop() {
+	log.Debugf("Stopping PeerPool")
+	pp.cp.Stop()
 	close(pp.stopPeersChan)
 	pp.peerWG.Wait()
 	close(pp.closeChan)
 	pp.selfWG.Wait()
-	log.Debugf("peerPool stopped")
+	log.Debugf("PeerPool stopped")
 }
 
-func (pp *peerPool) listenNewConnections() {
+func (pp *PeerPool) listenNewConnections() {
 	defer pp.selfWG.Done()
 	for conn := range pp.cp.newConnChan() {
 		log.Debugf("New connection appeared")
@@ -75,7 +74,7 @@ func (pp *peerPool) listenNewConnections() {
 	}
 }
 
-func (pp *peerPool) listenClosedPeers() {
+func (pp *PeerPool) listenClosedPeers() {
 	defer pp.selfWG.Done()
 	for cpeer := range pp.closeChan {
 		for _, addr := range cpeer.conn.associatedAddresses {

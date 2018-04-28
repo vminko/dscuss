@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package p2p
 
 import (
 	"sync"
@@ -25,15 +25,15 @@ import (
 
 // peer is responsible for communication with other nodes.
 // Implements the Dscuss protocol.
-type peer struct {
-	conn      *connection
-	closeChan chan *peer
+type Peer struct {
+	conn      *Connection
+	closeChan chan *Peer
 	stopChan  chan struct{}
 	wg        *sync.WaitGroup
 }
 
-func newPeer(conn *connection, closeChan chan *peer, stopChan chan struct{}, wg *sync.WaitGroup) *peer {
-	p := &peer{
+func newPeer(conn *Connection, closeChan chan *Peer, stopChan chan struct{}, wg *sync.WaitGroup) *Peer {
+	p := &Peer{
 		conn:      conn,
 		closeChan: closeChan,
 		stopChan:  stopChan,
@@ -43,8 +43,8 @@ func newPeer(conn *connection, closeChan chan *peer, stopChan chan struct{}, wg 
 	return p
 }
 
-func (p *peer) run() {
-	defer p.conn.close()
+func (p *Peer) run() {
+	defer p.conn.Close()
 	defer p.wg.Done()
 	pulser := time.NewTicker(time.Second * 3)
 	defer pulser.Stop()

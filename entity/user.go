@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2017  Vitaly Minko
+Copyright (C) 2017-2018  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -15,40 +15,40 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package entity
 
 import (
 	"encoding/json"
 	"time"
+	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/log"
 )
 
-// User is an UnsignedUser with a signature. It also identifies and describes a
-// user. But in contrast to UnsignedUser, it's suitable for sending to the
-// network.
-// Implements Entity interface.
+// User is an UnsignedUser with a signature. Like UnsignedUser, it also
+// identifies and describes a user. But in contrast to UnsignedUser, it's
+// suitable for sending to the network.
 type User struct {
 	UnsignedUser
-	Sig Signature
+	Sig crypto.Signature
 }
 
 // emergeUser creates a new user entity. It should only be called when
 // signature is not known yet.  Signature will be created using the provided
 // signer.
-func emergeUser(
+func EmergeUser(
 	nickname string,
 	info string,
-	proof ProofOfWork,
+	proof crypto.ProofOfWork,
 	regdate time.Time,
-	signer *Signer,
+	signer *crypto.Signer,
 ) (*User, error) {
-	uu := newUnsignedUser(nickname, info, signer.public(), proof, regdate)
+	uu := newUnsignedUser(nickname, info, signer.Public(), proof, regdate)
 	juser, err := json.Marshal(uu)
 	if err != nil {
 		log.Error("Can't marshal UnsignedUser: " + err.Error())
 		return nil, ErrInternal
 	}
-	sig, err := signer.sign(juser)
+	sig, err := signer.Sign(juser)
 	if err != nil {
 		log.Error("Can't sign JSON-encoded user: " + err.Error())
 		return nil, ErrInternal
@@ -57,13 +57,13 @@ func emergeUser(
 	return &User{UnsignedUser: *uu, Sig: sig}, nil
 }
 
-func newUser(
+func NewUser(
 	nickname string,
 	info string,
-	pubkey *PublicKey,
-	proof ProofOfWork,
+	pubkey *crypto.PublicKey,
+	proof crypto.ProofOfWork,
 	regdate time.Time,
-	sig Signature,
+	sig crypto.Signature,
 ) *User {
 	uu := newUnsignedUser(nickname, info, pubkey, proof, regdate)
 	return &User{UnsignedUser: *uu, Sig: sig}
@@ -76,4 +76,40 @@ func (u *User) String() string {
 		return "[Failed to marshal the user]"
 	}
 	return string(userStr)
+}
+
+// UnsignedUser identifies and describes a user. UnsignedUser has to be signed
+// (converted to the User) before sending to the network.
+// Implements Entity interface.
+type UnsignedUser struct {
+	Entity
+	PubKey   crypto.PublicKey
+	Proof    crypto.ProofOfWork
+	Nickname string
+	Info     string
+	RegDate  time.Time
+}
+
+func newUnsignedUser(
+	nickname string,
+	info string,
+	pubkey *crypto.PublicKey,
+	proof crypto.ProofOfWork,
+	regdate time.Time,
+) *UnsignedUser {
+	return &UnsignedUser{
+		Entity: Entity{
+			Type: TypeUser,
+			ID:   NewID(pubkey.EncodeToDER()),
+		},
+		PubKey:   *pubkey,
+		Proof:    proof,
+		Nickname: nickname,
+		Info:     info,
+		RegDate:  regdate,
+	}
+}
+
+func (u *UnsignedUser) Description() string {
+	return u.Nickname
 }

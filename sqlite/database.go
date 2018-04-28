@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2017  Vitaly Minko
+Copyright (C) 2017-2018  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -15,23 +15,34 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package sqlite
 
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
+	"vminko.org/dscuss/crypto"
+	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
 )
 
-// globalDB stores global network data.
-type globalDB sql.DB
+/*
+type StorageService interface {
+	Service
+	EntityStorage
+	EntityProvider
+	EntityConsumer
+}
+*/
 
-func open(fileName string) (*globalDB, error) {
+// Database stores Entities. Implements EntityStorage interface.
+type Database sql.DB
+
+func Open(fileName string) (*Database, error) {
 	db, err := sql.Open("sqlite3", fileName)
 	if err != nil {
 		log.Errorf("Unable to open SQLite connection: %s", err.Error())
-		return nil, ErrDatabase
+		return nil, ErrOpening
 	}
 
 	var execErr error
@@ -93,23 +104,23 @@ func open(fileName string) (*globalDB, error) {
 	// TBD: create indexes?
 	if execErr != nil {
 		log.Errorf("Unable to initialize the database: %s", execErr.Error())
-		return nil, ErrDatabase
+		return nil, ErrOperation
 	}
 
-	return (*globalDB)(db), nil
+	return (*Database)(db), nil
 }
 
-func (gdb *globalDB) close() error {
-	db := (*sql.DB)(gdb)
+func (d *Database) Close() error {
+	db := (*sql.DB)(d)
 	err := db.Close()
 	if err != nil {
 		log.Errorf("Unable to close the database: %v", err)
-		return ErrDatabase
+		return ErrOperation
 	}
 	return nil
 }
 
-func (gdb *globalDB) putUser(user *User) error {
+func (d *Database) PutUser(user *entity.User) error {
 	log.Debugf("Adding user `%s' to the database.", user.Nickname)
 
 	query := `
@@ -123,13 +134,13 @@ func (gdb *globalDB) putUser(user *User) error {
 	  Signature )
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	db := (*sql.DB)(gdb)
+	db := (*sql.DB)(d)
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Fatalf("Error preparing 'putUser' statement: %v", err)
 	}
 
-	pkpem := user.PubKey.encodeToDER()
+	pkpem := user.PubKey.EncodeToDER()
 	_, err = stmt.Exec(
 		user.ID[:],
 		pkpem,
@@ -137,22 +148,22 @@ func (gdb *globalDB) putUser(user *User) error {
 		user.Nickname,
 		user.Info,
 		user.RegDate,
-		user.Sig.encode(),
+		user.Sig.Encode(),
 	)
 	if err != nil {
 		log.Errorf("Can't execute 'putUser' statement: %s", err.Error())
-		return ErrDatabase
+		return ErrOperation
 	}
 
 	return nil
 }
 
-func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
+func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 	log.Debugf("Fetching user with id '%x' from the database.", eid)
 
 	var nickname string
 	var info string
-	var proof ProofOfWork
+	var proof crypto.ProofOfWork
 	var regdate time.Time
 	var encodedSig []byte
 	var encodedKey []byte
@@ -166,7 +177,7 @@ func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
 	FROM User WHERE Id=?
 	`
 
-	db := (*sql.DB)(gdb)
+	db := (*sql.DB)(d)
 	err := db.QueryRow(query, eid[:]).Scan(
 		&encodedKey,
 		&proof,
@@ -180,22 +191,22 @@ func (gdb *globalDB) getUser(eid *EntityID) (*User, error) {
 		return nil, ErrNoSuchEntity
 	case err != nil:
 		log.Errorf("Error fetching user from the database: %v", err)
-		return nil, ErrDatabase
+		return nil, ErrOperation
 	default:
 		log.Debug("The user found successfully")
 	}
 
-	sig, err := parseSignature(encodedSig)
+	sig, err := crypto.ParseSignature(encodedSig)
 	if err != nil {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
 		return nil, ErrParsing
 	}
-	pubkey, err := parsePublicKeyFromDER(encodedKey)
+	pubkey, err := crypto.ParsePublicKeyFromDER(encodedKey)
 	if err != nil {
 		log.Errorf("Can't parse public key fetched from DB: %v", err)
 		return nil, ErrParsing
 	}
 
-	u := newUser(nickname, info, pubkey, proof, regdate, sig)
+	u := entity.NewUser(nickname, info, pubkey, proof, regdate, sig)
 	return u, nil
 }

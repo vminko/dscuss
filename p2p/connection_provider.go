@@ -15,15 +15,11 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package p2p
 
 import (
-	"bufio"
 	"context"
 	"net"
-	"os"
-	"path/filepath"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,9 +28,6 @@ import (
 
 const (
 	ConnectionProviderLatency time.Duration = 1 // in seconds
-	AddressListFileName       string        = "addresses"
-	HostPortRegex             string        = "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9]):\\d+$"
-	IPPortRegex               string        = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\\d+$"
 	DefaultBootstrapAddress   string        = "vminko.org:8004"
 )
 
@@ -53,7 +46,10 @@ func (a *addressMap) Load(key string) (bool, bool) {
 func (a *addressMap) Store(key string, value bool) {
 	a.mx.Lock()
 	defer a.mx.Unlock()
-	a.m[key] = value
+	_, ok := a.m[key]
+	if !ok {
+		a.m[key] = value
+	}
 }
 
 func (a *addressMap) Range(f func(key string, value bool) bool) {
@@ -71,57 +67,40 @@ func (a *addressMap) Range(f func(key string, value bool) bool) {
 }
 
 // Responsible for establishing connections with other peers.
-type connectionProvider struct {
-	cfg          *config
-	loginCtx     *loginContext
-	hostport     string
-	listener     *net.TCPListener
-	wg           sync.WaitGroup
-	stopChan     chan struct{}
-	outChan      chan *connection
-	releaseChan  chan string
-	outAddrs     *addressMap
-	inConnCount  uint32
-	outConnCount uint32
+type ConnectionProvider struct {
+	hostport        string
+	listener        *net.TCPListener
+	wg              sync.WaitGroup
+	stopChan        chan struct{}
+	outChan         chan *Connection
+	releaseChan     chan string
+	ap              AddressProvider
+	outAddrs        *addressMap
+	maxInConnCount  uint32
+	maxOutConnCount uint32
+	inConnCount     uint32
+	outConnCount    uint32
 }
 
-func newConnectionProvider(
-	cfg *config,
-	dir string,
-	loginCtx *loginContext,
-	releaseChan chan string,
-) *connectionProvider {
-	cp := &connectionProvider{
-		cfg:          cfg,
-		loginCtx:     loginCtx,
-		hostport:     cfg.Network.Address,
-		outChan:      make(chan *connection),
-		stopChan:     make(chan struct{}),
-		outAddrs:     &addressMap{m: make(map[string]bool)},
-		releaseChan:  releaseChan,
-		inConnCount:  0,
-		outConnCount: 0,
+func NewConnectionProvider(
+	ap AddressProvider,
+	hostport string,
+	maxInConnCount uint32,
+	maxOutConnCount uint32,
+) *ConnectionProvider {
+	cp := &ConnectionProvider{
+		ap:              ap,
+		maxInConnCount:  maxInConnCount,
+		maxOutConnCount: maxOutConnCount,
+		hostport:        hostport,
+		outChan:         make(chan *Connection),
+		stopChan:        make(chan struct{}),
+		outAddrs:        &addressMap{m: make(map[string]bool)},
+		releaseChan:     make(chan string),
+		inConnCount:     0,
+		outConnCount:    0,
 	}
 	setDefaultBootstrapAddresses(cp.outAddrs)
-	for _, bootstp := range cfg.Network.Bootstrappers {
-		switch bootstp {
-		case "addrlist":
-			addrFilePath := filepath.Join(
-				dir,
-				AddressListFileName,
-			)
-			err := readAddresses(addrFilePath, cp.outAddrs)
-			if err != nil {
-				log.Warningf("Can't read node addresses from file %s", addrFilePath)
-			}
-		/* TBD:
-		case "dht":
-			icase "dns":
-		*/
-		default:
-			panic("Unknown bootstrapper type " + bootstp)
-		}
-	}
 	return cp
 }
 
@@ -129,65 +108,41 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 	outAddrs.Store(DefaultBootstrapAddress, false)
 }
 
-func readAddresses(path string, outAddrs *addressMap) error {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Errorf("Can't open file %s: %v", path, err)
-		return ErrFilesystem
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		var hostPortRe = regexp.MustCompile(HostPortRegex)
-		var ipPortRe = regexp.MustCompile(IPPortRegex)
-		if !hostPortRe.MatchString(line) && !ipPortRe.MatchString(line) {
-			log.Warningf("'%s' is not a valid peer address, ignoring it.", line)
-			log.Warning("Valid peer address is either host:port or ip:port.")
-			continue
-		}
-
-		if _, ok := outAddrs.Load(line); ok {
-			log.Warningf("Duplicated peer address: '%s'!", line)
-			continue
-		}
-		log.Debugf("Found peer address %s", line)
-		outAddrs.Store(line, false)
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Errorf("Error scanning file %s: %v", path, err)
-		return ErrFilesystem
-	}
-	return nil
-}
-
-func (cp *connectionProvider) start() {
-	log.Debugf("Starting connectionProvider")
+func (cp *ConnectionProvider) Start() {
+	log.Debugf("Starting ConnectionProvider")
+	cp.ap.RegisterAddressConsumer(cp)
 	cp.wg.Add(3)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
 	go cp.handleClosedConnections()
+	cp.ap.Start()
 }
 
-func (cp *connectionProvider) stop() {
-	log.Debugf("Stopping connectionProvider")
+func (cp *ConnectionProvider) Stop() {
+	log.Debugf("Stopping ConnectionProvider")
+	cp.ap.Stop()
 	close(cp.stopChan)
 	if cp.listener != nil {
 		cp.listener.Close()
 	}
 	cp.wg.Wait()
 	close(cp.outChan)
-	log.Debugf("connectionProvider stopped")
+	log.Debugf("ConnectionProvider stopped")
 }
 
-func (cp *connectionProvider) newConnChan() chan *connection {
+func (cp *ConnectionProvider) newConnChan() chan *Connection {
 	return cp.outChan
 }
 
-func (cp *connectionProvider) listenIncomingConnections() {
-	var maxInConnCount = cp.cfg.Network.MaxInConnCount
+func (cp *ConnectionProvider) AddressFound(a string) {
+	cp.outAddrs.Store(a, false)
+}
+
+func (cp *ConnectionProvider) ErrorFindingAddresses(err error) {
+	log.Fatalf("AddressProvider failure: %v", err)
+}
+
+func (cp *ConnectionProvider) listenIncomingConnections() {
 	defer cp.wg.Done()
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", cp.hostport)
 	if err != nil {
@@ -205,7 +160,7 @@ func (cp *connectionProvider) listenIncomingConnections() {
 			return
 		default:
 		}
-		if atomic.LoadUint32(&cp.inConnCount) >= maxInConnCount {
+		if atomic.LoadUint32(&cp.inConnCount) >= cp.maxInConnCount {
 			log.Debug("Reached maxInConnCount, skipping Accept()")
 			time.Sleep(time.Second * time.Duration(ConnectionProviderLatency))
 			continue
@@ -218,13 +173,13 @@ func (cp *connectionProvider) listenIncomingConnections() {
 		}
 		log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 		atomic.AddUint32(&cp.inConnCount, 1)
-		dconn := newConnection(conn, false)
+		dconn := NewConnection(conn, false)
+		dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 		cp.outChan <- dconn
 	}
 }
 
-func (cp *connectionProvider) tryToConnect(addr string, isUsed bool) bool {
-	var maxOutConnCount = cp.cfg.Network.MaxOutConnCount
+func (cp *ConnectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	if isUsed {
 		log.Debugf("%s is already used, skipping it", addr)
 		return true
@@ -241,17 +196,16 @@ func (cp *connectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 	atomic.AddUint32(&cp.outConnCount, 1)
 	cp.outAddrs.Store(addr, true)
-	dconn := newConnection(conn, true)
+	dconn := NewConnection(conn, true)
 	cp.outChan <- dconn
-	if atomic.LoadUint32(&cp.outConnCount) == maxOutConnCount {
+	if atomic.LoadUint32(&cp.outConnCount) == cp.maxOutConnCount {
 		log.Debug("Reached maxOutConnCount, breaking dialing loop")
 		return false
 	}
 	return true
 }
 
-func (cp *connectionProvider) establishOutgoingConnections() {
-	var maxOutConnCount = cp.cfg.Network.MaxOutConnCount
+func (cp *ConnectionProvider) establishOutgoingConnections() {
 	defer cp.wg.Done()
 	for {
 		select {
@@ -260,7 +214,7 @@ func (cp *connectionProvider) establishOutgoingConnections() {
 			return
 		default:
 		}
-		if atomic.LoadUint32(&cp.outConnCount) >= maxOutConnCount {
+		if atomic.LoadUint32(&cp.outConnCount) >= cp.maxOutConnCount {
 			log.Debug("Reached maxOutConnCount, skipping dialing loop")
 		} else {
 			cp.outAddrs.Range(func(addr string, isUsed bool) bool {
@@ -277,7 +231,15 @@ func (cp *connectionProvider) establishOutgoingConnections() {
 	}
 }
 
-func (cp *connectionProvider) handleClosedConnections() {
+func (cp *ConnectionProvider) createCloseConnHandler() func(*Connection) {
+	return func(conn *Connection) {
+		for _, addr := range conn.AssociatedAddresses() {
+			cp.releaseChan <- addr
+		}
+	}
+}
+
+func (cp *ConnectionProvider) handleClosedConnections() {
 	defer cp.wg.Done()
 	for {
 		log.Debug("Handling closed connections...")

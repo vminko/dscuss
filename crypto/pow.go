@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package crypto
 
 import (
 	"bytes"
@@ -37,18 +37,18 @@ const (
 
 type ProofOfWork uint64
 
-// powFinder implements proof-of-work algorithm (also known as Hashcash).
+// PowFinder implements proof-of-work algorithm (also known as Hashcash).
 // Proof-of-work is used in Dscuss to protect against Sybil attack.
-type powFinder struct {
+type PowFinder struct {
 	data    []byte
 	target  *big.Int
 	counter uint64
 }
 
-func newPowFinder(data []byte) *powFinder {
+func NewPowFinder(data []byte) *PowFinder {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(powKeyLenBytes*8-powTargetBits))
-	pf := &powFinder{data, target, 0}
+	pf := &PowFinder{data, target, 0}
 	return pf
 }
 
@@ -56,12 +56,12 @@ func newPowFinder(data []byte) *powFinder {
 // The higher value you set, the harder it will be to find PoW.
 // The maximum value of TargetBitNum is powKeyLenBytes*8.
 // Should only be used for benchmarking.
-func (pf *powFinder) setComplexity(targetBitNum int) {
+func (pf *PowFinder) setComplexity(targetBitNum int) {
 	pf.target = big.NewInt(1)
 	pf.target.Lsh(pf.target, uint(powKeyLenBytes*8-targetBitNum))
 }
 
-func (pf *powFinder) worker(
+func (pf *PowFinder) worker(
 	workerID int,
 	resultChan chan uint64,
 	stopChan chan struct{},
@@ -75,7 +75,7 @@ func (pf *powFinder) worker(
 			return
 		default:
 			log.Debugf("Worker #%d is trying PoW %d", workerID, nonce)
-			if pf.validate(nonce) {
+			if pf.Validate(nonce) {
 				log.Debugf("Worker #%d has found PoW: \"%d\"", workerID, nonce)
 				resultChan <- nonce
 				return
@@ -85,7 +85,7 @@ func (pf *powFinder) worker(
 	resultChan <- 0
 }
 
-func (pf *powFinder) find() ProofOfWork {
+func (pf *PowFinder) Find() ProofOfWork {
 	log.Debugf("Looking for proof-of-work for %x", pf.data)
 	resultChan := make(chan uint64)
 	stopChan := make(chan struct{})
@@ -107,7 +107,7 @@ func (pf *powFinder) find() ProofOfWork {
 	return ProofOfWork(proof)
 }
 
-func (pf *powFinder) validate(nonce uint64) bool {
+func (pf *PowFinder) Validate(nonce uint64) bool {
 	var keyInt big.Int
 	var key []byte
 	data := pf.prepareData(nonce)
@@ -120,7 +120,7 @@ func (pf *powFinder) validate(nonce uint64) bool {
 	return keyInt.Cmp(pf.target) == -1
 }
 
-func (pf *powFinder) prepareData(nonce uint64) []byte {
+func (pf *PowFinder) prepareData(nonce uint64) []byte {
 	nbuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(nbuf, nonce)
 	data := bytes.Join(

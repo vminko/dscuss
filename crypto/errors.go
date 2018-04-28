@@ -15,27 +15,13 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package dscuss
+package crypto
 
 import (
-	"net"
+	"errors"
 )
 
-// connection is responsible for transferring packets via the network.
-type connection struct {
-	conn                net.Conn
-	associatedAddresses []string
-	isIncoming          bool
-}
-
-func newConnection(conn net.Conn, isIncoming bool) *connection {
-	return &connection{
-		conn:                conn,
-		associatedAddresses: []string{conn.RemoteAddr().String()},
-		isIncoming:          isIncoming,
-	}
-}
-
-func (c *connection) close() {
-	c.conn.Close()
-}
+var (
+	ErrParsing  = errors.New("error parsing input data")
+	ErrInternal = errors.New("internal error")
+)
