@@ -95,20 +95,23 @@ What is done so far:
 * The crypto subsystem.
 * Basics of the storage subsystem.
 * Registration (via proof-of-work).
+* The network subsystem.
+* Bootstrapping (via list of rendezvous nodes).
 
 What is planned for the proof-of-concept version:
 
-* The network subsystem.
-* Bootstrapping (via list of rendezvous nodes).
-* Membership (maintaining connections with other peers).
-* Subscription to categories (by editing a text file).
 * Handshaking.
 * Publishing a message.
 * Listing a category.
+* Subscription to categories (by editing a text file).
 * Threading (replying to messages).
 * Operations on messages and users.
 * Database synchronization with other peers.
-* Bootstrapping (via DHT).
+
+Possible features for future versions:
+
+* Bootstrapping via DHT.
+* Bootstrapping via DNS.
 
 
 Similar projects
