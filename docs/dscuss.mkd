@@ -6,7 +6,7 @@ Copyright:  (c) 2011-2015 Vitaly Minko
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       25 Jan 2018
+Date:       04 May 2018
 Priority:   4
 
 
@@ -72,6 +72,18 @@ the git repository, run the following command:
     git clone git://vminko.org/dscuss
 
 To compile the source code run `make` in the root of the downloaded directory.
+
+
+How to compile
+--------------
+
+If you want to compile executable binary named `dscuss` (library with CLI), run:
+
+        go build -o dscuss cmd/dscuss-cli/main.go
+
+Or use this command if you just want to run Dscuss for one time:
+
+        go run cmd/dscuss-cli/main.go
 
 
 Progress of development
