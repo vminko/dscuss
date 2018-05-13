@@ -167,11 +167,7 @@ func Register(nickname, info string) error {
 	pow := crypto.NewPowFinder(privKey.Public().EncodeToDER())
 	log.Info(string(privKey.Public().EncodeToPEM()))
 	proof := pow.Find()
-	user, err := entity.EmergeUser(nickname, info, proof, time.Now(), crypto.NewSigner(privKey))
-	if err != nil {
-		log.Errorf("Can't create new user %s: %v", nickname, err)
-		return err
-	}
+	user := entity.EmergeUser(nickname, info, proof, time.Now(), crypto.NewSigner(privKey))
 	if debug {
 		log.Debugf("Dumping emerged User %s:", nickname)
 		log.Debug(user.String())

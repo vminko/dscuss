@@ -43,12 +43,12 @@ func ParseSignature(b64sig []byte) (Signature, error) {
 	return sig, nil
 }
 
-// Marshaljson returns the json encoded key.
+// MarshalJSON returns the JSON-encoded key.
 func (sig Signature) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + sig.Encode() + `"`), nil
 }
 
-// Unmarshaljson decodes b and sets result to *sig.
+// UnmarshalJSON decodes b and sets result to *sig.
 func (sig *Signature) UnmarshalJSON(b []byte) error {
 	trimmed := bytes.Trim(b, "\"")
 	res, err := ParseSignature(trimmed)

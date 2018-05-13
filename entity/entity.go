@@ -26,23 +26,10 @@ import (
 type Type int
 type ID [32]byte
 
-const (
-	// User registers, post messages and performs operations.
-	TypeUser Type = iota
-	// Some information published by a user.
-	TypeMessage
-	// An action performed on a user or a message.
-	TypeOperation
-)
-
 // Entity is a logical unit of data for communication between peers.
 type Entity struct {
 	Type Type
 	ID   ID
-}
-
-func (e *Entity) Description() string {
-	return fmt.Sprintf("entity type %d, id [%x]", e.Type, e.ID)
 }
 
 type EntityProvider interface {
@@ -59,6 +46,19 @@ type EntityStorage interface {
 	GetEntity(id ID) (*Entity, error)
 	//GetRootMessages(mi MessageIterator)
 	//GetMessageReplies(id ID, mi MessageIterator)
+}
+
+const (
+	// User registers, post messages and performs operations.
+	TypeUser Type = iota
+	// Some information published by a user.
+	TypeMessage
+	// An action performed on a user or a message.
+	TypeOperation
+)
+
+func (e *Entity) Description() string {
+	return fmt.Sprintf("entity type %d, id [%x]", e.Type, e.ID)
 }
 
 func NewID(data []byte) ID {

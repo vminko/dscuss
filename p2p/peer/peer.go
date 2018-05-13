@@ -15,26 +15,33 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package p2p
+package peer
 
 import (
 	"sync"
 	"time"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p/connection"
 )
 
 // peer is responsible for communication with other nodes.
 // Implements the Dscuss protocol.
 type Peer struct {
-	conn      *Connection
+	Conn      *connection.Connection
 	closeChan chan *Peer
 	stopChan  chan struct{}
 	wg        *sync.WaitGroup
+	state     State
 }
 
-func newPeer(conn *Connection, closeChan chan *Peer, stopChan chan struct{}, wg *sync.WaitGroup) *Peer {
+func New(
+	conn *connection.Connection,
+	closeChan chan *Peer,
+	stopChan chan struct{},
+	wg *sync.WaitGroup,
+) *Peer {
 	p := &Peer{
-		conn:      conn,
+		Conn:      conn,
 		closeChan: closeChan,
 		stopChan:  stopChan,
 		wg:        wg,
@@ -44,7 +51,7 @@ func newPeer(conn *Connection, closeChan chan *Peer, stopChan chan struct{}, wg 
 }
 
 func (p *Peer) run() {
-	defer p.conn.Close()
+	defer p.Conn.Close()
 	defer p.wg.Done()
 	pulser := time.NewTicker(time.Second * 3)
 	defer pulser.Stop()

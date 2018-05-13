@@ -20,6 +20,7 @@ package p2p
 import (
 	"sync"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p/peer"
 )
 
 // Responsible for managing peers. It creates new peers, accounts peers and
@@ -27,10 +28,10 @@ import (
 type PeerPool struct {
 	//	loginCtx        *loginContext
 	cp              *ConnectionProvider
-	closeChan       chan *Peer
+	closeChan       chan *peer.Peer
 	stopPeersChan   chan struct{}
 	addrReleaseChan chan string
-	peers           []*Peer
+	peers           []*peer.Peer
 	peerWG          sync.WaitGroup
 	selfWG          sync.WaitGroup
 }
@@ -40,7 +41,7 @@ func NewPeerPool(cp *ConnectionProvider) *PeerPool {
 	return &PeerPool{
 		//		loginCtx:        loginCtx,
 		cp:              cp,
-		closeChan:       make(chan *Peer),
+		closeChan:       make(chan *peer.Peer),
 		stopPeersChan:   make(chan struct{}),
 		addrReleaseChan: addrReleaseChan,
 	}
@@ -69,7 +70,7 @@ func (pp *PeerPool) listenNewConnections() {
 	for conn := range pp.cp.newConnChan() {
 		log.Debugf("New connection appeared")
 		pp.peerWG.Add(1)
-		peer := newPeer(conn, pp.closeChan, pp.stopPeersChan, &pp.peerWG)
+		peer := peer.New(conn, pp.closeChan, pp.stopPeersChan, &pp.peerWG)
 		pp.peers = append(pp.peers, peer)
 	}
 }
@@ -77,7 +78,7 @@ func (pp *PeerPool) listenNewConnections() {
 func (pp *PeerPool) listenClosedPeers() {
 	defer pp.selfWG.Done()
 	for cpeer := range pp.closeChan {
-		for _, addr := range cpeer.conn.associatedAddresses {
+		for _, addr := range cpeer.Conn.AssociatedAddresses() {
 			pp.addrReleaseChan <- addr
 		}
 	}

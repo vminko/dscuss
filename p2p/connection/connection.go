@@ -15,14 +15,20 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package p2p
+package connection
 
 import (
 	"net"
+	"time"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/packet"
 )
 
-// connection is responsible for transferring packets via the network.
+const (
+	Timeout time.Duration = 1 * time.Second
+)
+
+// Connection is responsible for transferring packets via the network.
 type Connection struct {
 	conn                net.Conn
 	associatedAddresses []string
@@ -30,12 +36,28 @@ type Connection struct {
 	closeHandler        func(*Connection)
 }
 
-func NewConnection(conn net.Conn, isIncoming bool) *Connection {
+func New(conn net.Conn, isIncoming bool) *Connection {
 	return &Connection{
 		conn:                conn,
 		associatedAddresses: []string{conn.RemoteAddr().String()},
 		isIncoming:          isIncoming,
 	}
+}
+
+/*
+func (c *Connection) Read() (p *packet.Packet, err error) {
+
+}
+*/
+
+func (c *Connection) Write(p *packet.Packet) error {
+	jp, err := p.MarshalJSON()
+	if err != nil {
+		log.Fatal("Can't marshal Packet: " + err.Error())
+	}
+	c.conn.SetDeadline(time.Now().Add(Timeout))
+	_, err = c.conn.Write(jp)
+	return err
 }
 
 func (c *Connection) AssociatedAddresses() []string {
@@ -49,7 +71,13 @@ func (c *Connection) RegisterCloseHandler(f func(*Connection)) {
 	c.closeHandler = f
 }
 
+func (c *Connection) IsIncoming() bool {
+	return c.isIncoming
+}
+
 func (c *Connection) Close() {
 	c.conn.Close()
-	c.closeHandler(c)
+	if c.closeHandler != nil {
+		c.closeHandler(c)
+	}
 }

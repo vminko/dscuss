@@ -28,26 +28,6 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-/*
--       "bytes"
--       "crypto/ecdsa"
--       "crypto/elliptic"
--       "crypto/rand"
--       "crypto/sha256"
--       "crypto/x509"
--       "encoding/base64"
--       "encoding/pem"
--       "math/big"
--       "vminko.org/dscuss/log
-type PublicKey interface {
-	EncodeToDER() []byte
-	EncodeToPEM() []byte
-	MarshalJSON() ([]byte, error)
-	UnmarshalJSON([]byte) error
-}
-
-*/
-
 type PublicKey ecdsa.PublicKey
 
 // Some parts copied from github.com/gtank/cryptopasta/.

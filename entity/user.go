@@ -41,20 +41,18 @@ func EmergeUser(
 	proof crypto.ProofOfWork,
 	regdate time.Time,
 	signer *crypto.Signer,
-) (*User, error) {
+) *User {
 	uu := newUnsignedUser(nickname, info, signer.Public(), proof, regdate)
 	juser, err := json.Marshal(uu)
 	if err != nil {
-		log.Error("Can't marshal UnsignedUser: " + err.Error())
-		return nil, ErrInternal
+		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
 	sig, err := signer.Sign(juser)
 	if err != nil {
-		log.Error("Can't sign JSON-encoded user: " + err.Error())
-		return nil, ErrInternal
+		log.Fatal("Can't sign JSON-encoded user: " + err.Error())
 	}
 
-	return &User{UnsignedUser: *uu, Sig: sig}, nil
+	return &User{UnsignedUser: *uu, Sig: sig}
 }
 
 func NewUser(

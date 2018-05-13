@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p/connection"
 )
 
 const (
@@ -72,7 +73,7 @@ type ConnectionProvider struct {
 	listener        *net.TCPListener
 	wg              sync.WaitGroup
 	stopChan        chan struct{}
-	outChan         chan *Connection
+	outChan         chan *connection.Connection
 	releaseChan     chan string
 	ap              AddressProvider
 	outAddrs        *addressMap
@@ -93,7 +94,7 @@ func NewConnectionProvider(
 		maxInConnCount:  maxInConnCount,
 		maxOutConnCount: maxOutConnCount,
 		hostport:        hostport,
-		outChan:         make(chan *Connection),
+		outChan:         make(chan *connection.Connection),
 		stopChan:        make(chan struct{}),
 		outAddrs:        &addressMap{m: make(map[string]bool)},
 		releaseChan:     make(chan string),
@@ -130,7 +131,7 @@ func (cp *ConnectionProvider) Stop() {
 	log.Debugf("ConnectionProvider stopped")
 }
 
-func (cp *ConnectionProvider) newConnChan() chan *Connection {
+func (cp *ConnectionProvider) newConnChan() chan *connection.Connection {
 	return cp.outChan
 }
 
@@ -173,7 +174,7 @@ func (cp *ConnectionProvider) listenIncomingConnections() {
 		}
 		log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 		atomic.AddUint32(&cp.inConnCount, 1)
-		dconn := NewConnection(conn, false)
+		dconn := connection.New(conn, false)
 		dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 		cp.outChan <- dconn
 	}
@@ -196,7 +197,8 @@ func (cp *ConnectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 	atomic.AddUint32(&cp.outConnCount, 1)
 	cp.outAddrs.Store(addr, true)
-	dconn := NewConnection(conn, true)
+	dconn := connection.New(conn, true)
+	dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 	cp.outChan <- dconn
 	if atomic.LoadUint32(&cp.outConnCount) == cp.maxOutConnCount {
 		log.Debug("Reached maxOutConnCount, breaking dialing loop")
@@ -231,8 +233,8 @@ func (cp *ConnectionProvider) establishOutgoingConnections() {
 	}
 }
 
-func (cp *ConnectionProvider) createCloseConnHandler() func(*Connection) {
-	return func(conn *Connection) {
+func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connection) {
+	return func(conn *connection.Connection) {
 		for _, addr := range conn.AssociatedAddresses() {
 			cp.releaseChan <- addr
 		}
