@@ -69,18 +69,6 @@ func NewPacket(t Type, p interface{}, s *crypto.Signer) *Packet {
 	return &Packet{Body: *b, Sig: sig}
 }
 
-func (p Packet) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p)
-}
-
-/*func (p *Packet) UnmarshalJSON(b []byte) error {
-	var res Packet
-	if err := json.Unmarshal(b, &res); err != nil {
-		log.Warning("Error decoding JSON-encoded packet: " + err.Error())
-		return err
-	}
-}*/
-
 func (p *Packet) DecodePayload() (interface{}, error) {
 	var pld interface{}
 	switch p.Body.Type {

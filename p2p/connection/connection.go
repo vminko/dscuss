@@ -18,6 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package connection
 
 import (
+	"encoding/json"
 	"net"
 	"time"
 	"vminko.org/dscuss/log"
@@ -44,20 +45,21 @@ func New(conn net.Conn, isIncoming bool) *Connection {
 	}
 }
 
-/*
-func (c *Connection) Read() (p *packet.Packet, err error) {
-
+func (c *Connection) Read() (*packet.Packet, error) {
+	c.conn.SetDeadline(time.Now().Add(Timeout))
+	d := json.NewDecoder(c.conn)
+	var p packet.Packet
+	err := d.Decode(&p)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
-*/
 
 func (c *Connection) Write(p *packet.Packet) error {
-	jp, err := p.MarshalJSON()
-	if err != nil {
-		log.Fatal("Can't marshal Packet: " + err.Error())
-	}
 	c.conn.SetDeadline(time.Now().Add(Timeout))
-	_, err = c.conn.Write(jp)
-	return err
+	e := json.NewEncoder(c.conn)
+	return e.Encode(p)
 }
 
 func (c *Connection) AssociatedAddresses() []string {
