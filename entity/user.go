@@ -18,7 +18,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package entity
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"time"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/log"
@@ -76,6 +78,20 @@ func (u *User) String() string {
 	return string(userStr)
 }
 
+func (u *User) Nickname() string {
+	return u.UnsignedUser.Nickname
+}
+
+func (u *User) ShortID() string {
+	hexID := hex.EncodeToString(u.UnsignedUser.Entity.ID[:])
+	return hexID[:8]
+}
+
+func (u *User) Desc() string {
+	// TBD: add subscriptions?
+	return fmt.Sprintf("(%s)", u.UnsignedUser.Nickname)
+}
+
 // UnsignedUser identifies and describes a user. UnsignedUser has to be signed
 // (converted to the User) before sending to the network.
 // Implements Entity interface.
@@ -106,8 +122,4 @@ func newUnsignedUser(
 		Info:     info,
 		RegDate:  regdate,
 	}
-}
-
-func (u *UnsignedUser) Description() string {
-	return u.Nickname
 }

@@ -21,14 +21,11 @@ import (
 	"vminko.org/dscuss/entity"
 )
 
-/**
- * Hello packet is used for handshaking.
- * When user A sends this packet to user B, he/she:
- * 1. notifies user B about topics of A's interests;
- * 2. proves that the user A actually has the A's private key;
- *
- * timestamp and id protects from replay attack.
- */
+// PayloadHello is used for handshaking.
+// When user A sends this packet to user B, he/she:
+// 1. notifies user B about topics of A's interests;
+// 2. proves that the user A actually has the A's private key;
+// Time and ReceiverID protect from replay attack.
 type PayloadHello struct {
 	// Id of the user this payload is designated for.
 	ReceiverID entity.ID `json:"receiver_id"`

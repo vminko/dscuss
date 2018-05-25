@@ -21,17 +21,21 @@ import (
 //"vminko.org/dscuss/packet"
 )
 
-type StateID int
+type StateHandshaking struct{}
 
-const (
-	StateIDHandshaking StateID = iota
-	StateIDIdle
-	StateIDSending
-	StateIDReceiving
-)
+func newStateHandshaking() *StateHandshaking {
+	return new(StateHandshaking)
+}
 
-type State interface {
-	Perform(p *Peer) (nextState State, err error)
-	ID() StateID
-	Name() string
+func (sh *StateHandshaking) Perform(p *Peer) (nextState State, err error) {
+	// TBD
+	return newStateIdle(), nil
+}
+
+func (sh *StateHandshaking) Name() string {
+	return "Handshaking"
+}
+
+func (sh *StateHandshaking) ID() StateID {
+	return StateIDHandshaking
 }

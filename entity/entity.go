@@ -57,8 +57,8 @@ const (
 	TypeOperation
 )
 
-func (e *Entity) Description() string {
-	return fmt.Sprintf("entity type %d, id [%x]", e.Type, e.ID)
+func (e *Entity) Desc() string {
+	return fmt.Sprintf("type %d, id [%x]", e.Type, e.ID)
 }
 
 func NewID(data []byte) ID {

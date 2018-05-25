@@ -18,6 +18,7 @@ package packet
 
 import (
 	"encoding/json"
+	"fmt"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
@@ -94,4 +95,8 @@ func (p *Packet) Verify(pubKey *crypto.PublicKey) bool {
 		log.Fatal("Can't marshal packet body: " + err.Error())
 	}
 	return pubKey.Verify(jbody, p.Sig)
+}
+
+func (p *Packet) Desc() string {
+	return fmt.Sprintf("type  %s", p.Body.Type)
 }

@@ -18,25 +18,28 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
-	"vminko.org/dscuss/packet"
+	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/log"
 )
 
-type HandshakingState struct{}
-
-func (sh *HandshakingState) HandlePacket(p *Peer, pkt *packet.Packet) error {
-	// TBD
-	return nil
+type StateSending struct {
+	outgoingEntity *entity.Entity
 }
 
-func (sh *HandshakingState) Enable(p *Peer) error {
-	// TBD
-	return nil
+func newStateSending(e *entity.Entity) *StateSending {
+	return &StateSending{outgoingEntity: e}
 }
 
-func (sh *HandshakingState) Name() string {
-	return "Handshaking"
+func (ss *StateSending) Perform(p *Peer) (nextState State, err error) {
+	log.Debugf("Peer %s is performing state %s", ss.Name())
+	log.Debugf("State %s is not implemented yet", ss.Name())
+	return newStateIdle(), nil
 }
 
-func (sh *HandshakingState) ID() StateID {
-	return HandshakingStateID
+func (ss *StateSending) Name() string {
+	return "Sending"
+}
+
+func (ss *StateSending) ID() StateID {
+	return StateIDSending
 }

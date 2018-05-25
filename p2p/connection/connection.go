@@ -62,6 +62,10 @@ func (c *Connection) Write(p *packet.Packet) error {
 	return e.Encode(p)
 }
 
+func (c *Connection) RemoteAddress() string {
+	return c.conn.RemoteAddr().String()
+}
+
 func (c *Connection) AssociatedAddresses() []string {
 	return c.associatedAddresses
 }

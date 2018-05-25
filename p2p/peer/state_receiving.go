@@ -18,20 +18,28 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
-//"vminko.org/dscuss/packet"
+	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/packet"
 )
 
-type StateID int
+type StateReceiving struct {
+	pendingPackets []*packet.Packet
+}
 
-const (
-	StateIDHandshaking StateID = iota
-	StateIDIdle
-	StateIDSending
-	StateIDReceiving
-)
+func newStateReceiving(p *packet.Packet) *StateReceiving {
+	return &StateReceiving{[]*packet.Packet{p}}
+}
 
-type State interface {
-	Perform(p *Peer) (nextState State, err error)
-	ID() StateID
-	Name() string
+func (ss *StateReceiving) Perform(p *Peer) (nextState State, err error) {
+	log.Debugf("Peer %s is performing state %s", ss.Name())
+	log.Debugf("State %s is not implemented yet", ss.Name())
+	return newStateIdle(), nil
+}
+
+func (ss *StateReceiving) Name() string {
+	return "Receiving"
+}
+
+func (ss *StateReceiving) ID() StateID {
+	return StateIDReceiving
 }

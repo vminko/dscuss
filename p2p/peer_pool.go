@@ -23,8 +23,9 @@ import (
 	"vminko.org/dscuss/p2p/peer"
 )
 
-// Responsible for managing peers. It creates new peers, accounts peers and
-// manages peer life cycle. But it has nothing to do with Entity transferring.
+// PeerPool is responsible for managing peers. It creates new peers, accounts
+// peers and manages peer life cycle. But it has nothing to do with Entity
+// transferring.
 type PeerPool struct {
 	//	loginCtx        *loginContext
 	cp              *ConnectionProvider
