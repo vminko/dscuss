@@ -23,23 +23,24 @@ import (
 )
 
 type StateReceiving struct {
+	p              *Peer
 	pendingPackets []*packet.Packet
 }
 
-func newStateReceiving(p *packet.Packet) *StateReceiving {
-	return &StateReceiving{[]*packet.Packet{p}}
+func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
+	return &StateReceiving{p, []*packet.Packet{pckt}}
 }
 
-func (ss *StateReceiving) Perform(p *Peer) (nextState State, err error) {
-	log.Debugf("Peer %s is performing state %s", ss.Name())
-	log.Debugf("State %s is not implemented yet", ss.Name())
-	return newStateIdle(), nil
+func (s *StateReceiving) Perform() (nextState State, err error) {
+	log.Debugf("Peer %s is performing state %s", s.Name())
+	log.Debugf("State %s is not implemented yet", s.Name())
+	return newStateIdle(s.p), nil
 }
 
-func (ss *StateReceiving) Name() string {
+func (s *StateReceiving) Name() string {
 	return "Receiving"
 }
 
-func (ss *StateReceiving) ID() StateID {
+func (s *StateReceiving) ID() StateID {
 	return StateIDReceiving
 }

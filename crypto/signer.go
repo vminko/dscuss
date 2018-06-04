@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -45,7 +46,7 @@ func (s *Signer) Sign(data []byte) (Signature, error) {
 	r, t, err := ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(s.privkey), digest[:])
 	if err != nil {
 		log.Errorf("Can't sign data using private key %s %v", s.privkey, err)
-		return nil, ErrInternal
+		return nil, errors.Internal
 	}
 
 	// Encode the signature {R, S}

@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -78,7 +79,7 @@ func newConfig(path string) (*config, error) {
 	err = decoder.Decode(&c)
 	if err != nil {
 		log.Errorf("Error decoding json file %s: %v", err)
-		return nil, ErrConfig
+		return nil, errors.Config
 	}
 
 	/* TBD: validate parameters */

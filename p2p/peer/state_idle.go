@@ -22,44 +22,46 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-type StateIdle struct{}
-
-func newStateIdle() *StateIdle {
-	return new(StateIdle)
+type StateIdle struct {
+	p *Peer
 }
 
-func (sh *StateIdle) Perform(p *Peer) (nextState State, err error) {
+func newStateIdle(p *Peer) *StateIdle {
+	return &StateIdle{p}
+}
+
+func (s *StateIdle) Perform() (nextState State, err error) {
 	for {
-		pckt, err := p.Conn.Read()
+		pckt, err := s.p.Conn.Read()
 		if err != nil {
 			if neterr, ok := err.(net.Error); !(ok && neterr.Timeout()) {
-				log.Debugf("Peer %s failed to read packet: %v", p.Desc(), err)
+				log.Debugf("Peer %s failed to read packet: %v", s.p.Desc(), err)
 				return nil, err
 			}
 		} else {
-			log.Debugf("Peer %s received packet %s", p.Desc(), pckt.Desc())
-			return newStateReceiving(pckt), nil
+			log.Debugf("Peer %s received packet %s", s.p.Desc(), pckt.Desc())
+			return newStateReceiving(s.p, pckt), nil
 		}
 
 		select {
-		case e, ok := <-p.outEntityChan:
+		case e, ok := <-s.p.outEntityChan:
 			if ok {
-				log.Debugf("Peer %s got new outgoing entity %s", p.Desc(), e.Desc())
-				return newStateSending(e), nil
+				log.Debugf("Peer %s got new outEntity %s", s.p.Desc(), e.Desc())
+				return newStateSending(s.p, e), nil
 			} else {
-				log.Debugf("Peer %s: outEntityChan was closed", p.Desc())
+				log.Debugf("Peer %s: outEntityChan was closed", s.p.Desc())
 				return nil, err
 			}
 		default:
-			log.Debugf("Peer %s: no new entities in outEntityChan", p.Desc())
+			log.Debugf("Peer %s: no new entities in outEntityChan", s.p.Desc())
 		}
 	}
 }
 
-func (sh *StateIdle) Name() string {
+func (s *StateIdle) Name() string {
 	return "Idle"
 }
 
-func (sh *StateIdle) ID() StateID {
+func (s *StateIdle) ID() StateID {
 	return StateIDIdle
 }

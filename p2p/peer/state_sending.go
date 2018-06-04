@@ -23,23 +23,24 @@ import (
 )
 
 type StateSending struct {
+	p              *Peer
 	outgoingEntity *entity.Entity
 }
 
-func newStateSending(e *entity.Entity) *StateSending {
-	return &StateSending{outgoingEntity: e}
+func newStateSending(p *Peer, e *entity.Entity) *StateSending {
+	return &StateSending{p, e}
 }
 
-func (ss *StateSending) Perform(p *Peer) (nextState State, err error) {
-	log.Debugf("Peer %s is performing state %s", ss.Name())
-	log.Debugf("State %s is not implemented yet", ss.Name())
-	return newStateIdle(), nil
+func (s *StateSending) Perform() (nextState State, err error) {
+	log.Debugf("Peer %s is performing state %s", s.Name())
+	log.Debugf("State %s is not implemented yet", s.Name())
+	return newStateIdle(s.p), nil
 }
 
-func (ss *StateSending) Name() string {
+func (s *StateSending) Name() string {
 	return "Sending"
 }
 
-func (ss *StateSending) ID() StateID {
+func (s *StateSending) ID() StateID {
 	return StateIDSending
 }

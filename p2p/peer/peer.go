@@ -22,6 +22,7 @@ import (
 	"sync"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/connection"
 )
 
@@ -29,11 +30,12 @@ import (
 // Implements the Dscuss protocol.
 type Peer struct {
 	Conn             *connection.Connection
-	closeChan        chan *Peer
+	owner            *owner.Owner
 	stopChan         chan struct{}
+	wg               *sync.WaitGroup
+	closeChan        chan *Peer
 	internalStopChan chan struct{}
 	outEntityChan    chan *entity.Entity
-	wg               *sync.WaitGroup
 	internalWG       sync.WaitGroup
 	state            State
 	user             *entity.User
@@ -41,19 +43,21 @@ type Peer struct {
 
 func New(
 	conn *connection.Connection,
-	closeChan chan *Peer,
+	owner *owner.Owner,
 	stopChan chan struct{},
 	wg *sync.WaitGroup,
+	closeChan chan *Peer,
 ) *Peer {
 	p := &Peer{
 		Conn:             conn,
-		closeChan:        closeChan,
+		owner:            owner,
 		stopChan:         stopChan,
+		wg:               wg,
+		closeChan:        closeChan,
 		internalStopChan: make(chan struct{}),
 		outEntityChan:    make(chan *entity.Entity),
-		wg:               wg,
-		state:            newStateHandshaking(),
 	}
+	p.state = newStateHandshaking(p)
 	// TBD; storage.AddEntityConsumer(p))
 	go p.run()
 	return p
@@ -76,7 +80,7 @@ func (p *Peer) run() {
 	p.internalWG.Add(1)
 	go p.watchStop()
 	for {
-		nextState, err := p.state.Perform(p)
+		nextState, err := p.state.Perform()
 		if err != nil {
 			log.Errorf("Error performing '%s' state: %v", p.state.Name(), err)
 			close(p.internalStopChan)

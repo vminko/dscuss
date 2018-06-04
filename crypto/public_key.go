@@ -25,6 +25,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -37,7 +38,7 @@ func ParsePublicKeyFromDER(encodedKey []byte) (*PublicKey, error) {
 	pub, err := x509.ParsePKIXPublicKey(encodedKey)
 	if err != nil {
 		log.Warningf("Can't parse public key %v", err)
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 
 	ecdsaPub, ok := pub.(*ecdsa.PublicKey)
@@ -53,7 +54,7 @@ func ParsePublicKeyFromPEM(encodedKey []byte) (*PublicKey, error) {
 	block, encodedKey := pem.Decode(encodedKey)
 	if block.Type != "EC PUBLIC KEY" {
 		log.Error("Failed to find EC PUBLIC KEY in PEM data")
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 	return ParsePublicKeyFromDER(block.Bytes)
 }
@@ -91,7 +92,7 @@ func (key *PublicKey) UnmarshalJSON(b []byte) error {
 	_, err := base64.RawURLEncoding.Decode(der, trimmed)
 	if err != nil {
 		log.Warningf("Can't decode base64-encoded pubkey '%s'", trimmed)
-		return ErrParsing
+		return errors.Parsing
 	}
 	res, err := ParsePublicKeyFromDER(der)
 	if res != nil {

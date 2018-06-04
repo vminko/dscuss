@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -53,7 +54,7 @@ const (
 	TypeReq Type = "req"
 )
 
-func NewPacket(t Type, p interface{}, s *crypto.Signer) *Packet {
+func New(t Type, p interface{}, s *crypto.Signer) *Packet {
 	jp, err := json.Marshal(p)
 	if err != nil {
 		log.Fatal("Can't marshal packet payload: " + err.Error())
@@ -78,13 +79,13 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 	case TypeHello:
 		pld = new(PayloadHello)
 	default:
-		log.Warning("Unknown payload type: " + string(p.Body.Type))
-		return nil, ErrWrongType
+		log.Error("Unknown payload type: " + string(p.Body.Type))
+		return nil, errors.WrongPacketType
 	}
 	err := json.Unmarshal(p.Body.Payload, pld)
 	if err != nil {
-		log.Warning("Can't unmarshal PayloadUser: " + err.Error())
-		return nil, ErrMalformedPayload
+		log.Error("Can't unmarshal PayloadUser: " + err.Error())
+		return nil, errors.MalformedPayload
 	}
 	return pld, nil
 }

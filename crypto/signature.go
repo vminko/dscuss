@@ -20,6 +20,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/base64"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -38,7 +39,7 @@ func ParseSignature(b64sig []byte) (Signature, error) {
 	_, err := base64.RawURLEncoding.Decode(sig, b64sig)
 	if err != nil {
 		log.Errorf("Can't decode base64-encoded signture %x", b64sig)
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 	return sig, nil
 }

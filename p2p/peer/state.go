@@ -31,7 +31,7 @@ const (
 )
 
 type State interface {
-	Perform(p *Peer) (nextState State, err error)
+	Perform() (nextState State, err error)
 	ID() StateID
 	Name() string
 }

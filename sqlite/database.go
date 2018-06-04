@@ -23,6 +23,7 @@ import (
 	"time"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -42,7 +43,7 @@ func Open(fileName string) (*Database, error) {
 	db, err := sql.Open("sqlite3", fileName)
 	if err != nil {
 		log.Errorf("Unable to open SQLite connection: %s", err.Error())
-		return nil, ErrOpening
+		return nil, errors.CantOpenDB
 	}
 
 	var execErr error
@@ -104,7 +105,7 @@ func Open(fileName string) (*Database, error) {
 	// TBD: create indexes?
 	if execErr != nil {
 		log.Errorf("Unable to initialize the database: %s", execErr.Error())
-		return nil, ErrOperation
+		return nil, errors.DBOperFailed
 	}
 
 	return (*Database)(db), nil
@@ -115,7 +116,7 @@ func (d *Database) Close() error {
 	err := db.Close()
 	if err != nil {
 		log.Errorf("Unable to close the database: %v", err)
-		return ErrOperation
+		return errors.DBOperFailed
 	}
 	return nil
 }
@@ -152,7 +153,7 @@ func (d *Database) PutUser(user *entity.User) error {
 	)
 	if err != nil {
 		log.Errorf("Can't execute 'putUser' statement: %s", err.Error())
-		return ErrOperation
+		return errors.DBOperFailed
 	}
 
 	return nil
@@ -188,10 +189,10 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 	switch {
 	case err == sql.ErrNoRows:
 		log.Warning("No user with that ID.")
-		return nil, ErrNoSuchEntity
+		return nil, errors.NoSuchEntity
 	case err != nil:
 		log.Errorf("Error fetching user from the database: %v", err)
-		return nil, ErrOperation
+		return nil, errors.DBOperFailed
 	default:
 		log.Debug("The user found successfully")
 	}
@@ -199,12 +200,12 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 	sig, err := crypto.ParseSignature(encodedSig)
 	if err != nil {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 	pubkey, err := crypto.ParsePublicKeyFromDER(encodedKey)
 	if err != nil {
 		log.Errorf("Can't parse public key fetched from DB: %v", err)
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 
 	u := entity.NewUser(nickname, info, pubkey, proof, regdate, sig)

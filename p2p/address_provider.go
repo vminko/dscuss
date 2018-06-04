@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"os"
 	"regexp"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -69,7 +70,7 @@ func (al *AddressList) readAddresses() {
 	file, err := os.Open(al.filepath)
 	if err != nil {
 		log.Errorf("Can't open file %s: %v", al.filepath, err)
-		al.ac.ErrorFindingAddresses(ErrFilesystem)
+		al.ac.ErrorFindingAddresses(errors.Filesystem)
 	}
 	defer file.Close()
 
@@ -81,7 +82,7 @@ func (al *AddressList) readAddresses() {
 		if !hostPortRe.MatchString(line) && !ipPortRe.MatchString(line) {
 			log.Warningf("'%s' is not a valid peer address, ignoring it.", line)
 			log.Warning("Valid peer address is either host:port or ip:port.")
-			al.ac.ErrorFindingAddresses(ErrParsing)
+			al.ac.ErrorFindingAddresses(errors.Parsing)
 			continue
 		}
 
@@ -91,6 +92,6 @@ func (al *AddressList) readAddresses() {
 
 	if err := scanner.Err(); err != nil {
 		log.Errorf("Error scanning file %s: %v", al.filepath, err)
-		al.ac.ErrorFindingAddresses(ErrFilesystem)
+		al.ac.ErrorFindingAddresses(errors.Filesystem)
 	}
 }

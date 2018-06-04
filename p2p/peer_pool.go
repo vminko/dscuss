@@ -20,6 +20,7 @@ package p2p
 import (
 	"sync"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/peer"
 )
 
@@ -27,8 +28,8 @@ import (
 // peers and manages peer life cycle. But it has nothing to do with Entity
 // transferring.
 type PeerPool struct {
-	//	loginCtx        *loginContext
 	cp              *ConnectionProvider
+	owner           *owner.Owner
 	closeChan       chan *peer.Peer
 	stopPeersChan   chan struct{}
 	addrReleaseChan chan string
@@ -37,11 +38,11 @@ type PeerPool struct {
 	selfWG          sync.WaitGroup
 }
 
-func NewPeerPool(cp *ConnectionProvider) *PeerPool {
+func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 	addrReleaseChan := make(chan string)
 	return &PeerPool{
-		//		loginCtx:        loginCtx,
 		cp:              cp,
+		owner:           owner,
 		closeChan:       make(chan *peer.Peer),
 		stopPeersChan:   make(chan struct{}),
 		addrReleaseChan: addrReleaseChan,
@@ -71,7 +72,7 @@ func (pp *PeerPool) listenNewConnections() {
 	for conn := range pp.cp.newConnChan() {
 		log.Debugf("New connection appeared")
 		pp.peerWG.Add(1)
-		peer := peer.New(conn, pp.closeChan, pp.stopPeersChan, &pp.peerWG)
+		peer := peer.New(conn, pp.owner, pp.stopPeersChan, &pp.peerWG, pp.closeChan)
 		pp.peers = append(pp.peers, peer)
 	}
 }

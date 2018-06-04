@@ -23,33 +23,15 @@ package dscuss
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
-	"time"
-	"vminko.org/dscuss/crypto"
-	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p"
-	"vminko.org/dscuss/sqlite"
 )
-
-type loginContext struct {
-	user   *entity.User
-	gDB    *sqlite.Database
-	signer *crypto.Signer
-}
-
-/*type LocalUser interface {
-	EntityProvider
-	EntityConsumer
-	Register()
-	Login()
-	Logout()
-	IsLoggedIn()
-}*/
 
 const (
 	Name                   string = "Dscuss"
@@ -64,11 +46,11 @@ const (
 )
 
 var (
-	logFile  *os.File
-	dir      string
-	cfg      *config
-	loginCtx *loginContext
-	pp       *p2p.PeerPool
+	logFile *os.File
+	dir     string
+	cfg     *config
+	ownr    *owner.Owner
+	pp      *p2p.PeerPool
 )
 
 func Init(initDir string) error {
@@ -82,7 +64,7 @@ func Init(initDir string) error {
 		usr, err := user.Current()
 		if err != nil {
 			log.Error("Can't get get current OS user: " + err.Error())
-			return ErrInternal
+			return errors.Internal
 		}
 		dir = filepath.Join(usr.HomeDir, dir[2:])
 	}
@@ -91,7 +73,7 @@ func Init(initDir string) error {
 		err = os.MkdirAll(dir, 0700)
 		if err != nil {
 			log.Error("Can't create directory " + dir + ": " + err.Error())
-			return ErrFilesystem
+			return errors.Filesystem
 		}
 	}
 
@@ -99,7 +81,7 @@ func Init(initDir string) error {
 	logFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Error("Can't open log file: " + err.Error())
-		return ErrFilesystem
+		return errors.Filesystem
 	}
 	log.SetOutput(logFile)
 	log.SetDebug(debug)
@@ -123,130 +105,20 @@ func Uninit() {
 	logFile.Close()
 }
 
-func FullVersion() string {
-	return fmt.Sprintf("%s version: %s, built with %s.\n", Name, Version, runtime.Version())
-}
-
-func Dir() string {
-	return dir
-}
-
 func Register(nickname, info string) error {
-	// TBD: validate nickname. It must contain only [\w\d\._]
-	log.Debugf("Registering user %s", nickname)
-	if nickname == "" {
-		return ErrWrongNickname
-	}
-	userDir := filepath.Join(dir, nickname)
-	log.Debugf("Register uses the following user directory: %s", userDir)
-
-	err := os.Mkdir(userDir, 0755)
-	if err != nil {
-		if os.IsExist(err) {
-			log.Infof("Looks like the user %s is already registered", nickname)
-			return ErrAlreadyRegistered
-		} else {
-			log.Errorf("Can't create directory " + userDir + ": " + err.Error())
-			return ErrFilesystem
-		}
-	}
-
-	privKey, err := crypto.NewPrivateKey()
-	if err != nil {
-		log.Errorf("Can't generate new private key: %v", err)
-		return ErrInternal
-	}
-	privKeyPEM := privKey.EncodeToPEM()
-	privKeyPath := filepath.Join(userDir, privKeyFileName)
-	err = ioutil.WriteFile(privKeyPath, privKeyPEM, 0600)
-	if err != nil {
-		log.Errorf("Can't save private key as file %s: %v", privKeyPath, err)
-		return ErrFilesystem
-	}
-
-	pow := crypto.NewPowFinder(privKey.Public().EncodeToDER())
-	log.Info(string(privKey.Public().EncodeToPEM()))
-	proof := pow.Find()
-	user := entity.EmergeUser(nickname, info, proof, time.Now(), crypto.NewSigner(privKey))
-	if debug {
-		log.Debugf("Dumping emerged User %s:", nickname)
-		log.Debug(user.String())
-	}
-
-	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
-	db, err := sqlite.Open(globalDatabasePath)
-	if err != nil {
-		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
-		return ErrDatabase
-	}
-	err = db.PutUser(user)
-	if err != nil {
-		log.Errorf("Can't add user '%s' to the database: %v", user.Nickname, err)
-		return ErrDatabase
-	}
-	err = db.Close()
-	if err != nil {
-		log.Errorf("Can't close global database: %v", err)
-		return ErrDatabase
-	}
-
-	return nil
-}
-
-func IsLoggedIn() bool {
-	return loginCtx != nil
+	return owner.Register(dir, nickname, info)
 }
 
 func Login(nickname string) error {
-	if loginCtx != nil {
-		log.Errorf("Login attempt when %s is already logged in", loginCtx.user.Nickname)
-		return ErrAlreadyLoggedIn
+	if IsLoggedIn() {
+		log.Errorf("Login attempt when %s is already logged in", ownr.User.Nickname)
+		return errors.AlreadyLoggedIn
 	}
 
-	userDir := filepath.Join(dir, nickname)
-	log.Debugf("Login uses the following user directory: %s", userDir)
-	if _, err := os.Stat(userDir); os.IsNotExist(err) {
-		return ErrFilesystem
-	}
-
-	privKeyPath := filepath.Join(userDir, privKeyFileName)
-	privKeyPem, err := ioutil.ReadFile(privKeyPath)
+	ownr, err := owner.New(dir, nickname)
 	if err != nil {
-		log.Errorf("Can't read private key from file %s: %v", privKeyPath, err)
-		return ErrFilesystem
-	}
-
-	privKey, err := crypto.ParsePrivateKeyFromPEM(privKeyPem)
-	if err != nil {
-		log.Errorf("Error parsing private key from file %s: %v", privKeyPath, err)
+		log.Errorf("Failed to open %s's data: %v", nickname, err)
 		return err
-	}
-
-	eid := entity.NewID(privKey.Public().EncodeToDER())
-	globalDatabasePath := filepath.Join(userDir, globalDatabaseFileName)
-	db, err := sqlite.Open(globalDatabasePath)
-	if err != nil {
-		log.Errorf("Can't open global database file %s: %v", globalDatabasePath, err)
-		return ErrDatabase
-	}
-	u, err := db.GetUser(&eid)
-	if err != nil {
-		log.Errorf("Can't fetch the user with id '%x' from the database: %v", eid, err)
-		return err
-	}
-	if debug {
-		log.Debug("Dumping fetched User:")
-		log.Debug(u.String())
-	}
-	/* TBD:
-	   read subscriptions
-	   initialize network subsystem
-	*/
-
-	loginCtx = &loginContext{
-		user:   u,
-		gDB:    db,
-		signer: crypto.NewSigner(privKey),
 	}
 
 	var ap p2p.AddressProvider
@@ -259,10 +131,10 @@ func Login(nickname string) error {
 		ap = p2p.NewAddressList(addrFilePath)
 	/* TBD:
 	case "dht":
-		icase "dns":
+	case "dns":
 	*/
 	default:
-		panic("Unknown address provider " + cfg.Network.AddressProvider)
+		log.Fatal("Unknown address provider is configured: " + cfg.Network.AddressProvider)
 	}
 
 	cp := p2p.NewConnectionProvider(
@@ -270,9 +142,8 @@ func Login(nickname string) error {
 		cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount,
 	)
 
-	pp = p2p.NewPeerPool(cp)
+	pp = p2p.NewPeerPool(cp, ownr)
 	pp.Start()
-
 	return nil
 }
 
@@ -280,12 +151,20 @@ func Logout() error {
 	if !IsLoggedIn() {
 		return nil
 	}
-	err := loginCtx.gDB.Close()
-	if err != nil {
-		log.Errorf("Can't close global database: %v", err)
-		return ErrDatabase
-	}
+	ownr.Close()
 	pp.Stop()
-	loginCtx = nil
+	ownr = nil
 	return nil
+}
+
+func IsLoggedIn() bool {
+	return ownr != nil
+}
+
+func FullVersion() string {
+	return fmt.Sprintf("%s version: %s, built with %s.\n", Name, Version, runtime.Version())
+}
+
+func Dir() string {
+	return dir
 }

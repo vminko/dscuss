@@ -23,6 +23,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -41,7 +42,7 @@ func ParsePrivateKeyFromDER(der []byte) (*PrivateKey, error) {
 	privkey, err := x509.ParseECPrivateKey(der)
 	if err != nil {
 		log.Errorf("Can't parse private key %v", err)
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 	return (*PrivateKey)(privkey), nil
 }
@@ -51,7 +52,7 @@ func ParsePrivateKeyFromPEM(encodedKey []byte) (*PrivateKey, error) {
 	block, encodedKey := pem.Decode(encodedKey)
 	if block.Type != "EC PRIVATE KEY" {
 		log.Error("Failed to find EC PRIVATE KEY in PEM data")
-		return nil, ErrParsing
+		return nil, errors.Parsing
 	}
 	return ParsePrivateKeyFromDER(block.Bytes)
 }
