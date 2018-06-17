@@ -122,7 +122,7 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) PutUser(user *entity.User) error {
-	log.Debugf("Adding user `%s' to the database.", user.Nickname)
+	log.Debugf("Adding user `%s' to the database.", user.Nickname())
 
 	query := `
 	INSERT INTO User
@@ -146,7 +146,7 @@ func (d *Database) PutUser(user *entity.User) error {
 		user.ID[:],
 		pkpem,
 		user.Proof,
-		user.Nickname,
+		user.Nickname(),
 		user.Info,
 		user.RegDate,
 		user.Sig.Encode(),
@@ -160,7 +160,7 @@ func (d *Database) PutUser(user *entity.User) error {
 }
 
 func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
-	log.Debugf("Fetching user with id '%x' from the database.", eid)
+	log.Debugf("Fetching user with id '%s' from the database.", eid.String())
 
 	var nickname string
 	var info string

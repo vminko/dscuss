@@ -30,12 +30,12 @@ import (
 type PeerPool struct {
 	cp              *ConnectionProvider
 	owner           *owner.Owner
-	closeChan       chan *peer.Peer
+	gonePeerChan    chan *peer.Peer
 	stopPeersChan   chan struct{}
 	addrReleaseChan chan string
 	peers           []*peer.Peer
-	peerWG          sync.WaitGroup
-	selfWG          sync.WaitGroup
+	peersMx         sync.RWMutex
+	wg              sync.WaitGroup
 }
 
 func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
@@ -43,7 +43,7 @@ func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 	return &PeerPool{
 		cp:              cp,
 		owner:           owner,
-		closeChan:       make(chan *peer.Peer),
+		gonePeerChan:    make(chan *peer.Peer),
 		stopPeersChan:   make(chan struct{}),
 		addrReleaseChan: addrReleaseChan,
 	}
@@ -51,37 +51,95 @@ func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 
 func (pp *PeerPool) Start() {
 	log.Debugf("Starting PeerPool")
-	pp.selfWG.Add(2)
-	go pp.listenNewConnections()
-	go pp.listenClosedPeers()
+	pp.wg.Add(2)
+	go pp.watchNewConnections()
+	go pp.watchGonePeers()
 	pp.cp.Start()
 }
 
 func (pp *PeerPool) Stop() {
 	log.Debugf("Stopping PeerPool")
+
+	// Stop peers
+	var wg sync.WaitGroup
+	pp.peersMx.RLock()
+	for _, p := range pp.peers {
+		log.Debugf("PeerPool is closing peer %s", p.Desc())
+		wg.Add(1)
+		myP := p
+		go func() {
+			myP.Close()
+			wg.Done()
+			log.Debugf("PeerPool closed peer %s", myP.Desc())
+		}()
+	}
+	pp.peersMx.RUnlock()
+	wg.Wait()
+	log.Debug("PeerPool closed all peers")
+	close(pp.gonePeerChan)
+
 	pp.cp.Stop()
-	close(pp.stopPeersChan)
-	pp.peerWG.Wait()
-	close(pp.closeChan)
-	pp.selfWG.Wait()
+	pp.wg.Wait()
 	log.Debugf("PeerPool stopped")
 }
 
-func (pp *PeerPool) listenNewConnections() {
-	defer pp.selfWG.Done()
+func (pp *PeerPool) watchNewConnections() {
+	defer pp.wg.Done()
 	for conn := range pp.cp.newConnChan() {
-		log.Debugf("New connection appeared")
-		pp.peerWG.Add(1)
-		peer := peer.New(conn, pp.owner, pp.stopPeersChan, &pp.peerWG, pp.closeChan)
+		log.Debugf("New connection appeared, remote addr is %s", conn.RemoteAddr())
+		peer := peer.New(conn, pp.owner, pp.validateHandshakedPeer, pp.gonePeerChan)
+		pp.peersMx.Lock()
 		pp.peers = append(pp.peers, peer)
+		pp.peersMx.Unlock()
 	}
 }
 
-func (pp *PeerPool) listenClosedPeers() {
-	defer pp.selfWG.Done()
-	for cpeer := range pp.closeChan {
-		for _, addr := range cpeer.Conn.AssociatedAddresses() {
-			pp.addrReleaseChan <- addr
+func (pp *PeerPool) removePeer(p *peer.Peer) {
+	isFound := false
+	pp.peersMx.Lock()
+	for i, ip := range pp.peers {
+		if ip == p {
+			pp.peers[len(pp.peers)-1], pp.peers[i] = pp.peers[i], pp.peers[len(pp.peers)-1]
+			pp.peers = pp.peers[:len(pp.peers)-1]
+			isFound = true
+			break
 		}
 	}
+	pp.peersMx.Unlock()
+	if !isFound {
+		log.Errorf("Failed to remove %s from the PeerPool", p.Desc())
+	}
+}
+
+func (pp *PeerPool) watchGonePeers() {
+	defer pp.wg.Done()
+	for cpeer := range pp.gonePeerChan {
+		for _, addr := range cpeer.Conn.Addresses() {
+			log.Debugf("PP is releasing address %s", addr)
+			//pp.addrReleaseChan <- addr
+		}
+		log.Debugf("Removing peer %s from PP", cpeer.Desc())
+		pp.removePeer(cpeer)
+		cpeer.Close()
+		log.Debugf("Peer %s is removed from PP", cpeer.Desc())
+	}
+}
+
+func (pp *PeerPool) validateHandshakedPeer(newPeer *peer.Peer) bool {
+	newPid, err := newPeer.ID()
+	if err != nil {
+		log.Fatalf("Handshaked peer %s has no ID", newPeer.Desc())
+	}
+	pp.peersMx.RLock()
+	defer pp.peersMx.RUnlock()
+	for _, p := range pp.peers {
+		pid, err := p.ID()
+		if err == nil && pid == newPid && p != newPeer {
+			log.Debugf("Found duplicated conn with %s: %s", newPeer.Desc(), p.Conn.Desc())
+			p.Conn.AddAddresses(newPeer.Conn.Addresses())
+			newPeer.Conn.ClearAddresses()
+			return false
+		}
+	}
+	return true
 }

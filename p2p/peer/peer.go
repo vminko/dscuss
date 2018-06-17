@@ -21,91 +21,112 @@ import (
 	"fmt"
 	"sync"
 	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/connection"
 )
 
+type ID entity.ID
+
+var EmptyID ID
+
 // Peer is responsible for communication with other nodes.
 // Implements the Dscuss protocol.
 type Peer struct {
-	Conn             *connection.Connection
-	owner            *owner.Owner
-	stopChan         chan struct{}
-	wg               *sync.WaitGroup
-	closeChan        chan *Peer
-	internalStopChan chan struct{}
-	outEntityChan    chan *entity.Entity
-	internalWG       sync.WaitGroup
-	state            State
-	user             *entity.User
+	Conn          *connection.Connection
+	owner         *owner.Owner
+	validate      Validator
+	goneChan      chan *Peer
+	stopChan      chan struct{}
+	outEntityChan chan *entity.Entity
+	wg            sync.WaitGroup
+	state         State
+	User          *entity.User
 }
+
+type Validator func(*Peer) bool
 
 func New(
 	conn *connection.Connection,
 	owner *owner.Owner,
-	stopChan chan struct{},
-	wg *sync.WaitGroup,
-	closeChan chan *Peer,
+	validate Validator,
+	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
-		Conn:             conn,
-		owner:            owner,
-		stopChan:         stopChan,
-		wg:               wg,
-		closeChan:        closeChan,
-		internalStopChan: make(chan struct{}),
-		outEntityChan:    make(chan *entity.Entity),
+		Conn:          conn,
+		owner:         owner,
+		validate:      validate,
+		goneChan:      goneChan,
+		stopChan:      make(chan struct{}),
+		outEntityChan: make(chan *entity.Entity),
 	}
 	p.state = newStateHandshaking(p)
 	// TBD; storage.AddEntityConsumer(p))
+	p.wg.Add(2)
 	go p.run()
+	go p.watchStop()
 	return p
 }
 
+func (p *Peer) Close() {
+	log.Debugf("Close requested for peer %s", p.Desc())
+	close(p.stopChan)
+	p.wg.Wait()
+	log.Debugf("Peer %s is closed", p.Desc())
+}
+
 func (p *Peer) watchStop() {
-	defer p.internalWG.Done()
+	defer p.wg.Done()
 	select {
 	case <-p.stopChan:
-		log.Debugf("Stop requested for peer %s, closing Conn", p.Desc())
+		log.Debugf("Peer %s is closing its Conn", p.Desc())
 		p.Conn.Close()
-		return
-	case <-p.internalStopChan:
-		log.Debugf("Peer %s: run requested to stop watchStop()", p.Desc())
-		return
 	}
+	log.Debugf("Peer %s is leaving watchStop", p.Desc())
 }
 
 func (p *Peer) run() {
-	p.internalWG.Add(1)
-	go p.watchStop()
+	defer p.wg.Done()
 	for {
 		nextState, err := p.state.Perform()
 		if err != nil {
-			log.Errorf("Error performing '%s' state: %v", p.state.Name(), err)
-			close(p.internalStopChan)
+			if err == errors.ClosedConnection {
+				log.Debugf("Connection of peer %s was closed", p.Desc())
+			} else {
+				log.Errorf("Error performing '%s' state: %v", p.state.Name(), err)
+				p.goneChan <- p
+			}
 			break
 		}
 		log.Debugf("Switching peer %s to state %s", p.Desc(), nextState.Name())
 		p.state = nextState
 	}
-	// Finalize peer's internal facilities
-	p.internalWG.Wait()
-	p.Conn.Close()
-	// Make external notifications
-	p.closeChan <- p
-	p.wg.Done()
+	log.Debugf("Peer %s is leaving run", p.Desc())
 }
 
 func (p *Peer) Desc() string {
-	if p.state.ID() != StateIDHandshaking {
-		return fmt.Sprintf("%s-%s", p.user.Nickname(), p.user.ShortID())
+	if p.State() != StateIDHandshaking {
+		u := p.User
+		return fmt.Sprintf("%s-%s/%s", u.Nickname(), u.ShortID(), p.Conn.RemoteAddr())
 	} else {
-		return fmt.Sprintf("(not handshaked), %s", p.Conn.RemoteAddress())
+		return fmt.Sprintf("(not handshaked), %s", p.Conn.RemoteAddr())
 	}
 }
 
 func (p *Peer) EntityReceived(e *entity.Entity) {
 	log.Debugf("Peer %s received entity %s from the Storage", p.Desc(), e.Desc())
 	p.outEntityChan <- e
+}
+
+func (p *Peer) State() StateID {
+	return p.state.ID()
+}
+
+func (p *Peer) ID() (ID, error) {
+	if p.User != nil {
+		return ID(p.User.ID), nil
+	} else {
+		return EmptyID, errors.PeerIDUnknown
+	}
 }

@@ -37,4 +37,7 @@ var (
 	WrongPacketType   = errors.New("wrong packet type")
 	MalformedPayload  = errors.New("payload of the packet is malformed")
 	ProtocolViolation = errors.New("protocol violation detected")
+	ClosedConnection  = errors.New("use of closed connection")
+	PeerIDUnknown     = errors.New("peer ID is not known yet")
+	InvalidPeer       = errors.New("peer validation failed")
 )

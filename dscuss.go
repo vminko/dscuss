@@ -93,7 +93,7 @@ func Init(initDir string) error {
 		return err
 	}
 
-	log.Error("Dscuss successfully iniitialized.")
+	log.Error("Dscuss successfully initialized.")
 	return nil
 }
 
@@ -101,7 +101,7 @@ func Uninit() {
 	if IsLoggedIn() {
 		Logout()
 	}
-	log.Debug("Dscuss successfully uniniitialized.")
+	log.Debug("Dscuss successfully uninitialized.")
 	logFile.Close()
 }
 
@@ -115,11 +115,13 @@ func Login(nickname string) error {
 		return errors.AlreadyLoggedIn
 	}
 
-	ownr, err := owner.New(dir, nickname)
+	var err error
+	ownr, err = owner.New(dir, nickname)
 	if err != nil {
 		log.Errorf("Failed to open %s's data: %v", nickname, err)
 		return err
 	}
+	log.Debugf("Trying to login as peer %s", ownr.User.ID.String())
 
 	var ap p2p.AddressProvider
 	switch cfg.Network.AddressProvider {

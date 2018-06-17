@@ -44,12 +44,23 @@ func (a *addressMap) Load(key string) (bool, bool) {
 	return val, ok
 }
 
-func (a *addressMap) Store(key string, value bool) {
+func (a *addressMap) Add(key string, value bool) {
 	a.mx.Lock()
 	defer a.mx.Unlock()
 	_, ok := a.m[key]
 	if !ok {
 		a.m[key] = value
+	}
+}
+
+func (a *addressMap) Change(key string, value bool) {
+	a.mx.Lock()
+	defer a.mx.Unlock()
+	_, ok := a.m[key]
+	if ok {
+		a.m[key] = value
+	} else {
+		log.Errorf("Attempt to change state of unknown address %s", key)
 	}
 }
 
@@ -106,7 +117,7 @@ func NewConnectionProvider(
 }
 
 func setDefaultBootstrapAddresses(outAddrs *addressMap) {
-	outAddrs.Store(DefaultBootstrapAddress, false)
+	outAddrs.Add(DefaultBootstrapAddress, false)
 }
 
 func (cp *ConnectionProvider) Start() {
@@ -136,7 +147,7 @@ func (cp *ConnectionProvider) newConnChan() chan *connection.Connection {
 }
 
 func (cp *ConnectionProvider) AddressFound(a string) {
-	cp.outAddrs.Store(a, false)
+	cp.outAddrs.Add(a, false)
 }
 
 func (cp *ConnectionProvider) ErrorFindingAddresses(err error) {
@@ -196,7 +207,7 @@ func (cp *ConnectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	}
 	log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 	atomic.AddUint32(&cp.outConnCount, 1)
-	cp.outAddrs.Store(addr, true)
+	cp.outAddrs.Change(addr, true)
 	dconn := connection.New(conn, true)
 	dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 	cp.outChan <- dconn
@@ -235,7 +246,8 @@ func (cp *ConnectionProvider) establishOutgoingConnections() {
 
 func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connection) {
 	return func(conn *connection.Connection) {
-		for _, addr := range conn.AssociatedAddresses() {
+		log.Debugf("Executing close handler for connection %s", conn.Desc())
+		for _, addr := range conn.Addresses() {
 			cp.releaseChan <- addr
 		}
 	}
@@ -256,7 +268,7 @@ func (cp *ConnectionProvider) handleClosedConnections() {
 				if !isUsed {
 					log.Errorf("Attempt to release unused address %s", addr)
 				}
-				cp.outAddrs.Store(addr, false)
+				cp.outAddrs.Change(addr, false)
 				// decrement outConnCount
 				atomic.AddUint32(&cp.outConnCount, ^uint32(0))
 			} else {
@@ -264,7 +276,7 @@ func (cp *ConnectionProvider) handleClosedConnections() {
 				atomic.AddUint32(&cp.inConnCount, ^uint32(0))
 			}
 		default:
-			log.Debug("Nothing to close...")
+			log.Debug("Nothing to release...")
 			time.Sleep(time.Second * ConnectionProviderLatency)
 			continue
 		}

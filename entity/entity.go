@@ -18,8 +18,10 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package entity
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -70,7 +72,12 @@ func (i ID) MarshalJSON() ([]byte, error) {
 }
 
 func (i *ID) UnmarshalJSON(b []byte) error {
-	res, err := base64.StdEncoding.DecodeString(string(b))
+	trimmed := bytes.Trim(b, "\"")
+	res, err := base64.StdEncoding.DecodeString(string(trimmed))
 	copy(i[:], res[:])
 	return err
+}
+
+func (i *ID) String() string {
+	return hex.EncodeToString(i[:])
 }

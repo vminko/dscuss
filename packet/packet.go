@@ -84,7 +84,8 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 	}
 	err := json.Unmarshal(p.Body.Payload, pld)
 	if err != nil {
-		log.Error("Can't unmarshal PayloadUser: " + err.Error())
+		log.Error("Can't unmarshal Payload: " + err.Error())
+		log.Debug("Dumping Payload: " + string(p.Body.Payload))
 		return nil, errors.MalformedPayload
 	}
 	return pld, nil
@@ -100,4 +101,12 @@ func (p *Packet) Verify(pubKey *crypto.PublicKey) bool {
 
 func (p *Packet) Desc() string {
 	return fmt.Sprintf("type  %s", p.Body.Type)
+}
+
+func (p *Packet) Dump() string {
+	str, err := json.Marshal(p)
+	if err != nil {
+		return "[error: " + err.Error() + "]"
+	}
+	return fmt.Sprintf("type  %s", str)
 }

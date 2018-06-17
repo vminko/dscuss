@@ -19,8 +19,11 @@ package connection
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
+	"sync"
 	"time"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/packet"
 )
@@ -31,18 +34,29 @@ const (
 
 // Connection is responsible for transferring packets via the network.
 type Connection struct {
-	conn                net.Conn
-	associatedAddresses []string
-	isIncoming          bool
-	closeHandler        func(*Connection)
+	conn         net.Conn
+	addresses    []string
+	addrMx       sync.RWMutex
+	isIncoming   bool
+	closeHandler func(*Connection)
 }
 
 func New(conn net.Conn, isIncoming bool) *Connection {
 	return &Connection{
-		conn:                conn,
-		associatedAddresses: []string{conn.RemoteAddr().String()},
-		isIncoming:          isIncoming,
+		conn:       conn,
+		addresses:  []string{conn.RemoteAddr().String()},
+		isIncoming: isIncoming,
 	}
+}
+
+func fixErrClosedConnection(err error) error {
+	closedConnText := "use of closed network connection"
+	if e, ok := err.(*net.OpError); ok {
+		if e.Err.Error() == closedConnText {
+			return errors.ClosedConnection
+		}
+	}
+	return err
 }
 
 func (c *Connection) Read() (*packet.Packet, error) {
@@ -51,23 +65,42 @@ func (c *Connection) Read() (*packet.Packet, error) {
 	var p packet.Packet
 	err := d.Decode(&p)
 	if err != nil {
-		return nil, err
+		return nil, fixErrClosedConnection(err)
 	}
+	log.Debugf("Received this packet from %s: %s", c.RemoteAddr(), p.Dump())
 	return &p, nil
 }
 
 func (c *Connection) Write(p *packet.Packet) error {
+	log.Debugf("Sending this packet to %s: %s", c.RemoteAddr(), p.Dump())
 	c.conn.SetDeadline(time.Now().Add(Timeout))
 	e := json.NewEncoder(c.conn)
-	return e.Encode(p)
+	return fixErrClosedConnection(e.Encode(p))
 }
 
-func (c *Connection) RemoteAddress() string {
+func (c *Connection) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *Connection) AssociatedAddresses() []string {
-	return c.associatedAddresses
+// Addresses returns a copy of address list associated with the connection.
+func (c *Connection) Addresses() []string {
+	c.addrMx.RLock()
+	defer c.addrMx.RUnlock()
+	res := make([]string, len(c.addresses))
+	copy(res, c.addresses)
+	return res
+}
+
+func (c *Connection) AddAddresses(new []string) {
+	c.addrMx.Lock()
+	defer c.addrMx.Unlock()
+	c.addresses = append(c.addresses, new...)
+}
+
+func (c *Connection) ClearAddresses() {
+	c.addrMx.Lock()
+	defer c.addrMx.Unlock()
+	c.addresses = nil
 }
 
 func (c *Connection) RegisterCloseHandler(f func(*Connection)) {
@@ -79,6 +112,10 @@ func (c *Connection) RegisterCloseHandler(f func(*Connection)) {
 
 func (c *Connection) IsIncoming() bool {
 	return c.isIncoming
+}
+
+func (c *Connection) Desc() string {
+	return fmt.Sprintf("inc=%t, %s", c.isIncoming, c.RemoteAddr())
 }
 
 func (c *Connection) Close() {

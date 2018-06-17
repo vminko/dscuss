@@ -122,7 +122,7 @@ func doRegister(c *ishell.Context) {
 func doLogin(c *ishell.Context) {
 	if dscuss.IsLoggedIn() {
 		c.Println("You are already logged into the network." +
-			"You need to 'logout' before logging in as another user.")
+			" You need to 'logout' before logging in as another user.")
 		return
 	}
 
@@ -166,6 +166,7 @@ func runShell() {
 	for _, c := range commandList {
 		shell.AddCmd(c)
 	}
+	defer shell.Close()
 	shell.Run()
 }
 

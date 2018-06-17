@@ -34,3 +34,9 @@ type PayloadHello struct {
 	// Subscriptions of the author of the payload.
 	// TBD: subscriptions []Subscription;
 }
+
+func NewPayloadHello(id *entity.ID) *PayloadHello {
+	p := &PayloadHello{Time: time.Now()}
+	copy(p.ReceiverID[:], id[:])
+	return p
+}

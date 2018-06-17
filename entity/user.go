@@ -18,7 +18,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package entity
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -83,8 +82,8 @@ func (u *User) Nickname() string {
 }
 
 func (u *User) ShortID() string {
-	hexID := hex.EncodeToString(u.UnsignedUser.Entity.ID[:])
-	return hexID[:8]
+	idStr := u.UnsignedUser.Entity.ID.String()
+	return idStr[:8]
 }
 
 func (u *User) Desc() string {

@@ -23,6 +23,7 @@ import (
 	"io"
 	"log"
 	"runtime"
+	"strings"
 )
 
 var debug bool
@@ -30,9 +31,11 @@ var debug bool
 // caller returns the name of the third function in the current stack.
 func caller() string {
 	pc := make([]uintptr, 10)
-	runtime.Callers(2, pc)
-	f := runtime.FuncForPC(pc[2])
-	return fmt.Sprintf("[%s]", f.Name())
+	runtime.Callers(1, pc)
+	f := runtime.FuncForPC(pc[3])
+	trimmedName := strings.TrimPrefix(f.Name(), "vminko.org/dscuss")
+	trimmedName = strings.TrimLeft(trimmedName, "/.")
+	return fmt.Sprintf("[%s]", trimmedName)
 }
 
 func SetDebug(d bool) {
@@ -43,45 +46,65 @@ func SetOutput(w io.Writer) {
 	log.SetOutput(w)
 }
 
-func Debugf(format string, args ...interface{}) {
+func debugf(format string, args ...interface{}) {
 	if debug {
 		log.Printf("DEBUG "+caller()+" "+format, args...)
 	}
 }
 
 func Debug(msg string) {
-	Debugf("%s", msg)
+	debugf("%s", msg)
 }
 
-func Infof(format string, args ...interface{}) {
+func Debugf(format string, args ...interface{}) {
+	debugf(format, args...)
+}
+
+func infof(format string, args ...interface{}) {
 	log.Printf("INFO "+caller()+" "+format, args...)
 }
 
 func Info(msg string) {
-	Infof("%s", msg)
+	infof("%s", msg)
 }
 
-func Warningf(format string, args ...interface{}) {
+func Infof(format string, args ...interface{}) {
+	infof(format, args...)
+}
+
+func warningf(format string, args ...interface{}) {
 	log.Printf("WARNING "+caller()+" "+format, args...)
 }
 
 func Warning(msg string) {
-	Warningf("%s", msg)
+	warningf("%s", msg)
 }
 
-func Errorf(format string, args ...interface{}) {
+func Warningf(format string, args ...interface{}) {
+	warningf(format, args...)
+}
+
+func errorf(format string, args ...interface{}) {
 	log.Printf("ERROR "+caller()+" "+format, args...)
 }
 
 func Error(msg string) {
-	Errorf("%s", msg)
+	errorf("%s", msg)
 }
 
-func Fatalf(format string, args ...interface{}) {
+func Errorf(format string, args ...interface{}) {
+	errorf(format, args...)
+}
+
+func fatalf(format string, args ...interface{}) {
 	fmt.Printf("FATAL ERROR: "+format+"\n", args...)
 	log.Fatalf("FATAL "+caller()+" "+format, args...)
 }
 
 func Fatal(msg string) {
-	Fatalf("%s", msg)
+	fatalf("%s", msg)
+}
+
+func Fatalf(format string, args ...interface{}) {
+	fatalf(format, args...)
 }
