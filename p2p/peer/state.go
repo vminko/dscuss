@@ -31,7 +31,7 @@ const (
 )
 
 type State interface {
-	Perform() (nextState State, err error)
+	perform() (nextState State, err error)
 	ID() StateID
 	Name() string
 }

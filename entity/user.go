@@ -82,8 +82,7 @@ func (u *User) Nickname() string {
 }
 
 func (u *User) ShortID() string {
-	idStr := u.UnsignedUser.Entity.ID.String()
-	return idStr[:8]
+	return u.UnsignedUser.Entity.ID.Shorten()
 }
 
 func (u *User) Desc() string {

@@ -82,6 +82,10 @@ func (c *Connection) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
+func (c *Connection) LocalAddr() string {
+	return c.conn.LocalAddr().String()
+}
+
 // Addresses returns a copy of address list associated with the connection.
 func (c *Connection) Addresses() []string {
 	c.addrMx.RLock()

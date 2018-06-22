@@ -81,3 +81,8 @@ func (i *ID) UnmarshalJSON(b []byte) error {
 func (i *ID) String() string {
 	return hex.EncodeToString(i[:])
 }
+
+func (i *ID) Shorten() string {
+	idStr := i.String()
+	return idStr[:8]
+}

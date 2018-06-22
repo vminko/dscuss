@@ -31,7 +31,7 @@ func newStateSending(p *Peer, e *entity.Entity) *StateSending {
 	return &StateSending{p, e}
 }
 
-func (s *StateSending) Perform() (nextState State, err error) {
+func (s *StateSending) perform() (nextState State, err error) {
 	log.Debugf("Peer %s is performing state %s", s.Name())
 	log.Debugf("State %s is not implemented yet", s.Name())
 	return newStateIdle(s.p), nil

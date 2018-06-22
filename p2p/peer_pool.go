@@ -38,6 +38,16 @@ type PeerPool struct {
 	wg              sync.WaitGroup
 }
 
+type PeerInfo struct {
+	ID              string
+	LocalAddr       string
+	RemoteAddr      string
+	AssociatedAddrs []string
+	Nickname        string
+	StateName       string
+	//TBD: add subscriptions
+}
+
 func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 	addrReleaseChan := make(chan string)
 	return &PeerPool{
@@ -59,6 +69,7 @@ func (pp *PeerPool) Start() {
 
 func (pp *PeerPool) Stop() {
 	log.Debugf("Stopping PeerPool")
+	pp.cp.Stop()
 
 	// Stop peers
 	var wg sync.WaitGroup
@@ -76,9 +87,8 @@ func (pp *PeerPool) Stop() {
 	pp.peersMx.RUnlock()
 	wg.Wait()
 	log.Debug("PeerPool closed all peers")
-	close(pp.gonePeerChan)
 
-	pp.cp.Stop()
+	close(pp.gonePeerChan)
 	pp.wg.Wait()
 	log.Debugf("PeerPool stopped")
 }
@@ -142,4 +152,26 @@ func (pp *PeerPool) validateHandshakedPeer(newPeer *peer.Peer) bool {
 		}
 	}
 	return true
+}
+
+func (pp *PeerPool) ListPeers() []*PeerInfo {
+	pp.peersMx.RLock()
+	defer pp.peersMx.RUnlock()
+	res := make([]*PeerInfo, len(pp.peers))
+	for i, p := range pp.peers {
+		nick := "[unknown]"
+		if p.User != nil {
+			nick = p.User.Nickname()
+		}
+		pi := &PeerInfo{
+			ID:              p.ShortID(),
+			LocalAddr:       p.Conn.LocalAddr(),
+			RemoteAddr:      p.Conn.RemoteAddr(),
+			AssociatedAddrs: p.Conn.Addresses(),
+			Nickname:        nick,
+			StateName:       p.State.Name(),
+		}
+		res[i] = pi
+	}
+	return res
 }

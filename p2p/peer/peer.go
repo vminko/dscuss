@@ -41,7 +41,7 @@ type Peer struct {
 	stopChan      chan struct{}
 	outEntityChan chan *entity.Entity
 	wg            sync.WaitGroup
-	state         State
+	State         State
 	User          *entity.User
 }
 
@@ -61,7 +61,7 @@ func New(
 		stopChan:      make(chan struct{}),
 		outEntityChan: make(chan *entity.Entity),
 	}
-	p.state = newStateHandshaking(p)
+	p.State = newStateHandshaking(p)
 	// TBD; storage.AddEntityConsumer(p))
 	p.wg.Add(2)
 	go p.run()
@@ -89,24 +89,24 @@ func (p *Peer) watchStop() {
 func (p *Peer) run() {
 	defer p.wg.Done()
 	for {
-		nextState, err := p.state.Perform()
+		nextState, err := p.State.perform()
 		if err != nil {
 			if err == errors.ClosedConnection {
 				log.Debugf("Connection of peer %s was closed", p.Desc())
 			} else {
-				log.Errorf("Error performing '%s' state: %v", p.state.Name(), err)
+				log.Errorf("Error performing '%s' state: %v", p.State.Name(), err)
 				p.goneChan <- p
 			}
 			break
 		}
 		log.Debugf("Switching peer %s to state %s", p.Desc(), nextState.Name())
-		p.state = nextState
+		p.State = nextState
 	}
 	log.Debugf("Peer %s is leaving run", p.Desc())
 }
 
 func (p *Peer) Desc() string {
-	if p.State() != StateIDHandshaking {
+	if p.State.ID() != StateIDHandshaking {
 		u := p.User
 		return fmt.Sprintf("%s-%s/%s", u.Nickname(), u.ShortID(), p.Conn.RemoteAddr())
 	} else {
@@ -119,14 +119,20 @@ func (p *Peer) EntityReceived(e *entity.Entity) {
 	p.outEntityChan <- e
 }
 
-func (p *Peer) State() StateID {
-	return p.state.ID()
-}
-
 func (p *Peer) ID() (ID, error) {
 	if p.User != nil {
 		return ID(p.User.ID), nil
 	} else {
 		return EmptyID, errors.PeerIDUnknown
+	}
+}
+
+func (p *Peer) ShortID() string {
+	id, err := p.ID()
+	if err == nil {
+		eid := entity.ID(id)
+		return eid.Shorten()
+	} else {
+		return "[unknown]"
 	}
 }

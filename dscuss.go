@@ -163,6 +163,10 @@ func IsLoggedIn() bool {
 	return ownr != nil
 }
 
+func ListPeers() []*p2p.PeerInfo {
+	return pp.ListPeers()
+}
+
 func FullVersion() string {
 	return fmt.Sprintf("%s version: %s, built with %s.\n", Name, Version, runtime.Version())
 }

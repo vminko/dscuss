@@ -123,10 +123,10 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 func (cp *ConnectionProvider) Start() {
 	log.Debugf("Starting ConnectionProvider")
 	cp.ap.RegisterAddressConsumer(cp)
-	cp.wg.Add(3)
+	cp.wg.Add(2)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
-	go cp.handleClosedConnections()
+	//go cp.handleReleasedAddresses()
 	cp.ap.Start()
 }
 
@@ -247,16 +247,31 @@ func (cp *ConnectionProvider) establishOutgoingConnections() {
 func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connection) {
 	return func(conn *connection.Connection) {
 		log.Debugf("Executing close handler for connection %s", conn.Desc())
+		if conn.IsIncoming() {
+			// decrement inConnCount
+			atomic.AddUint32(&cp.inConnCount, ^uint32(0))
+		} else {
+			// decrement outConnCount
+			atomic.AddUint32(&cp.outConnCount, ^uint32(0))
+		}
+
 		for _, addr := range conn.Addresses() {
-			cp.releaseChan <- addr
+			log.Debug("CP is releasing address " + addr)
+			isUsed, ok := cp.outAddrs.Load(addr)
+			if ok {
+				if !isUsed {
+					log.Errorf("Attempt to release unused address %s", addr)
+				}
+				cp.outAddrs.Change(addr, false)
+			}
 		}
 	}
 }
 
-func (cp *ConnectionProvider) handleClosedConnections() {
+func (cp *ConnectionProvider) handleReleasedAddresses() {
 	defer cp.wg.Done()
 	for {
-		log.Debug("Handling closed connections...")
+		log.Debug("Handling released addresses...")
 		select {
 		case <-cp.stopChan:
 			log.Debug("Stop requested")

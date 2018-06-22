@@ -30,7 +30,7 @@ func newStateIdle(p *Peer) *StateIdle {
 	return &StateIdle{p}
 }
 
-func (s *StateIdle) Perform() (nextState State, err error) {
+func (s *StateIdle) perform() (nextState State, err error) {
 	for {
 		pckt, err := s.p.Conn.Read()
 		if err != nil {

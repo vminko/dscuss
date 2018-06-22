@@ -34,7 +34,7 @@ func newStateHandshaking(p *Peer) *StateHandshaking {
 	return &StateHandshaking{p: p}
 }
 
-func (s *StateHandshaking) Perform() (nextState State, err error) {
+func (s *StateHandshaking) perform() (nextState State, err error) {
 	var perfErr error
 	perfUnlessErr := func(f func() error) {
 		if perfErr != nil {

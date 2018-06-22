@@ -39,59 +39,59 @@ var (
 
 var commandList = []*ishell.Cmd{
 	{
-		Name: "register",
-		Help: "<nickname> [additional_info], register new user.",
+		Name: "reg",
+		Help: "<nickname> [additional_info], register new user",
 		Func: doRegister,
 	},
 	{
 		Name: "login",
-		Help: "<nickname>, login as user <nickname>.",
+		Help: "<nickname>, login as user <nickname>",
 		Func: doLogin,
 	},
 	{
 		Name: "logout",
-		Help: "logout from the network.",
+		Help: "logout from the network",
 		Func: doLogout,
 	},
 	{
-		Name: "list peers",
-		Help: "list connected peers.",
+		Name: "lspeers",
+		Help: "list connected peers",
 		Func: doListPeers,
 	},
 	{
-		Name: "make thread",
-		Help: "start a new thread.",
+		Name: "mkthread",
+		Help: "start a new thread",
 		Func: doMakeThread,
 	},
 	{
-		Name: "make reply",
-		Help: "<id>, publish a new reply to message <id>.",
+		Name: "mkreply",
+		Help: "<id>, publish a new reply to message <id>",
 		Func: doMakeReply,
 	},
 	{
 		// TBD: add optional topic parameter
-		Name: "list board",
-		Help: "list threads on the board.",
+		Name: "lsboard",
+		Help: "list threads on the board",
 		Func: doListBoard,
 	},
 	{
-		Name: "subscribe",
-		Help: "<topic>. subscribe to <topic>.",
+		Name: "sub",
+		Help: "<topic>. subscribe to <topic>",
 		Func: doSubscribe,
 	},
 	{
-		Name: "unsubscribe",
-		Help: "<topic>, unsubscribe from <topic>.",
+		Name: "unsub",
+		Help: "<topic>, unsubscribe from <topic>",
 		Func: doUnsubscribe,
 	},
 	{
-		Name: "list subscriptions",
-		Help: "list the current user's subscriptions.",
+		Name: "lssubs",
+		Help: "list the current user's subscriptions",
 		Func: doListSubscriptions,
 	},
 	{
-		Name: "version",
-		Help: "display versions of " + dscuss.Name + " and the CLI.",
+		Name: "ver",
+		Help: "display versions of " + dscuss.Name + " and the CLI",
 		Func: doVersion,
 	},
 }
@@ -147,7 +147,27 @@ func doLogout(c *ishell.Context) {
 	}
 }
 
-func doListPeers(c *ishell.Context)         { c.Println("Not implemented yet.") }
+func doListPeers(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	peers := dscuss.ListPeers()
+	if len(peers) > 0 {
+		if len(peers) > 1 {
+			c.Printf("There are %d connected peers:\n", len(peers))
+		} else {
+			c.Println("There is one connected peer:")
+		}
+		for _, p := range peers {
+			c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ID, p.RemoteAddr, p.StateName)
+		}
+	} else {
+		c.Printf("There are no peers connected\n")
+	}
+
+}
+
 func doMakeThread(c *ishell.Context)        { c.Println("Not implemented yet.") }
 func doMakeReply(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doListBoard(c *ishell.Context)         { c.Println("Not implemented yet.") }
