@@ -22,33 +22,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 )
 
 type Type int
-type ID [32]byte
-
-// Entity is a logical unit of data for communication between peers.
-type Entity struct {
-	Type Type
-	ID   ID
-}
-
-type EntityProvider interface {
-	AddEntityConsumer(ec EntityConsumer)
-	RemoveEntityConsumer(ec EntityConsumer)
-}
-
-type EntityConsumer interface {
-	EntityReceived(e *Entity)
-}
-
-type EntityStorage interface {
-	PutEntity(e *Entity) error
-	GetEntity(id ID) (*Entity, error)
-	//GetRootMessages(mi MessageIterator)
-	//GetMessageReplies(id ID, mi MessageIterator)
-}
 
 const (
 	// User registers, post messages and performs operations.
@@ -59,9 +35,26 @@ const (
 	TypeOperation
 )
 
-func (e *Entity) Desc() string {
-	return fmt.Sprintf("type %d, id [%x]", e.Type, e.ID)
+type ID [32]byte
+
+// Entity is a logical unit of data for communication between peers.
+type Entity interface {
+	Type() Type
+	ID() *ID
+	Desc() string
 }
+
+type EntityProvider interface {
+	AttachObserver(c chan<- Entity)
+	DetachObserver(c chan<- Entity)
+}
+
+type Descriptor struct {
+	Type Type
+	ID   ID
+}
+
+var ZeroID ID
 
 func NewID(data []byte) ID {
 	return sha256.Sum256(data)

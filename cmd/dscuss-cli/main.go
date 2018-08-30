@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/abiosoft/ishell"
+	"strings"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/log"
 )
@@ -168,7 +169,37 @@ func doListPeers(c *ishell.Context) {
 
 }
 
-func doMakeThread(c *ishell.Context)        { c.Println("Not implemented yet.") }
+func multiLineStopper(s string) bool {
+	var terminator string = "DSC"
+	if strings.HasSuffix(s, terminator) {
+		s = strings.TrimSuffix(s, terminator)
+		return false
+	}
+	return true
+}
+
+func doMakeThread(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	c.ShowPrompt(false)
+	defer c.ShowPrompt(true)
+
+	c.Print("Enter thread subject: ")
+	subj := c.ReadLine()
+
+	var term string = "DSC"
+	c.Printf("Enter message text and end with '%s': ", term)
+	text := c.ReadMultiLines(term)
+	text = strings.TrimSuffix(text, term)
+	text = strings.TrimRight(text, "\r\n")
+	c.Println(subj, text)
+
+	t := dscuss.NewThread(subj, text)
+	dscuss.SendMessage(t)
+}
+
 func doMakeReply(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doListBoard(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doSubscribe(c *ishell.Context)         { c.Println("Not implemented yet.") }

@@ -25,21 +25,23 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/connection"
+	"vminko.org/dscuss/storage"
 )
 
 type ID entity.ID
 
-var EmptyID ID
+var ZeroID ID
 
 // Peer is responsible for communication with other nodes.
 // Implements the Dscuss protocol.
 type Peer struct {
 	Conn          *connection.Connection
 	owner         *owner.Owner
+	storage       *storage.Storage
 	validate      Validator
 	goneChan      chan *Peer
 	stopChan      chan struct{}
-	outEntityChan chan *entity.Entity
+	outEntityChan chan entity.Entity
 	wg            sync.WaitGroup
 	State         State
 	User          *entity.User
@@ -50,19 +52,21 @@ type Validator func(*Peer) bool
 func New(
 	conn *connection.Connection,
 	owner *owner.Owner,
+	storage *storage.Storage,
 	validate Validator,
 	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
 		Conn:          conn,
 		owner:         owner,
+		storage:       storage,
 		validate:      validate,
 		goneChan:      goneChan,
 		stopChan:      make(chan struct{}),
-		outEntityChan: make(chan *entity.Entity),
+		outEntityChan: make(chan entity.Entity),
 	}
 	p.State = newStateHandshaking(p)
-	// TBD; storage.AddEntityConsumer(p))
+	p.storage.AttachObserver(p.outEntityChan)
 	p.wg.Add(2)
 	go p.run()
 	go p.watchStop()
@@ -71,6 +75,7 @@ func New(
 
 func (p *Peer) Close() {
 	log.Debugf("Close requested for peer %s", p.Desc())
+	p.storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
 	p.wg.Wait()
 	log.Debugf("Peer %s is closed", p.Desc())
@@ -114,23 +119,24 @@ func (p *Peer) Desc() string {
 	}
 }
 
-func (p *Peer) EntityReceived(e *entity.Entity) {
+func (p *Peer) EntityReceived(e entity.Entity) {
 	log.Debugf("Peer %s received entity %s from the Storage", p.Desc(), e.Desc())
+	// TBD: check if this entity is relevant for this peer
 	p.outEntityChan <- e
 }
 
-func (p *Peer) ID() (ID, error) {
+func (p *Peer) ID() (*ID, error) {
 	if p.User != nil {
-		return ID(p.User.ID), nil
+		return (*ID)(p.User.ID()), nil
 	} else {
-		return EmptyID, errors.PeerIDUnknown
+		return &ZeroID, errors.PeerIDUnknown
 	}
 }
 
 func (p *Peer) ShortID() string {
 	id, err := p.ID()
 	if err == nil {
-		eid := entity.ID(id)
+		eid := (*entity.ID)(id)
 		return eid.Shorten()
 	} else {
 		return "[unknown]"

@@ -27,10 +27,13 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p"
+	"vminko.org/dscuss/sqlite"
+	"vminko.org/dscuss/storage"
 )
 
 const (
@@ -39,8 +42,7 @@ const (
 	DefaultDir             string = "~/.dscuss"
 	logFileName            string = "dscuss.log"
 	cfgFileName            string = "config.json"
-	privKeyFileName        string = "privkey.pem"
-	globalDatabaseFileName string = "global.db"
+	entityDatabaseFileName string = "entity.db"
 	addressListFileName    string = "addresses"
 	debug                  bool   = true
 )
@@ -49,6 +51,8 @@ var (
 	logFile *os.File
 	dir     string
 	cfg     *config
+	db      *sqlite.Database
+	stor    *storage.Storage
 	ownr    *owner.Owner
 	pp      *p2p.PeerPool
 )
@@ -93,6 +97,15 @@ func Init(initDir string) error {
 		return err
 	}
 
+	entityDatabasePath := filepath.Join(dir, entityDatabaseFileName)
+	db, err = sqlite.Open(entityDatabasePath)
+	if err != nil {
+		log.Errorf("Can't open entity database file %s: %v", entityDatabasePath, err)
+		return errors.Database
+	}
+
+	stor = storage.New(db)
+
 	log.Error("Dscuss successfully initialized.")
 	return nil
 }
@@ -101,12 +114,18 @@ func Uninit() {
 	if IsLoggedIn() {
 		Logout()
 	}
-	log.Debug("Dscuss successfully uninitialized.")
+
+	err := db.Close()
+	if err != nil {
+		log.Errorf("Can't close entity database: %v", err)
+	}
+
+	log.Debug("Dscuss uninitialized.")
 	logFile.Close()
 }
 
 func Register(nickname, info string) error {
-	return owner.Register(dir, nickname, info)
+	return owner.Register(dir, nickname, info, stor)
 }
 
 func Login(nickname string) error {
@@ -116,12 +135,12 @@ func Login(nickname string) error {
 	}
 
 	var err error
-	ownr, err = owner.New(dir, nickname)
+	ownr, err = owner.New(dir, nickname, stor)
 	if err != nil {
 		log.Errorf("Failed to open %s's data: %v", nickname, err)
 		return err
 	}
-	log.Debugf("Trying to login as peer %s", ownr.User.ID.String())
+	log.Debugf("Trying to login as peer %s", ownr.User.ID().String())
 
 	var ap p2p.AddressProvider
 	switch cfg.Network.AddressProvider {
@@ -144,19 +163,18 @@ func Login(nickname string) error {
 		cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount,
 	)
 
-	pp = p2p.NewPeerPool(cp, ownr)
+	pp = p2p.NewPeerPool(cp, ownr, stor)
 	pp.Start()
 	return nil
 }
 
-func Logout() error {
+func Logout() {
 	if !IsLoggedIn() {
-		return nil
+		return
 	}
-	ownr.Close()
 	pp.Stop()
+	ownr.Close()
 	ownr = nil
-	return nil
 }
 
 func IsLoggedIn() bool {
@@ -173,4 +191,17 @@ func FullVersion() string {
 
 func Dir() string {
 	return dir
+}
+
+// TBD: add topic
+func NewThread(subj string, text string) *entity.Message {
+	return entity.EmergeMessage(subj, text, ownr.User.ID(), &entity.ZeroID, ownr.Signer)
+}
+
+/*func NewReply(subject string, body string) *entity.Message {
+	return
+}*/
+
+func SendMessage(m *entity.Message) {
+
 }

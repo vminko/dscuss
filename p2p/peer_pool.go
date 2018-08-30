@@ -22,6 +22,7 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/peer"
+	"vminko.org/dscuss/storage"
 )
 
 // PeerPool is responsible for managing peers. It creates new peers, accounts
@@ -30,6 +31,7 @@ import (
 type PeerPool struct {
 	cp              *ConnectionProvider
 	owner           *owner.Owner
+	storage         *storage.Storage
 	gonePeerChan    chan *peer.Peer
 	stopPeersChan   chan struct{}
 	addrReleaseChan chan string
@@ -48,11 +50,12 @@ type PeerInfo struct {
 	//TBD: add subscriptions
 }
 
-func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
+func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner, storage *storage.Storage) *PeerPool {
 	addrReleaseChan := make(chan string)
 	return &PeerPool{
 		cp:              cp,
 		owner:           owner,
+		storage:         storage,
 		gonePeerChan:    make(chan *peer.Peer),
 		stopPeersChan:   make(chan struct{}),
 		addrReleaseChan: addrReleaseChan,
@@ -97,7 +100,13 @@ func (pp *PeerPool) watchNewConnections() {
 	defer pp.wg.Done()
 	for conn := range pp.cp.newConnChan() {
 		log.Debugf("New connection appeared, remote addr is %s", conn.RemoteAddr())
-		peer := peer.New(conn, pp.owner, pp.validateHandshakedPeer, pp.gonePeerChan)
+		peer := peer.New(
+			conn,
+			pp.owner,
+			pp.storage,
+			pp.validateHandshakedPeer,
+			pp.gonePeerChan,
+		)
 		pp.peersMx.Lock()
 		pp.peers = append(pp.peers, peer)
 		pp.peersMx.Unlock()
@@ -144,8 +153,7 @@ func (pp *PeerPool) validateHandshakedPeer(newPeer *peer.Peer) bool {
 	defer pp.peersMx.RUnlock()
 	for _, p := range pp.peers {
 		pid, err := p.ID()
-		if err == nil && pid == newPid && p != newPeer {
-			log.Debugf("Found duplicated conn with %s: %s", newPeer.Desc(), p.Conn.Desc())
+		if err == nil && *pid == *newPid && p != newPeer {
 			p.Conn.AddAddresses(newPeer.Conn.Addresses())
 			newPeer.Conn.ClearAddresses()
 			return false

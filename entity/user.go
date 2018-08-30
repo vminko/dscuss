@@ -33,17 +33,16 @@ type User struct {
 	Sig crypto.Signature
 }
 
-// emergeUser creates a new user entity. It should only be called when
+// EmergeUser creates a new user entity. It should only be called when
 // signature is not known yet.  Signature will be created using the provided
 // signer.
 func EmergeUser(
 	nickname string,
 	info string,
 	proof crypto.ProofOfWork,
-	regdate time.Time,
 	signer *crypto.Signer,
 ) *User {
-	uu := newUnsignedUser(nickname, info, signer.Public(), proof, regdate)
+	uu := newUnsignedUser(nickname, info, signer.Public(), proof, time.Now())
 	juser, err := json.Marshal(uu)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
@@ -82,7 +81,15 @@ func (u *User) Nickname() string {
 }
 
 func (u *User) ShortID() string {
-	return u.UnsignedUser.Entity.ID.Shorten()
+	return u.UnsignedUser.Descriptor.ID.Shorten()
+}
+
+func (u *User) Type() Type {
+	return u.UnsignedUser.Descriptor.Type
+}
+
+func (u *User) ID() *ID {
+	return &u.UnsignedUser.Descriptor.ID
 }
 
 func (u *User) Desc() string {
@@ -90,11 +97,24 @@ func (u *User) Desc() string {
 	return fmt.Sprintf("(%s)", u.UnsignedUser.Nickname)
 }
 
+func (u *User) VerifySig(pubKey *crypto.PublicKey) bool {
+	juser, err := json.Marshal(&u.UnsignedUser)
+	if err != nil {
+		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
+	}
+	return pubKey.Verify(juser, u.Sig)
+}
+
+func (u *User) VerifyID() bool {
+	correctID := NewID(u.PubKey.EncodeToDER())
+	return u.UnsignedUser.Descriptor.ID == correctID
+}
+
 // UnsignedUser identifies and describes a user. UnsignedUser has to be signed
 // (converted to the User) before sending to the network.
 // Implements Entity interface.
 type UnsignedUser struct {
-	Entity
+	Descriptor
 	PubKey   crypto.PublicKey
 	Proof    crypto.ProofOfWork
 	Nickname string
@@ -110,7 +130,7 @@ func newUnsignedUser(
 	regdate time.Time,
 ) *UnsignedUser {
 	return &UnsignedUser{
-		Entity: Entity{
+		Descriptor: Descriptor{
 			Type: TypeUser,
 			ID:   NewID(pubkey.EncodeToDER()),
 		},

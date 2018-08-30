@@ -92,12 +92,20 @@ func (s *StateHandshaking) readAndProcessUser() error {
 	if !ok {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
+	if !u.VerifyID() {
+		log.Errorf("Peer %s sent malformed User entity", s.p.Desc())
+		return errors.ProtocolViolation
+	}
+	if !u.VerifySig(&u.PubKey) {
+		log.Errorf("Peer %s sent User entity with invalid signature", s.p.Desc())
+		return errors.ProtocolViolation
+	}
 	s.u = u
 	return nil
 }
 
 func (s *StateHandshaking) sendHello() error {
-	hPld := packet.NewPayloadHello(&s.u.ID)
+	hPld := packet.NewPayloadHello(s.u.ID())
 	hPkt := packet.New(packet.TypeHello, hPld, s.p.owner.Signer)
 	err := s.p.Conn.Write(hPkt)
 	if err != nil {
@@ -128,7 +136,7 @@ func (s *StateHandshaking) readAndProcessHello() error {
 	if !ok {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
-	if h.ReceiverID != s.p.owner.User.ID {
+	if h.ReceiverID != *s.p.owner.User.ID() {
 		log.Errorf("Protocol violation detected:"+
 			" peer '%s' sent hello packet with wrong receiver ID: '%s'.",
 			s.p.Desc(), h.ReceiverID.String())
@@ -147,9 +155,9 @@ func (s *StateHandshaking) readAndProcessHello() error {
 }
 
 func (s *StateHandshaking) finalize() error {
-	_, err := s.p.owner.DB.GetUser(&s.u.ID)
+	_, err := s.p.storage.GetUser(s.u.ID())
 	if err == errors.NoSuchEntity {
-		s.p.owner.DB.PutUser(s.u)
+		s.p.storage.PutUser(s.u, s.p.outEntityChan)
 	} else if err != nil {
 		log.Errorf("Unexpected error occurred while getting user from the DB: %v", err)
 		return errors.Database

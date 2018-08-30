@@ -91,7 +91,7 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 	return pld, nil
 }
 
-func (p *Packet) Verify(pubKey *crypto.PublicKey) bool {
+func (p *Packet) VerifySig(pubKey *crypto.PublicKey) bool {
 	jbody, err := json.Marshal(p.Body)
 	if err != nil {
 		log.Fatal("Can't marshal packet body: " + err.Error())
@@ -108,5 +108,5 @@ func (p *Packet) Dump() string {
 	if err != nil {
 		return "[error: " + err.Error() + "]"
 	}
-	return fmt.Sprintf("type  %s", str)
+	return fmt.Sprintf("%s", str)
 }

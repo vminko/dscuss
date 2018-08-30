@@ -18,6 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/packet"
 )
@@ -32,7 +33,11 @@ func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
 }
 
 func (s *StateReceiving) perform() (nextState State, err error) {
-	log.Debugf("Peer %s is performing state %s", s.Name())
+	log.Debugf("Peer %s is performing state %s", s.p.Desc(), s.Name())
+	if !s.pendingPackets[1].VerifySig(&s.p.User.PubKey) {
+		log.Infof("Peer %s sent a packet with invalid signature: %s", s.p.Desc())
+		return nil, errors.ProtocolViolation
+	}
 	log.Debugf("State %s is not implemented yet", s.Name())
 	return newStateIdle(s.p), nil
 }

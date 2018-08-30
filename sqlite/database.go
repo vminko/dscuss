@@ -27,15 +27,6 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-/*
-type StorageService interface {
-	Service
-	EntityStorage
-	EntityProvider
-	EntityConsumer
-}
-*/
-
 // Database stores Entities. Implements EntityStorage interface.
 type Database sql.DB
 
@@ -143,7 +134,7 @@ func (d *Database) PutUser(user *entity.User) error {
 
 	pkpem := user.PubKey.EncodeToDER()
 	_, err = stmt.Exec(
-		user.ID[:],
+		user.ID()[:],
 		pkpem,
 		user.Proof,
 		user.Nickname(),

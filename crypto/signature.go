@@ -54,7 +54,7 @@ func (sig *Signature) UnmarshalJSON(b []byte) error {
 	trimmed := bytes.Trim(b, "\"")
 	res, err := ParseSignature(trimmed)
 	if err == nil {
-		copy([]byte(*sig), res)
+		*sig = res
 	}
 	return err
 }
