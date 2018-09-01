@@ -40,4 +40,5 @@ var (
 	ClosedConnection  = errors.New("use of closed connection")
 	PeerIDUnknown     = errors.New("peer ID is not known yet")
 	InvalidPeer       = errors.New("peer validation failed")
+	WrongArguments    = errors.New("wrong arguments")
 )

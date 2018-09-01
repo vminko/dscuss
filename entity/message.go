@@ -20,6 +20,7 @@ package entity
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/log"
@@ -81,6 +82,29 @@ func EmergeMessage(
 	return m
 }
 
+func NewMessage(
+	id *ID,
+	subject string,
+	text string,
+	authorID *ID,
+	parentID *ID,
+	dateWritten time.Time,
+	sig crypto.Signature,
+) *Message {
+	return &Message{
+		Descriptor: Descriptor{
+			Type: TypeMessage,
+			ID:   *id,
+		},
+		Subject:     subject,
+		Text:        text,
+		AuthorID:    *authorID,
+		ParentID:    *parentID,
+		DateWritten: dateWritten,
+		Sig:         sig,
+	}
+}
+
 func (m *Message) Copy() *Message {
 	res := *m
 	return &res
@@ -118,5 +142,5 @@ func (m *Message) ID() *ID {
 }
 
 func (m *Message) Desc() string {
-	return fmt.Sprintf("%s (%s)", m.ShortID(), m.Text[:24])
+	return fmt.Sprintf("%s (%s)", m.ShortID(), strings.Trim(m.Text[:24], "\\n\\r"))
 }

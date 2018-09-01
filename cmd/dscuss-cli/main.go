@@ -194,14 +194,42 @@ func doMakeThread(c *ishell.Context) {
 	text := c.ReadMultiLines(term)
 	text = strings.TrimSuffix(text, term)
 	text = strings.TrimRight(text, "\r\n")
-	c.Println(subj, text)
 
 	t := dscuss.NewThread(subj, text)
-	dscuss.SendMessage(t)
+	err := dscuss.PostMessage(t)
+	if err != nil {
+		c.Println("Error making new thread: " + err.Error() + ".")
+	} else {
+		c.Println("Thread '" + t.Desc() + "' created successfully.")
+	}
+}
+
+func doListBoard(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	c.ShowPrompt(false)
+	defer c.ShowPrompt(true)
+
+	const boardSize = 10
+	messages, err := dscuss.ListBoard(0, boardSize)
+	if err != nil {
+		c.Println("Can't list board: " + err.Error() + ".")
+		return
+	}
+
+	for i, msg := range messages {
+		if i != 0 {
+			c.Println()
+		}
+		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(), msg.DateWritten)
+		c.Printf("Subject: %s\n", msg.Subject)
+		c.Println(msg.Text)
+	}
 }
 
 func doMakeReply(c *ishell.Context)         { c.Println("Not implemented yet.") }
-func doListBoard(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doSubscribe(c *ishell.Context)         { c.Println("Not implemented yet.") }
 func doUnsubscribe(c *ishell.Context)       { c.Println("Not implemented yet.") }
 func doListSubscriptions(c *ishell.Context) { c.Println("Not implemented yet.") }

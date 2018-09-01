@@ -78,21 +78,22 @@ func (s *Storage) GetUser(eid *entity.ID) (*entity.User, error) {
 	return s.db.GetUser(eid)
 }
 
-/*
-func (s *Storage) PutMessage(m *entity.Message) error {
+func (s *Storage) PutMessage(m *entity.Message, sender chan<- entity.Entity) error {
 	err := s.db.PutMessage(m)
 	if err != nil {
 		return err
 	}
-	s.notifyObservers((*entity.Entity)(m))
+	s.notifyObservers((entity.Entity)(m), sender)
 	return nil
 }
 
 func (s *Storage) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	return s.db.GetMessage(eid)
 }
-*/
+
+func (s *Storage) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
+	return s.db.GetRootMessages(offset, limit)
+}
 
 //TBD:
-//GetRootMessages(mi MessageIterator)
 //GetMessageReplies(id ID, mi MessageIterator)

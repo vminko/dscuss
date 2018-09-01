@@ -202,6 +202,18 @@ func NewThread(subj string, text string) *entity.Message {
 	return
 }*/
 
-func SendMessage(m *entity.Message) {
+func PostMessage(m *entity.Message) error {
+	err := stor.PutMessage(m, nil)
+	if err != nil {
+		log.Errorf("Failed to post message '%s': %v", m.Desc(), err)
+		return err
+	}
+	return nil
+}
 
+func ListBoard(offset, limit int) ([]*entity.Message, error) {
+	if offset < 0 || limit < 0 {
+		return nil, errors.WrongArguments
+	}
+	return stor.GetRootMessages(offset, limit)
 }

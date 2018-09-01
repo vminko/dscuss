@@ -22,6 +22,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"vminko.org/dscuss/errors"
+	"vminko.org/dscuss/log"
 )
 
 type Type int
@@ -58,6 +60,15 @@ var ZeroID ID
 
 func NewID(data []byte) ID {
 	return sha256.Sum256(data)
+}
+
+func (i *ID) ParseSlice(s []byte) error {
+	if len(s) != len(i) {
+		log.Warningf("Failed to parse ID slice - wrong length (%d)", len(s))
+		return errors.Parsing
+	}
+	copy(i[:], s[:])
+	return nil
 }
 
 func (i ID) MarshalJSON() ([]byte, error) {
