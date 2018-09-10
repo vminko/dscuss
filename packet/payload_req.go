@@ -16,14 +16,17 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
-// PayloadHello is used for handshaking.
-// When user A sends this packet to user B, he/she
-// notifies user B about topics of A's interests/
-type PayloadHello struct {
-	// Subscriptions of the author of the payload.
-	// TBD: subscriptions []Subscription;
+import (
+	"vminko.org/dscuss/entity"
+)
+
+// PayloadReq is used for requesting advertised entities.
+type PayloadReq struct {
+	ID entity.ID `json:"new_id"` // Id of the entity being requested
 }
 
-func NewPayloadHello() *PayloadHello {
-	return &PayloadHello{}
+func NewPayloadReq(id *entity.ID) *PayloadReq {
+	p := &PayloadReq{}
+	copy(p.ID[:], id[:])
+	return p
 }

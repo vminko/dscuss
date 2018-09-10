@@ -16,14 +16,19 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
-// PayloadHello is used for handshaking.
+import (
+	"vminko.org/dscuss/entity"
+)
+
+// PayloadAnnounce is used for advertising new entities.
 // When user A sends this packet to user B, he/she
-// notifies user B about topics of A's interests/
-type PayloadHello struct {
-	// Subscriptions of the author of the payload.
-	// TBD: subscriptions []Subscription;
+// notifies user B about new entity that should be interesting for B.
+type PayloadAnnounce struct {
+	ID entity.ID `json:"id"` // Id of the entity being advertised.
 }
 
-func NewPayloadHello() *PayloadHello {
-	return &PayloadHello{}
+func NewPayloadAnnounce(id *entity.ID) *PayloadAnnounce {
+	p := &PayloadAnnounce{}
+	copy(p.ID[:], id[:])
+	return p
 }

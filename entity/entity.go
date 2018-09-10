@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	dstrings "vminko.org/dscuss/strings"
 )
 
 type Type int
@@ -88,5 +89,5 @@ func (i *ID) String() string {
 
 func (i *ID) Shorten() string {
 	idStr := i.String()
-	return idStr[:8]
+	return dstrings.Truncate(idStr, 8)
 }

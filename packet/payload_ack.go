@@ -16,14 +16,10 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
-// PayloadHello is used for handshaking.
-// When user A sends this packet to user B, he/she
-// notifies user B about topics of A's interests/
-type PayloadHello struct {
-	// Subscriptions of the author of the payload.
-	// TBD: subscriptions []Subscription;
+// PayloadAck  is used as an acknowledgment for an announcement.
+type PayloadAck struct {
 }
 
-func NewPayloadHello() *PayloadHello {
-	return &PayloadHello{}
+func NewPayloadAck() *PayloadAck {
+	return &PayloadAck{}
 }

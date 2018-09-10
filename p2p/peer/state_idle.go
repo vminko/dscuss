@@ -32,6 +32,7 @@ func newStateIdle(p *Peer) *StateIdle {
 
 func (s *StateIdle) perform() (nextState State, err error) {
 	for {
+		log.Debugf("Peer %s is trying to read packets...", s.p.Desc())
 		pckt, err := s.p.Conn.Read()
 		if err != nil {
 			if neterr, ok := err.(net.Error); !(ok && neterr.Timeout()) {
@@ -43,6 +44,7 @@ func (s *StateIdle) perform() (nextState State, err error) {
 			return newStateReceiving(s.p, pckt), nil
 		}
 
+		log.Debugf("Peer %s is checking for new outEntity...", s.p.Desc())
 		select {
 		case e, ok := <-s.p.outEntityChan:
 			if ok {

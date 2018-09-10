@@ -25,12 +25,24 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-// User is an UnsignedUser with a signature. Like UnsignedUser, it also
-// identifies and describes a user. But in contrast to UnsignedUser, it's
-// suitable for sending to the network.
+// User identifies and describes a user. It's suitable for sending to the network.
+// Implements Entity interface.
 type User struct {
 	UnsignedUser
 	Sig crypto.Signature
+}
+
+type UnsignedUser struct {
+	Descriptor
+	UserContent
+}
+
+type UserContent struct {
+	PubKey   crypto.PublicKey
+	Proof    crypto.ProofOfWork
+	Nickname string
+	Info     string
+	RegDate  time.Time
 }
 
 // EmergeUser creates a new user entity. It should only be called when
@@ -47,6 +59,7 @@ func EmergeUser(
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
+	log.Debugf("Signing this UnsignedUser: '%s'", juser)
 	sig, err := signer.Sign(juser)
 	if err != nil {
 		log.Fatal("Can't sign JSON-encoded user: " + err.Error())
@@ -102,24 +115,34 @@ func (u *User) VerifySig(pubKey *crypto.PublicKey) bool {
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
+	log.Debugf("Verifying signature for this UnsignedUser: '%s'", juser)
 	return pubKey.Verify(juser, u.Sig)
 }
 
 func (u *User) VerifyID() bool {
-	correctID := NewID(u.PubKey.EncodeToDER())
-	return u.UnsignedUser.Descriptor.ID == correctID
+	correctID := u.UnsignedUser.UserContent.ToID()
+	return u.UnsignedUser.Descriptor.ID == *correctID
 }
 
-// UnsignedUser identifies and describes a user. UnsignedUser has to be signed
-// (converted to the User) before sending to the network.
-// Implements Entity interface.
-type UnsignedUser struct {
-	Descriptor
-	PubKey   crypto.PublicKey
-	Proof    crypto.ProofOfWork
-	Nickname string
-	Info     string
-	RegDate  time.Time
+func newUserContent(
+	nickname string,
+	info string,
+	pubkey *crypto.PublicKey,
+	proof crypto.ProofOfWork,
+	regdate time.Time,
+) *UserContent {
+	return &UserContent{
+		PubKey:   *pubkey,
+		Proof:    proof,
+		Nickname: nickname,
+		Info:     info,
+		RegDate:  regdate,
+	}
+}
+
+func (uc *UserContent) ToID() *ID {
+	id := NewID(uc.PubKey.EncodeToDER())
+	return &id
 }
 
 func newUnsignedUser(
@@ -129,15 +152,12 @@ func newUnsignedUser(
 	proof crypto.ProofOfWork,
 	regdate time.Time,
 ) *UnsignedUser {
+	uc := newUserContent(nickname, info, pubkey, proof, regdate)
 	return &UnsignedUser{
 		Descriptor: Descriptor{
 			Type: TypeUser,
-			ID:   NewID(pubkey.EncodeToDER()),
+			ID:   *uc.ToID(),
 		},
-		PubKey:   *pubkey,
-		Proof:    proof,
-		Nickname: nickname,
-		Info:     info,
-		RegDate:  regdate,
+		UserContent: *uc,
 	}
 }

@@ -95,5 +95,13 @@ func (s *Storage) GetRootMessages(offset, limit int) ([]*entity.Message, error) 
 	return s.db.GetRootMessages(offset, limit)
 }
 
+func (s *Storage) HasMessage(id *entity.ID) (bool, error) {
+	return s.db.HasMessage(id)
+}
+
+func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
+	return s.db.GetEntity(eid)
+}
+
 //TBD:
 //GetMessageReplies(id ID, mi MessageIterator)

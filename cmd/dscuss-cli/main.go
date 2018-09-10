@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/abiosoft/ishell"
 	"strings"
+	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/log"
 )
@@ -223,7 +224,8 @@ func doListBoard(c *ishell.Context) {
 		if i != 0 {
 			c.Println()
 		}
-		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(), msg.DateWritten)
+		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(),
+			msg.DateWritten.Format(time.RFC3339))
 		c.Printf("Subject: %s\n", msg.Subject)
 		c.Println(msg.Text)
 	}

@@ -49,7 +49,7 @@ func Open(fileName string) (*Database, error) {
 	exec("PRAGMA locking_mode=EXCLUSIVE")
 	exec("PRAGMA page_size=4092")
 	exec("CREATE TABLE IF NOT EXISTS  User (" +
-		"  Id              BLOB PRIMARY KEY," +
+		"  Id              BLOB PRIMARY KEY ON CONFLICT IGNORE," +
 		"  Public_key      BLOB NOT NULL," +
 		"  Proof           UNSIGNED BIG INT NOT NULL," +
 		"  Nickname        TEXT NOT NULL," +
@@ -57,7 +57,7 @@ func Open(fileName string) (*Database, error) {
 		"  Timestamp       TIMESTAMP NOT NULL," +
 		"  Signature       BLOB NOT NULL)")
 	exec("CREATE TABLE IF NOT EXISTS  Message (" +
-		"  Id              BLOB PRIMARY KEY," +
+		"  Id              BLOB PRIMARY KEY ON CONFLICT IGNORE," +
 		"  Subject         TEXT," +
 		"  Content         TEXT," +
 		"  Timestamp       TIMESTAMP NOT NULL," +
@@ -66,7 +66,7 @@ func Open(fileName string) (*Database, error) {
 		"  Signature       BLOB NOT NULL," +
 		"  FOREIGN KEY (Author_id) REFERENCES User(Id))")
 	exec("CREATE TABLE IF NOT EXISTS  Operation (" +
-		"  Id              BLOB PRIMARY KEY," +
+		"  Id              BLOB PRIMARY KEY ON CONFLICT IGNORE," +
 		"  Type            INTEGER NOT NULL," +
 		"  Reason          INTEGER NOT NULL," +
 		"  Comment         TEXT," +
@@ -364,4 +364,40 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 	}
 
 	return res, nil
+}
+
+func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
+	log.Debugf("Fetching message with id '%s' from the database.", eid.String())
+
+	// FIXME: This is definitely not the most efficient implementation.
+	var subj string
+	query := `SELECT Subject FROM Message WHERE Id=?`
+	db := (*sql.DB)(d)
+	err := db.QueryRow(query, eid[:]).Scan(&subj)
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
+		log.Errorf("Error fetching message from the database: %v", err)
+		return false, errors.DBOperFailed
+	default:
+		return true, nil
+	}
+}
+
+func (d *Database) GetEntity(eid *entity.ID) (entity.Entity, error) {
+	log.Debugf("Fetching entity with id '%s' from the database.", eid.String())
+
+	m, err := d.GetMessage(eid)
+	if err == errors.NoSuchEntity {
+		u, err := d.GetUser(eid)
+		if err != nil {
+			return nil, err
+		} else {
+			return (entity.Entity)(u), nil
+		}
+	} else {
+		return nil, err
+	}
+	return (entity.Entity)(m), nil
 }

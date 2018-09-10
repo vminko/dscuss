@@ -119,12 +119,6 @@ func (p *Peer) Desc() string {
 	}
 }
 
-func (p *Peer) EntityReceived(e entity.Entity) {
-	log.Debugf("Peer %s received entity %s from the Storage", p.Desc(), e.Desc())
-	// TBD: check if this entity is relevant for this peer
-	p.outEntityChan <- e
-}
-
 func (p *Peer) ID() (*ID, error) {
 	if p.User != nil {
 		return (*ID)(p.User.ID()), nil

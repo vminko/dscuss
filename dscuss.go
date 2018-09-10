@@ -34,6 +34,7 @@ import (
 	"vminko.org/dscuss/p2p"
 	"vminko.org/dscuss/sqlite"
 	"vminko.org/dscuss/storage"
+	dstrings "vminko.org/dscuss/strings"
 )
 
 const (
@@ -64,13 +65,17 @@ func Init(initDir string) error {
 		dir = initDir
 	}
 
-	if dir[:2] == "~/" {
+	if dstrings.Truncate(dir, 2) == "~/" {
 		usr, err := user.Current()
 		if err != nil {
-			log.Error("Can't get get current OS user: " + err.Error())
+			log.Error("Can't get current OS user: " + err.Error())
 			return errors.Internal
 		}
-		dir = filepath.Join(usr.HomeDir, dir[2:])
+		if len(dir) > 2 {
+			dir = filepath.Join(usr.HomeDir, dir[2:])
+		} else {
+			dir = usr.HomeDir
+		}
 	}
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {

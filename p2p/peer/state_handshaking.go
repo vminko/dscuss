@@ -18,7 +18,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
-	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -62,30 +61,32 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 }
 
 func (s *StateHandshaking) sendUser() error {
-	uPkt := packet.New(packet.TypeUser, s.p.owner.User, s.p.owner.Signer)
-	err := s.p.Conn.Write(uPkt)
+	pkt := packet.New(packet.TypeUser, &entity.ZeroID, s.p.owner.User, s.p.owner.Signer)
+	err := s.p.Conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", uPkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err
 	}
 	return nil
 }
 
 func (s *StateHandshaking) readAndProcessUser() error {
-	uPkt, err := s.p.Conn.Read()
+	pkt, err := s.p.Conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 		return err
 	}
-	if uPkt.Body.Type != packet.TypeUser {
-		log.Errorf("Protocol violation detected:"+
-			" peer '%s' sent unexpected packet of type '%s'. Expected: %s.",
-			s.p.Desc(), uPkt.Body.Type, packet.TypeUser)
+
+	// We can't check signature of the packet at this point, because we don't know
+	// the user yet. Signature will be checked below.
+	if pkt.VerifyHeader(packet.TypeUser, &entity.ZeroID) != nil {
+		log.Infof("Peer %s sent packet with invalid header.", s.p.Desc())
 		return errors.ProtocolViolation
 	}
-	i, err := uPkt.DecodePayload()
+
+	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Errorf("Failed to decode payload of packet '%s': %v", uPkt.Desc(), err)
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
 		return errors.Parsing
 	}
 	u, ok := (i).(*entity.User)
@@ -93,11 +94,15 @@ func (s *StateHandshaking) readAndProcessUser() error {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
 	if !u.VerifyID() {
-		log.Errorf("Peer %s sent malformed User entity", s.p.Desc())
+		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
+		return errors.ProtocolViolation
+	}
+	if !pkt.VerifySig(&u.PubKey) {
+		log.Infof("Peer %s sent Hello packet with invalid signature", s.p.Desc())
 		return errors.ProtocolViolation
 	}
 	if !u.VerifySig(&u.PubKey) {
-		log.Errorf("Peer %s sent User entity with invalid signature", s.p.Desc())
+		log.Infof("Peer %s sent User entity with invalid signature", s.p.Desc())
 		return errors.ProtocolViolation
 	}
 	s.u = u
@@ -105,8 +110,8 @@ func (s *StateHandshaking) readAndProcessUser() error {
 }
 
 func (s *StateHandshaking) sendHello() error {
-	hPld := packet.NewPayloadHello(s.u.ID())
-	hPkt := packet.New(packet.TypeHello, hPld, s.p.owner.Signer)
+	hPld := packet.NewPayloadHello()
+	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
 	err := s.p.Conn.Write(hPkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", hPkt.Desc(), s.p.Desc(), err)
@@ -116,48 +121,44 @@ func (s *StateHandshaking) sendHello() error {
 }
 
 func (s *StateHandshaking) readAndProcessHello() error {
-	hPkt, err := s.p.Conn.Read()
+	pkt, err := s.p.Conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 		return err
 	}
-	if hPkt.Body.Type != packet.TypeHello {
-		log.Errorf("Protocol violation detected:"+
-			" peer '%s' sent unexpected packet of type '%s'. Expected: %s.",
-			s.p.Desc(), hPkt.Body.Type, packet.TypeHello)
+	if !pkt.VerifySig(&s.u.PubKey) {
+		log.Infof("Peer %s sent a packet with invalid signature", s.p.Desc())
 		return errors.ProtocolViolation
 	}
-	i, err := hPkt.DecodePayload()
-	if err != nil {
-		log.Errorf("Failed to decode payload of packet '%s': %v", hPkt.Desc(), err)
-		return errors.Parsing
-	}
-	h, ok := (i).(*packet.PayloadHello)
-	if !ok {
-		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
-	}
-	if h.ReceiverID != *s.p.owner.User.ID() {
-		log.Errorf("Protocol violation detected:"+
-			" peer '%s' sent hello packet with wrong receiver ID: '%s'.",
-			s.p.Desc(), h.ReceiverID.String())
+	if pkt.VerifyHeader(packet.TypeHello, s.p.owner.User.ID()) != nil {
+		log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
 		return errors.ProtocolViolation
 	}
 
-	const MaxTimeDiscrepancy = 5 * time.Second
-	if time.Since(h.Time) > MaxTimeDiscrepancy {
-		log.Errorf("Protocol violation detected:"+
-			" peer '%s' sent hello packet with obsolete Time: '%s'.",
-			s.p.Desc(), h.Time.Format(time.RFC3339))
-		return errors.ProtocolViolation
+	i, err := pkt.DecodePayload()
+	if err != nil {
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
+		return errors.Parsing
+	}
+	_, ok := (i).(*packet.PayloadHello)
+	if !ok {
+		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
 	//TBD: process subscriptions
 	return nil
 }
 
 func (s *StateHandshaking) finalize() error {
+	// storage.HasUser will be a bit faster in this case, but handshaking
+	// should happen rarely, so GetUser won't cause significant difference
+	// in performance.
 	_, err := s.p.storage.GetUser(s.u.ID())
 	if err == errors.NoSuchEntity {
-		s.p.storage.PutUser(s.u, s.p.outEntityChan)
+		err = s.p.storage.PutUser(s.u, s.p.outEntityChan)
+		if err != nil {
+			log.Errorf("Failed to put user into the DB: %v", err)
+			return errors.Database
+		}
 	} else if err != nil {
 		log.Errorf("Unexpected error occurred while getting user from the DB: %v", err)
 		return errors.Database

@@ -19,6 +19,7 @@ package packet
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
@@ -27,9 +28,12 @@ import (
 
 type Type string
 
+// Time and ReceiverID protect from replay attack.
 type Body struct {
-	Type    Type            `json:"type"`
-	Payload json.RawMessage `json:"payload"`
+	Type       Type            `json:"type"`
+	ReceiverID entity.ID       `json:"receiver_id"` // Id of the user this packet is designated for.
+	Composed   time.Time       `json:"composed"`    // Date and time when the payload was composed.
+	Payload    json.RawMessage `json:"payload"`
 }
 
 type Packet struct {
@@ -43,7 +47,7 @@ const (
 	// Encapsulates a message entity.
 	TypeMessage Type = "msg"
 	// Encapsulates an operation entity.
-	TypeOper Type = "oper"
+	TypeOperation Type = "oper"
 	// Used for introducing users during handshake.
 	TypeHello Type = "hello"
 	// Used for advertising new entities.
@@ -54,12 +58,14 @@ const (
 	TypeReq Type = "req"
 )
 
-func New(t Type, p interface{}, s *crypto.Signer) *Packet {
-	jp, err := json.Marshal(p)
+func New(t Type, rcv *entity.ID, pld interface{}, s *crypto.Signer) *Packet {
+	jp, err := json.Marshal(pld)
 	if err != nil {
 		log.Fatal("Can't marshal packet payload: " + err.Error())
 	}
-	b := &Body{Type: t, Payload: jp}
+	b := &Body{Type: t, Composed: time.Now(), Payload: jp}
+	copy(b.ReceiverID[:], rcv[:])
+
 	jb, err := json.Marshal(b)
 	if err != nil {
 		log.Fatal("Can't marshal packet body: " + err.Error())
@@ -76,8 +82,16 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 	switch p.Body.Type {
 	case TypeUser:
 		pld = new(entity.User)
+	case TypeMessage:
+		pld = new(entity.Message)
 	case TypeHello:
 		pld = new(PayloadHello)
+	case TypeAnnounce:
+		pld = new(PayloadAnnounce)
+	case TypeReq:
+		pld = new(PayloadReq)
+	case TypeAck:
+		pld = new(PayloadAck)
 	default:
 		log.Error("Unknown payload type: " + string(p.Body.Type))
 		return nil, errors.WrongPacketType
@@ -97,6 +111,28 @@ func (p *Packet) VerifySig(pubKey *crypto.PublicKey) bool {
 		log.Fatal("Can't marshal packet body: " + err.Error())
 	}
 	return pubKey.Verify(jbody, p.Sig)
+}
+
+func (p *Packet) VerifyHeader(t Type, rcv *entity.ID) error {
+	return p.VerifyHeaderFull(func(ft Type) bool { return ft == t }, rcv)
+}
+
+func (p *Packet) VerifyHeaderFull(f func(Type) bool, rcv *entity.ID) error {
+	if !f(p.Body.Type) {
+		log.Infof("Got packet of unexpected type %d", p.Body.Type)
+		return errors.ProtocolViolation
+	}
+	if p.Body.ReceiverID != *rcv {
+		log.Errorf("Got packet with wrong receiver ID: '%s'.", p.Body.ReceiverID.String())
+		return errors.ProtocolViolation
+	}
+	const MaxTimeDiscrepancy = 3 * time.Minute
+	if time.Since(p.Body.Composed) > MaxTimeDiscrepancy {
+		log.Errorf("Got packet with obsolete timestamp: '%s'.",
+			p.Body.Composed.Format(time.RFC3339))
+		return errors.ProtocolViolation
+	}
+	return nil
 }
 
 func (p *Packet) Desc() string {
