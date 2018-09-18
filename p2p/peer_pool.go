@@ -40,18 +40,9 @@ type PeerPool struct {
 	wg              sync.WaitGroup
 }
 
-type PeerInfo struct {
-	ID              string
-	LocalAddr       string
-	RemoteAddr      string
-	AssociatedAddrs []string
-	Nickname        string
-	StateName       string
-	//TBD: add subscriptions
-}
-
 func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner, storage *storage.Storage) *PeerPool {
 	addrReleaseChan := make(chan string)
+	cp.SetReleaseChan(addrReleaseChan)
 	return &PeerPool{
 		cp:              cp,
 		owner:           owner,
@@ -135,7 +126,7 @@ func (pp *PeerPool) watchGonePeers() {
 	for cpeer := range pp.gonePeerChan {
 		for _, addr := range cpeer.Conn.Addresses() {
 			log.Debugf("PP is releasing address %s", addr)
-			//pp.addrReleaseChan <- addr
+			pp.addrReleaseChan <- addr
 		}
 		log.Debugf("Removing peer %s from PP", cpeer.Desc())
 		pp.removePeer(cpeer)
@@ -162,24 +153,12 @@ func (pp *PeerPool) validateHandshakedPeer(newPeer *peer.Peer) bool {
 	return true
 }
 
-func (pp *PeerPool) ListPeers() []*PeerInfo {
+func (pp *PeerPool) ListPeers() []*peer.Info {
 	pp.peersMx.RLock()
 	defer pp.peersMx.RUnlock()
-	res := make([]*PeerInfo, len(pp.peers))
+	res := make([]*peer.Info, len(pp.peers))
 	for i, p := range pp.peers {
-		nick := "[unknown]"
-		if p.User != nil {
-			nick = p.User.Nickname()
-		}
-		pi := &PeerInfo{
-			ID:              p.ShortID(),
-			LocalAddr:       p.Conn.LocalAddr(),
-			RemoteAddr:      p.Conn.RemoteAddr(),
-			AssociatedAddrs: p.Conn.Addresses(),
-			Nickname:        nick,
-			StateName:       p.State.Name(),
-		}
-		res[i] = pi
+		res[i] = p.Info()
 	}
 	return res
 }

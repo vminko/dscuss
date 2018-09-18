@@ -32,9 +32,11 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p"
+	"vminko.org/dscuss/p2p/peer"
 	"vminko.org/dscuss/sqlite"
 	"vminko.org/dscuss/storage"
 	dstrings "vminko.org/dscuss/strings"
+	"vminko.org/dscuss/subs"
 )
 
 const (
@@ -129,8 +131,14 @@ func Uninit() {
 	logFile.Close()
 }
 
-func Register(nickname, info string) error {
-	return owner.Register(dir, nickname, info, stor)
+func Register(nickname, info, subStr string) error {
+	s, err := subs.ReadString(subStr)
+	if err != nil {
+		log.Errorf("Attempt to register a user with unacceptable subscriptions: %v", err)
+		return errors.WrongArguments
+
+	}
+	return owner.Register(dir, nickname, info, s, stor)
 }
 
 func Login(nickname string) error {
@@ -186,7 +194,10 @@ func IsLoggedIn() bool {
 	return ownr != nil
 }
 
-func ListPeers() []*p2p.PeerInfo {
+func ListPeers() []*peer.Info {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to list peers when no user is logged in")
+	}
 	return pp.ListPeers()
 }
 
@@ -198,9 +209,15 @@ func Dir() string {
 	return dir
 }
 
-// TBD: add topic
-func NewThread(subj string, text string) *entity.Message {
-	return entity.EmergeMessage(subj, text, ownr.User.ID(), &entity.ZeroID, ownr.Signer)
+func NewThread(subj string, text string, topic string) (*entity.Message, error) {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to create a new thread when no user is logged in")
+	}
+	t, err := subs.NewTopic(topic)
+	if err != nil {
+		return nil, errors.WrongTopic
+	}
+	return entity.EmergeMessage(subj, text, ownr.User.ID(), &entity.ZeroID, ownr.Signer, t)
 }
 
 /*func NewReply(subject string, body string) *entity.Message {
@@ -208,6 +225,9 @@ func NewThread(subj string, text string) *entity.Message {
 }*/
 
 func PostMessage(m *entity.Message) error {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to post message when no user is logged in")
+	}
 	err := stor.PutMessage(m, nil)
 	if err != nil {
 		log.Errorf("Failed to post message '%s': %v", m.Desc(), err)
@@ -217,8 +237,18 @@ func PostMessage(m *entity.Message) error {
 }
 
 func ListBoard(offset, limit int) ([]*entity.Message, error) {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to list board when no user is logged in")
+	}
 	if offset < 0 || limit < 0 {
 		return nil, errors.WrongArguments
 	}
 	return stor.GetRootMessages(offset, limit)
+}
+
+func ListSubscriptions() string {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to list subscriptions when no user is logged in")
+	}
+	return ownr.Subs.String()
 }

@@ -108,7 +108,6 @@ func NewConnectionProvider(
 		outChan:         make(chan *connection.Connection),
 		stopChan:        make(chan struct{}),
 		outAddrs:        &addressMap{m: make(map[string]bool)},
-		releaseChan:     make(chan string),
 		inConnCount:     0,
 		outConnCount:    0,
 	}
@@ -123,10 +122,10 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 func (cp *ConnectionProvider) Start() {
 	log.Debugf("Starting ConnectionProvider")
 	cp.ap.RegisterAddressConsumer(cp)
-	cp.wg.Add(2)
+	cp.wg.Add(3)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
-	//go cp.handleReleasedAddresses()
+	go cp.handleReleasedAddresses()
 	cp.ap.Start()
 }
 
@@ -140,6 +139,10 @@ func (cp *ConnectionProvider) Stop() {
 	cp.wg.Wait()
 	close(cp.outChan)
 	log.Debugf("ConnectionProvider stopped")
+}
+
+func (cp *ConnectionProvider) SetReleaseChan(c chan string) {
+	cp.releaseChan = c
 }
 
 func (cp *ConnectionProvider) newConnChan() chan *connection.Connection {

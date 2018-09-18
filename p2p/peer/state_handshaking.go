@@ -22,11 +22,13 @@ import (
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/packet"
+	"vminko.org/dscuss/subs"
 )
 
 type StateHandshaking struct {
 	p *Peer
 	u *entity.User
+	s subs.Subscriptions
 }
 
 func newStateHandshaking(p *Peer) *StateHandshaking {
@@ -93,7 +95,7 @@ func (s *StateHandshaking) readAndProcessUser() error {
 	if !ok {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
-	if !u.VerifyID() {
+	if !u.IsValid() {
 		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
 		return errors.ProtocolViolation
 	}
@@ -101,16 +103,12 @@ func (s *StateHandshaking) readAndProcessUser() error {
 		log.Infof("Peer %s sent Hello packet with invalid signature", s.p.Desc())
 		return errors.ProtocolViolation
 	}
-	if !u.VerifySig(&u.PubKey) {
-		log.Infof("Peer %s sent User entity with invalid signature", s.p.Desc())
-		return errors.ProtocolViolation
-	}
 	s.u = u
 	return nil
 }
 
 func (s *StateHandshaking) sendHello() error {
-	hPld := packet.NewPayloadHello()
+	hPld := packet.NewPayloadHello(s.p.owner.Subs)
 	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
 	err := s.p.Conn.Write(hPkt)
 	if err != nil {
@@ -140,11 +138,15 @@ func (s *StateHandshaking) readAndProcessHello() error {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
 		return errors.Parsing
 	}
-	_, ok := (i).(*packet.PayloadHello)
+	h, ok := (i).(*packet.PayloadHello)
 	if !ok {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
-	//TBD: process subscriptions
+	if !h.IsValid() {
+		log.Infof("Peer %s sent malformed Hello packet", s.p.Desc())
+		return errors.ProtocolViolation
+	}
+	s.s = h.Subs
 	return nil
 }
 
@@ -164,6 +166,7 @@ func (s *StateHandshaking) finalize() error {
 		return errors.Database
 	}
 	s.p.User = s.u
+	s.p.Subs = s.s
 	if !s.p.validate(s.p) {
 		log.Debugf("Peer validation failed")
 		return errors.InvalidPeer

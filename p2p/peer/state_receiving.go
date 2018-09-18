@@ -139,12 +139,8 @@ func (s *StateReceiving) readAndProcessMessage() error {
 	if !ok {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
-	if !m.VerifyID() {
-		log.Infof("Peer %s sent Message entity with invalid ID", s.p.Desc())
-		return errors.ProtocolViolation
-	}
-	if !m.VerifySig(&s.p.User.PubKey) {
-		log.Infof("Peer %s sent Message entity with invalid signature", s.p.Desc())
+	if !m.IsValid(&s.p.User.PubKey) {
+		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
 		return errors.ProtocolViolation
 	}
 	if m.Descriptor.ID != *s.requestedEntity {
@@ -152,7 +148,10 @@ func (s *StateReceiving) readAndProcessMessage() error {
 		return errors.ProtocolViolation
 	}
 
-	//TBD: check if Message matches owner subscriptions
+	if !s.p.Subs.Covers(m.Topic) {
+		log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
+		return errors.ProtocolViolation
+	}
 
 	err = s.p.storage.PutMessage(m, s.p.outEntityChan)
 	if err != nil {

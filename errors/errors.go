@@ -32,6 +32,7 @@ var (
 	NoSuchEntity      = errors.New("can't find requested entity")
 	WrongNickname     = errors.New("unacceptable nickname")
 	AlreadyLoggedIn   = errors.New("another user is already logged in")
+	NotLoggedIn       = errors.New("you have to log first")
 	AlreadyRegistered = errors.New("such user is already registered")
 	NoSuchUser        = errors.New("can't find specified user")
 	WrongPacketType   = errors.New("wrong packet type")
@@ -41,4 +42,7 @@ var (
 	PeerIDUnknown     = errors.New("peer ID is not known yet")
 	InvalidPeer       = errors.New("peer validation failed")
 	WrongArguments    = errors.New("wrong arguments")
+	WrongTopic        = errors.New("unacceptable topic")
 )
+
+// TBD: consider https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully

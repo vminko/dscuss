@@ -26,6 +26,7 @@ import (
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/connection"
 	"vminko.org/dscuss/storage"
+	"vminko.org/dscuss/subs"
 )
 
 type ID entity.ID
@@ -45,9 +46,23 @@ type Peer struct {
 	wg            sync.WaitGroup
 	State         State
 	User          *entity.User
+	Subs          subs.Subscriptions
+}
+
+// Info is a static Peer description for UI.
+type Info struct {
+	ID              string
+	LocalAddr       string
+	RemoteAddr      string
+	AssociatedAddrs []string
+	Nickname        string
+	StateName       string
+	Subscriptions   []string
 }
 
 type Validator func(*Peer) bool
+
+const unknownValue string = "[unknown]"
 
 func New(
 	conn *connection.Connection,
@@ -133,6 +148,40 @@ func (p *Peer) ShortID() string {
 		eid := (*entity.ID)(id)
 		return eid.Shorten()
 	} else {
-		return "[unknown]"
+		return unknownValue
+	}
+}
+
+func (p *Peer) isInterestedInEntity(e entity.Entity) bool {
+	switch e.Type() {
+	case entity.TypeMessage:
+		m, ok := (e).(*entity.Message)
+		if !ok {
+			log.Fatal("BUG: entity type does not match Type value")
+		}
+		return p.Subs.Covers(m.Topic)
+	default:
+		log.Fatal("BUG: nothing but messages should be here yet.")
+	}
+	return false
+}
+
+func (p *Peer) Info() *Info {
+	nick := unknownValue
+	if p.User != nil {
+		nick = p.User.Nickname()
+	}
+	subs := []string{unknownValue}
+	if p.Subs != nil {
+		subs = p.Subs.StringSlice()
+	}
+	return &Info{
+		ID:              p.ShortID(),
+		LocalAddr:       p.Conn.LocalAddr(),
+		RemoteAddr:      p.Conn.RemoteAddr(),
+		AssociatedAddrs: p.Conn.Addresses(),
+		Nickname:        nick,
+		StateName:       p.State.Name(),
+		Subscriptions:   subs,
 	}
 }

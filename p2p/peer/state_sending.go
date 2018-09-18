@@ -36,7 +36,10 @@ func newStateSending(p *Peer, e entity.Entity) *StateSending {
 func (s *StateSending) perform() (nextState State, err error) {
 	log.Debugf("Peer %s is performing state %s", s.p.Desc(), s.Name())
 
-	// TBD: check if outgoingEntity is relevant for this peer
+	if !s.p.isInterestedInEntity(s.outgoingEntity) {
+		log.Debugf("Peer %s is not interested in '%s'", s.p.Desc(), s.outgoingEntity.Desc())
+		return newStateIdle(s.p), nil
+	}
 
 	err = s.sendAnnounce(s.outgoingEntity.ID())
 	if err != nil {

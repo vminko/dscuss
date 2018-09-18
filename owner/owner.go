@@ -28,21 +28,24 @@ import (
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/storage"
+	"vminko.org/dscuss/subs"
 )
 
 type Owner struct {
 	User    *entity.User
+	Subs    subs.Subscriptions
 	Signer  *crypto.Signer
 	storage *storage.Storage
 }
 
 const (
-	privKeyFileName string = "privkey.pem"
+	privKeyFileName       string = "privkey.pem"
+	subscriptionsFileName string = "subscriptions.txt"
 )
 
-func Register(dir, nickname, info string, s *storage.Storage) error {
-	// TBD: validate nickname. It must contain only [\w\d\._]
+func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.Storage) error {
 	log.Debugf("Registering user %s", nickname)
+	// Nickname will be validated via regexp later during EmergeUser
 	if nickname == "" {
 		return errors.WrongNickname
 	}
@@ -60,6 +63,13 @@ func Register(dir, nickname, info string, s *storage.Storage) error {
 		}
 	}
 
+	subsPath := filepath.Join(userDir, subscriptionsFileName)
+	err = ioutil.WriteFile(subsPath, []byte(subs.String()), 0640)
+	if err != nil {
+		log.Errorf("Can't save user subscriptions as file %s: %v", subsPath, err)
+		return errors.Filesystem
+	}
+
 	privKey, err := crypto.NewPrivateKey()
 	if err != nil {
 		log.Errorf("Can't generate new private key: %v", err)
@@ -74,9 +84,13 @@ func Register(dir, nickname, info string, s *storage.Storage) error {
 	}
 
 	pow := crypto.NewPowFinder(privKey.Public().EncodeToDER())
-	log.Info(string(privKey.Public().EncodeToPEM()))
 	proof := pow.Find()
-	user := entity.EmergeUser(nickname, info, proof, crypto.NewSigner(privKey))
+
+	user, err := entity.EmergeUser(nickname, info, proof, crypto.NewSigner(privKey))
+	if err != nil {
+		log.Errorf("Can't create user '%s': %v", nickname, err)
+		return err
+	}
 	log.Debugf("Dumping emerged User %s:", nickname)
 	log.Debug(user.String())
 
@@ -118,13 +132,17 @@ func New(dir, nickname string, s *storage.Storage) (*Owner, error) {
 	}
 	log.Debug("Dumping fetched User:")
 	log.Debug(u.String())
-	/* TBD:
-	   read subscriptions
-	   initialize network subsystem
-	*/
+
+	subsPath := filepath.Join(userDir, subscriptionsFileName)
+	sub, err := subs.ReadFile(subsPath)
+	if err != nil {
+		log.Errorf("Error reading subscriptions of the user '%s': %v", nickname, err)
+		return nil, err
+	}
 
 	return &Owner{
 		User:    u,
+		Subs:    sub,
 		Signer:  crypto.NewSigner(privKey),
 		storage: s,
 	}, nil

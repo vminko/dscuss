@@ -16,14 +16,22 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
+import (
+	"vminko.org/dscuss/subs"
+)
+
 // PayloadHello is used for handshaking.
 // When user A sends this packet to user B, he/she
 // notifies user B about topics of A's interests/
 type PayloadHello struct {
 	// Subscriptions of the author of the payload.
-	// TBD: subscriptions []Subscription;
+	Subs subs.Subscriptions
 }
 
-func NewPayloadHello() *PayloadHello {
-	return &PayloadHello{}
+func (p *PayloadHello) IsValid() bool {
+	return p.Subs.IsValid()
+}
+
+func NewPayloadHello(s subs.Subscriptions) *PayloadHello {
+	return &PayloadHello{s}
 }

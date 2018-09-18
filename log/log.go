@@ -97,7 +97,7 @@ func Errorf(format string, args ...interface{}) {
 }
 
 func fatalf(format string, args ...interface{}) {
-	fmt.Printf("FATAL ERROR: "+format+"\n", args...)
+	fmt.Printf("FATAL ERROR: "+format+" :-(\n", args...)
 	log.Fatalf("FATAL "+caller()+" "+format, args...)
 }
 

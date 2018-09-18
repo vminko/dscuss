@@ -27,6 +27,7 @@ import (
 	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p/peer"
 )
 
 const (
@@ -104,7 +105,7 @@ func doRegister(c *ishell.Context) {
 
 	c.Print("Nickname: ")
 	username := c.ReadLine()
-	if username == "" { // TBD: validate nickname via regexp
+	if username == "" {
 		c.Println("You must specify a nickname.")
 		return
 	}
@@ -112,8 +113,17 @@ func doRegister(c *ishell.Context) {
 	c.Print("Enter some additional info: ")
 	info := c.ReadLine()
 
-	c.Println("Registering new user...")
-	err := dscuss.Register(username, info)
+	prompt := "Enter list of topics you are interested in. " +
+		"Each topic is a set of comma separated tags."
+	subs := readMultiLines(c, prompt)
+	if subs == "" {
+		c.Println("Error: user subscriptions can not be nil.")
+		return
+	}
+
+	c.Println("Registering new user. Do not interrupt the process.")
+	c.Println("Otherwise you'll have to remove the user directory manually.")
+	err := dscuss.Register(username, info, subs)
 	if err != nil {
 		c.Println("Could not register new user: " + err.Error() + ".")
 	} else {
@@ -149,6 +159,31 @@ func doLogout(c *ishell.Context) {
 	}
 }
 
+func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
+	if verbose {
+		if i != 0 {
+			c.Println("")
+		}
+		c.Printf("PEER #%d\n", i)
+		c.Printf("Nickname:		%s\n", p.Nickname)
+		c.Printf("ID:			%s\n", p.ID)
+		c.Printf("LocalAddr:		%s\n", p.LocalAddr)
+		c.Printf("RemoteAddr:		%s\n", p.RemoteAddr)
+		c.Printf("AssociatedAddrs:	%s\n", strings.Join(p.AssociatedAddrs, ","))
+		c.Print("Subscriptions:		")
+		for j, t := range p.Subscriptions {
+			if j == 0 {
+				c.Printf("%s\n", t)
+			} else {
+				c.Printf("			%s\n", t)
+			}
+		}
+		c.Printf("State:			%s\n", p.StateName)
+	} else {
+		c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ID, p.RemoteAddr, p.StateName)
+	}
+}
+
 func doListPeers(c *ishell.Context) {
 	if !dscuss.IsLoggedIn() {
 		c.Println("You are not logged in.")
@@ -161,8 +196,9 @@ func doListPeers(c *ishell.Context) {
 		} else {
 			c.Println("There is one connected peer:")
 		}
-		for _, p := range peers {
-			c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ID, p.RemoteAddr, p.StateName)
+		verb := len(c.Args) > 0 && c.Args[0] == "full"
+		for i, p := range peers {
+			printPeerInfo(c, i, p, verb)
 		}
 	} else {
 		c.Printf("There are no peers connected\n")
@@ -170,13 +206,13 @@ func doListPeers(c *ishell.Context) {
 
 }
 
-func multiLineStopper(s string) bool {
-	var terminator string = "DSC"
-	if strings.HasSuffix(s, terminator) {
-		s = strings.TrimSuffix(s, terminator)
-		return false
-	}
-	return true
+func readMultiLines(c *ishell.Context, prompt string) string {
+	var term string = "DSC"
+	c.Printf("%s and end with '%s': \n", prompt, term)
+	text := c.ReadMultiLines(term)
+	text = strings.TrimSuffix(text, term)
+	text = strings.TrimRight(text, "\r\n")
+	return text
 }
 
 func doMakeThread(c *ishell.Context) {
@@ -187,19 +223,30 @@ func doMakeThread(c *ishell.Context) {
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
 
+	c.Print("Enter thread topic: ")
+	topic := c.ReadLine()
+
 	c.Print("Enter thread subject: ")
 	subj := c.ReadLine()
+	if subj == "" {
+		c.Println("Error: subject can not be empty.")
+		return
+	}
 
-	var term string = "DSC"
-	c.Printf("Enter message text and end with '%s': ", term)
-	text := c.ReadMultiLines(term)
-	text = strings.TrimSuffix(text, term)
-	text = strings.TrimRight(text, "\r\n")
+	text := readMultiLines(c, "Enter message text")
+	if text == "" {
+		c.Println("Error: message text can not be empty.")
+		return
+	}
 
-	t := dscuss.NewThread(subj, text)
-	err := dscuss.PostMessage(t)
+	t, err := dscuss.NewThread(subj, text, topic)
 	if err != nil {
 		c.Println("Error making new thread: " + err.Error() + ".")
+		return
+	}
+	err = dscuss.PostMessage(t)
+	if err != nil {
+		c.Println("Error posting new thread: " + err.Error() + ".")
 	} else {
 		c.Println("Thread '" + t.Desc() + "' created successfully.")
 	}
@@ -231,10 +278,17 @@ func doListBoard(c *ishell.Context) {
 	}
 }
 
-func doMakeReply(c *ishell.Context)         { c.Println("Not implemented yet.") }
-func doSubscribe(c *ishell.Context)         { c.Println("Not implemented yet.") }
-func doUnsubscribe(c *ishell.Context)       { c.Println("Not implemented yet.") }
-func doListSubscriptions(c *ishell.Context) { c.Println("Not implemented yet.") }
+func doMakeReply(c *ishell.Context)   { c.Println("Not implemented yet.") }
+func doSubscribe(c *ishell.Context)   { c.Println("Not implemented yet.") }
+func doUnsubscribe(c *ishell.Context) { c.Println("Not implemented yet.") }
+
+func doListSubscriptions(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	c.Print(dscuss.ListSubscriptions())
+}
 
 func doVersion(c *ishell.Context) {
 	c.Println(getVersion())

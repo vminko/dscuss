@@ -25,6 +25,7 @@ import (
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/subs"
 )
 
 // Database stores Entities. Implements EntityStorage interface.
@@ -138,7 +139,7 @@ func (d *Database) PutUser(user *entity.User) error {
 		pkpem,
 		user.Proof,
 		user.Nickname(),
-		user.Info,
+		user.Info(),
 		user.RegDate,
 		user.Sig.Encode(),
 	)
@@ -278,14 +279,17 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	default:
 		log.Debug("The message found successfully")
 	}
-
 	sig, err := crypto.ParseSignature(encodedSig)
 	if err != nil {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
 		return nil, errors.Parsing
 	}
-
-	u := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig)
+	topic, err := d.getMessageTopic(eid)
+	if err != nil {
+		log.Fatalf("Error fetching topic of message '%s': %v. DB is corrupted",
+			eid.String(), err)
+	}
+	u := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
 	return u, nil
 }
 
@@ -353,7 +357,12 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 			return nil, errors.Parsing
 		}
 
-		m := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig)
+		topic, err := d.getMessageTopic(&id)
+		if err != nil {
+			log.Fatalf("Error fetching topic of message '%s': %v. DB is corrupted",
+				id.String(), err)
+		}
+		m := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
 		res = append(res, m)
 	}
 
@@ -400,4 +409,105 @@ func (d *Database) GetEntity(eid *entity.ID) (entity.Entity, error) {
 		return nil, err
 	}
 	return (entity.Entity)(m), nil
+}
+
+func (d *Database) putTag(tag string) error {
+	log.Debugf("Adding tag `%s' to the database.", tag)
+
+	query := "INSERT INTO Tag (Name) VALUES (?)"
+	db := (*sql.DB)(d)
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Fatalf("Error preparing 'putTag' statement: %v", err)
+	}
+
+	_, err = stmt.Exec(tag)
+	if err != nil {
+		log.Errorf("Can't execute 'putTag' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+
+	return nil
+}
+
+func (d *Database) putMessageTag(tag string, id *entity.ID) error {
+	log.Debugf("Adding tag '%s' for the message '%s' to the database.", tag, id.Shorten())
+
+	query := `
+	INSERT INTO Message_Tag
+        ( Message_id, Tag_id )
+        VALUES (?, (SELECT Id FROM Tag WHERE Name=?))
+	`
+	db := (*sql.DB)(d)
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		log.Fatalf("Error preparing 'putMessageTag' statement: %v", err)
+	}
+
+	_, err = stmt.Exec(tag, id[:])
+	if err != nil {
+		log.Errorf("Can't execute 'putMessageTag' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+
+	return nil
+}
+
+func (d *Database) putMesageTopic(m *entity.Message) error {
+	t := m.Topic
+	if t == nil {
+		log.Fatalf("BUG: messages with empty topics are prohibited")
+	}
+	for _, tag := range t {
+		if d.putTag(tag) != nil {
+			log.Errorf("Failed to store tag %s in the DB.", tag)
+			return errors.DBOperFailed
+		}
+		if d.putMessageTag(tag, m.ID()) != nil {
+			log.Errorf("Failed to store tag %s for message %s in the DB.",
+				tag, m.ID().Shorten())
+			return errors.DBOperFailed
+		}
+	}
+	return nil
+}
+
+func (d *Database) getMessageTopic(eid *entity.ID) (subs.Topic, error) {
+	log.Debugf("Fetching topic of the message '%s' from the database.", eid.Shorten())
+
+	query := `
+	SELECT Name
+	FROM Tag
+	INNER JOIN Message_Tag
+	ON Tag.Id = Message_Tag.Tag_id AND Message_Tag.Message_id = ?
+	`
+	db := (*sql.DB)(d)
+	rows, err := db.Query(query, eid[:])
+	if err != nil {
+		log.Errorf("Error fetching topic from the database: %v", err)
+		return nil, errors.DBOperFailed
+	} else {
+		log.Debug("The topic found successfully")
+	}
+	defer rows.Close()
+
+	var topic subs.Topic
+	for rows.Next() {
+		var tag string
+		err = rows.Scan(tag)
+		if err != nil {
+			log.Errorf("Error scanning message-tag row: %v", err)
+			return nil, errors.DBOperFailed
+		}
+		topic, err = topic.AddTag(tag)
+		if err != nil {
+			log.Fatalf("Invalid tag '%s' occurred. DB is corrupted.", tag)
+		}
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Errorf("Error getting next message-tag row: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	return topic, nil
 }

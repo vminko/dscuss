@@ -75,7 +75,7 @@ func (pf *PowFinder) worker(
 			return
 		default:
 			log.Debugf("Worker #%d is trying PoW %d", workerID, nonce)
-			if pf.Validate(nonce) {
+			if pf.IsValid(ProofOfWork(nonce)) {
 				log.Debugf("Worker #%d has found PoW: \"%d\"", workerID, nonce)
 				resultChan <- nonce
 				return
@@ -107,10 +107,10 @@ func (pf *PowFinder) Find() ProofOfWork {
 	return ProofOfWork(proof)
 }
 
-func (pf *PowFinder) Validate(nonce uint64) bool {
+func (pf *PowFinder) IsValid(nonce ProofOfWork) bool {
 	var keyInt big.Int
 	var key []byte
-	data := pf.prepareData(nonce)
+	data := pf.prepareData(uint64(nonce))
 	// The recommended parameters for interactive logins as of 2017.
 	key, err := scrypt.Key(data, []byte(powSalt), 32768, 8, 1, powKeyLenBytes)
 	if err != nil {

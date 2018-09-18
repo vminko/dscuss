@@ -23,8 +23,10 @@ import (
 	"strings"
 	"time"
 	"vminko.org/dscuss/crypto"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	dstrings "vminko.org/dscuss/strings"
+	"vminko.org/dscuss/subs"
 )
 
 // Message is some text information published by a user.
@@ -44,7 +46,7 @@ type MessageContent struct {
 	AuthorID    ID
 	ParentID    ID
 	DateWritten time.Time
-	// TBD: topic
+	Topic       subs.Topic
 }
 
 // EmergeMessage creates a new message entity. It should only be called when
@@ -56,8 +58,12 @@ func EmergeMessage(
 	authorID *ID,
 	parentID *ID,
 	signer *crypto.Signer,
-) *Message {
-	um := newUnsignedMessage(subject, text, authorID, parentID, time.Now())
+	topic subs.Topic,
+) (*Message, error) {
+	if subject == "" || text == "" || topic == nil {
+		return nil, errors.WrongArguments
+	}
+	um := newUnsignedMessage(subject, text, authorID, parentID, time.Now(), topic)
 	jmsg, err := json.Marshal(um)
 	if err != nil {
 		log.Fatal("Can't marshal unsigned Message: " + err.Error())
@@ -66,8 +72,7 @@ func EmergeMessage(
 	if err != nil {
 		log.Fatal("Can't sign JSON-encoded Message entity: " + err.Error())
 	}
-
-	return &Message{UnsignedMessage: *um, Sig: sig}
+	return &Message{UnsignedMessage: *um, Sig: sig}, nil
 }
 
 func NewMessage(
@@ -78,8 +83,9 @@ func NewMessage(
 	parentID *ID,
 	dateWritten time.Time,
 	sig crypto.Signature,
+	topic subs.Topic,
 ) *Message {
-	um := newUnsignedMessage(subject, text, authorID, parentID, dateWritten)
+	um := newUnsignedMessage(subject, text, authorID, parentID, dateWritten, topic)
 	return &Message{UnsignedMessage: *um, Sig: sig}
 }
 
@@ -102,20 +108,29 @@ func (m *Message) Desc() string {
 
 func (m *Message) Copy() *Message {
 	res := *m
+	res.Topic = m.Topic.Copy()
 	return &res
 }
 
-func (m *Message) VerifySig(pubKey *crypto.PublicKey) bool {
+func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
 	jmsg, err := json.Marshal(&m.UnsignedMessage)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedMessage: " + err.Error())
 	}
-	return pubKey.Verify(jmsg, m.Sig)
-}
-
-func (m *Message) VerifyID() bool {
+	if !pubKey.Verify(jmsg, m.Sig) {
+		log.Debugf("Message %s has invalid signature", m.Desc())
+		return false
+	}
 	correctID := m.UnsignedMessage.MessageContent.ToID()
-	return m.UnsignedMessage.Descriptor.ID == *correctID
+	if m.UnsignedMessage.Descriptor.ID != *correctID {
+		log.Debugf("Message %s has invalid ID", m.Desc())
+		return false
+	}
+	if m.Topic == nil || m.Subject == "" || m.Text == "" {
+		log.Debugf("Message %s has empty topic, subject or text", m.Desc())
+		return false
+	}
+	return true
 }
 
 func newMessageContent(
@@ -124,6 +139,7 @@ func newMessageContent(
 	authorID *ID,
 	parentID *ID,
 	dateWritten time.Time,
+	topic subs.Topic,
 ) *MessageContent {
 	return &MessageContent{
 		Subject:     subject,
@@ -131,6 +147,7 @@ func newMessageContent(
 		AuthorID:    *authorID,
 		ParentID:    *parentID,
 		DateWritten: dateWritten,
+		Topic:       topic.Copy(),
 	}
 }
 
@@ -149,8 +166,9 @@ func newUnsignedMessage(
 	authorID *ID,
 	parentID *ID,
 	dateWritten time.Time,
+	topic subs.Topic,
 ) *UnsignedMessage {
-	mc := newMessageContent(subject, text, authorID, parentID, dateWritten)
+	mc := newMessageContent(subject, text, authorID, parentID, dateWritten, topic)
 	return &UnsignedMessage{
 		Descriptor: Descriptor{
 			Type: TypeMessage,

@@ -20,8 +20,10 @@ package entity
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 	"vminko.org/dscuss/crypto"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
@@ -45,6 +47,15 @@ type UserContent struct {
 	RegDate  time.Time
 }
 
+const (
+	nicknameRegex string = "^[a-zA-Z0-9_]+$"
+)
+
+func isNicknameValid(nickname string) bool {
+	var nickRe = regexp.MustCompile(nicknameRegex)
+	return nickRe.MatchString(nickname)
+}
+
 // EmergeUser creates a new user entity. It should only be called when
 // signature is not known yet.  Signature will be created using the provided
 // signer.
@@ -53,19 +64,21 @@ func EmergeUser(
 	info string,
 	proof crypto.ProofOfWork,
 	signer *crypto.Signer,
-) *User {
+) (*User, error) {
+	if !isNicknameValid(nickname) {
+		return nil, errors.WrongNickname
+	}
 	uu := newUnsignedUser(nickname, info, signer.Public(), proof, time.Now())
 	juser, err := json.Marshal(uu)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
-	log.Debugf("Signing this UnsignedUser: '%s'", juser)
 	sig, err := signer.Sign(juser)
 	if err != nil {
 		log.Fatal("Can't sign JSON-encoded user: " + err.Error())
 	}
 
-	return &User{UnsignedUser: *uu, Sig: sig}
+	return &User{UnsignedUser: *uu, Sig: sig}, nil
 }
 
 func NewUser(
@@ -93,6 +106,10 @@ func (u *User) Nickname() string {
 	return u.UnsignedUser.Nickname
 }
 
+func (u *User) Info() string {
+	return u.UnsignedUser.Info
+}
+
 func (u *User) ShortID() string {
 	return u.UnsignedUser.Descriptor.ID.Shorten()
 }
@@ -106,22 +123,34 @@ func (u *User) ID() *ID {
 }
 
 func (u *User) Desc() string {
-	// TBD: add subscriptions?
 	return fmt.Sprintf("(%s)", u.UnsignedUser.Nickname)
 }
 
-func (u *User) VerifySig(pubKey *crypto.PublicKey) bool {
+func (u *User) IsValid() bool {
 	juser, err := json.Marshal(&u.UnsignedUser)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
-	log.Debugf("Verifying signature for this UnsignedUser: '%s'", juser)
-	return pubKey.Verify(juser, u.Sig)
-}
-
-func (u *User) VerifyID() bool {
+	if !u.PubKey.Verify(juser, u.Sig) {
+		log.Debugf("User %s has invalid signature", u.Desc())
+		return false
+	}
 	correctID := u.UnsignedUser.UserContent.ToID()
-	return u.UnsignedUser.Descriptor.ID == *correctID
+	if u.UnsignedUser.Descriptor.ID != *correctID {
+		log.Debugf("User %s has invalid ID. Expected: %s, Actual: %s",
+			u.Desc(), correctID.String(), u.UnsignedUser.Descriptor.ID.String())
+		return false
+	}
+	pow := crypto.NewPowFinder(u.PubKey.EncodeToDER())
+	if !pow.IsValid(u.Proof) {
+		log.Debugf("User %s has invalid Proof-of-Work", u.Desc())
+		return false
+	}
+	if !isNicknameValid(u.Nickname()) {
+		log.Debugf("Message %s has empty nickname", u.Desc())
+		return false
+	}
+	return true
 }
 
 func newUserContent(
