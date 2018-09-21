@@ -85,7 +85,6 @@ type ConnectionProvider struct {
 	wg              sync.WaitGroup
 	stopChan        chan struct{}
 	outChan         chan *connection.Connection
-	releaseChan     chan string
 	ap              AddressProvider
 	outAddrs        *addressMap
 	maxInConnCount  uint32
@@ -122,10 +121,9 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 func (cp *ConnectionProvider) Start() {
 	log.Debugf("Starting ConnectionProvider")
 	cp.ap.RegisterAddressConsumer(cp)
-	cp.wg.Add(3)
+	cp.wg.Add(2)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
-	go cp.handleReleasedAddresses()
 	cp.ap.Start()
 }
 
@@ -139,10 +137,6 @@ func (cp *ConnectionProvider) Stop() {
 	cp.wg.Wait()
 	close(cp.outChan)
 	log.Debugf("ConnectionProvider stopped")
-}
-
-func (cp *ConnectionProvider) SetReleaseChan(c chan string) {
-	cp.releaseChan = c
 }
 
 func (cp *ConnectionProvider) newConnChan() chan *connection.Connection {
@@ -257,7 +251,6 @@ func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connecti
 			// decrement outConnCount
 			atomic.AddUint32(&cp.outConnCount, ^uint32(0))
 		}
-
 		for _, addr := range conn.Addresses() {
 			log.Debug("CP is releasing address " + addr)
 			isUsed, ok := cp.outAddrs.Load(addr)
@@ -267,36 +260,6 @@ func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connecti
 				}
 				cp.outAddrs.Change(addr, false)
 			}
-		}
-	}
-}
-
-func (cp *ConnectionProvider) handleReleasedAddresses() {
-	defer cp.wg.Done()
-	for {
-		log.Debug("Handling released addresses...")
-		select {
-		case <-cp.stopChan:
-			log.Debug("Stop requested")
-			return
-		case addr := <-cp.releaseChan:
-			log.Debug("Releasing address " + addr)
-			isUsed, ok := cp.outAddrs.Load(addr)
-			if ok {
-				if !isUsed {
-					log.Errorf("Attempt to release unused address %s", addr)
-				}
-				cp.outAddrs.Change(addr, false)
-				// decrement outConnCount
-				atomic.AddUint32(&cp.outConnCount, ^uint32(0))
-			} else {
-				// decrement inConnCount
-				atomic.AddUint32(&cp.inConnCount, ^uint32(0))
-			}
-		default:
-			log.Debug("Nothing to release...")
-			time.Sleep(time.Second * ConnectionProviderLatency)
-			continue
 		}
 	}
 }

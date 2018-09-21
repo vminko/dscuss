@@ -144,12 +144,14 @@ func (s *StateReceiving) readAndProcessMessage() error {
 		return errors.ProtocolViolation
 	}
 	if m.Descriptor.ID != *s.requestedEntity {
-		log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
+		log.Infof("Peer %s sent a Message, which was not requested", s.p.Desc())
 		return errors.ProtocolViolation
 	}
 
-	if !s.p.Subs.Covers(m.Topic) {
+	if !s.p.owner.Subs.Covers(m.Topic) {
 		log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
+		log.Debugf("Message topic is %s", m.Topic.String())
+		log.Debugf("My subs are %s", s.p.Subs.String())
 		return errors.ProtocolViolation
 	}
 

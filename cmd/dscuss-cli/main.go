@@ -20,6 +20,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
+	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
+
 	"flag"
 	"fmt"
 	"github.com/abiosoft/ishell"
@@ -273,14 +278,31 @@ func doListBoard(c *ishell.Context) {
 		}
 		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(),
 			msg.DateWritten.Format(time.RFC3339))
+		c.Printf("Topic: %s\n", msg.Topic.String())
 		c.Printf("Subject: %s\n", msg.Subject)
 		c.Println(msg.Text)
 	}
 }
 
-func doMakeReply(c *ishell.Context)   { c.Println("Not implemented yet.") }
-func doSubscribe(c *ishell.Context)   { c.Println("Not implemented yet.") }
-func doUnsubscribe(c *ishell.Context) { c.Println("Not implemented yet.") }
+func doMakeReply(c *ishell.Context) { c.Println("Not implemented yet.") }
+func doSubscribe(c *ishell.Context) {
+	msg := `Not implemented yet.
+To edit you subscriptions:
+1. Logout;
+2. Edit %s/<nickname>/subscriptions.txt using your favorite editor;
+3/ Login.
+`
+	c.Printf(msg, dscuss.Dir())
+}
+func doUnsubscribe(c *ishell.Context) {
+	msg := `Not implemented yet.
+To edit you subscriptions:
+1. Logout;
+2. Edit %s/<nickname>/subscriptions.txt using your favorite editor;
+3/ Login.
+`
+	c.Printf(msg, dscuss.Dir())
+}
 
 func doListSubscriptions(c *ishell.Context) {
 	if !dscuss.IsLoggedIn() {
@@ -312,6 +334,17 @@ func getVersion() string {
 }
 
 func main() {
+
+	sigChan := make(chan os.Signal)
+	go func() {
+		stacktrace := make([]byte, 8192)
+		for _ = range sigChan {
+			length := runtime.Stack(stacktrace, true)
+			fmt.Println(string(stacktrace[:length]))
+		}
+	}()
+	signal.Notify(sigChan, syscall.SIGQUIT)
+
 	flag.Parse()
 
 	if *argHelp {

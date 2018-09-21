@@ -32,11 +32,12 @@ import (
 type Database sql.DB
 
 func Open(fileName string) (*Database, error) {
-	db, err := sql.Open("sqlite3", fileName)
+	db, err := sql.Open("sqlite3", fileName+"?_mutex=no")
 	if err != nil {
 		log.Errorf("Unable to open SQLite connection: %s", err.Error())
 		return nil, errors.CantOpenDB
 	}
+	db.SetMaxOpenConns(2)
 
 	var execErr error
 	exec := func(req string) {
@@ -46,9 +47,10 @@ func Open(fileName string) (*Database, error) {
 		_, execErr = db.Exec(req)
 	}
 	exec("PRAGMA temp_store=MEMORY")
-	exec("PRAGMA synchronous=OFF")
+	exec("PRAGMA synchronous=FULL")
 	exec("PRAGMA locking_mode=EXCLUSIVE")
 	exec("PRAGMA page_size=4092")
+	//exec("PRAGMA journal_mode=WAL")
 	exec("CREATE TABLE IF NOT EXISTS  User (" +
 		"  Id              BLOB PRIMARY KEY ON CONFLICT IGNORE," +
 		"  Public_key      BLOB NOT NULL," +
@@ -114,7 +116,7 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) PutUser(user *entity.User) error {
-	log.Debugf("Adding user `%s' to the database.", user.Nickname())
+	log.Debugf("Adding user `%s' to the database", user.Nickname())
 
 	query := `
 	INSERT INTO User
@@ -128,13 +130,9 @@ func (d *Database) PutUser(user *entity.User) error {
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	db := (*sql.DB)(d)
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Fatalf("Error preparing 'putUser' statement: %v", err)
-	}
-
 	pkpem := user.PubKey.EncodeToDER()
-	_, err = stmt.Exec(
+	_, err := db.Exec(
+		query,
 		user.ID()[:],
 		pkpem,
 		user.Proof,
@@ -152,7 +150,7 @@ func (d *Database) PutUser(user *entity.User) error {
 }
 
 func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
-	log.Debugf("Fetching user with id '%s' from the database.", eid.String())
+	log.Debugf("Fetching user with id '%s' from the database", eid.String())
 
 	var nickname string
 	var info string
@@ -205,8 +203,7 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 }
 
 func (d *Database) PutMessage(msg *entity.Message) error {
-	log.Debugf("Adding message `%s' to the database.", msg.ShortID())
-
+	log.Debugf("Adding message `%s' to the database", msg.ShortID())
 	query := `
 	INSERT INTO Message
 	( Id,
@@ -218,14 +215,9 @@ func (d *Database) PutMessage(msg *entity.Message) error {
 	  Signature )
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-
 	db := (*sql.DB)(d)
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Fatalf("Error preparing 'putMessage' statement: %v", err)
-	}
-
-	_, err = stmt.Exec(
+	_, err := db.Exec(
+		query,
 		msg.ID()[:],
 		msg.Subject,
 		msg.Text,
@@ -238,12 +230,15 @@ func (d *Database) PutMessage(msg *entity.Message) error {
 		log.Errorf("Can't execute 'putMessage' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
-
+	if d.putMesageTopic(msg) != nil {
+		log.Errorf("The DB is corrupted. Message %s is saved without topic", msg.Desc())
+		return errors.DBOperFailed
+	}
 	return nil
 }
 
 func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
-	log.Debugf("Fetching message with id '%s' from the database.", eid.String())
+	log.Debugf("Fetching message with id '%s' from the database", eid.String())
 
 	var subj string
 	var text string
@@ -251,14 +246,20 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	var encodedSig []byte
 	var authID entity.ID
 	var parID entity.ID
+	var topicStr string
 	query := `
-	SELECT Subject,
-	       Content,
-	       Timestamp,
-	       Author_id,
-	       Parent_id,
-	       Signature
-	FROM Message WHERE Id=?
+	SELECT Message.Subject,
+	       Message.Content,
+	       Message.Timestamp,
+	       Message.Author_id,
+	       Message.Parent_id,
+	       Message.Signature,
+	       GROUP_CONCAT(Tag.Name)
+	FROM Message
+	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
+	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
+	WHERE Message.Id=?
+	GROUP BY Message.Id
 	`
 
 	db := (*sql.DB)(d)
@@ -268,7 +269,8 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 		&wrdate,
 		&authID,
 		&parID,
-		&encodedSig)
+		&encodedSig,
+		&topicStr)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Warning("No message with that ID.")
@@ -284,32 +286,45 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
 		return nil, errors.Parsing
 	}
-	topic, err := d.getMessageTopic(eid)
+	topic, err := subs.NewTopic(topicStr)
 	if err != nil {
-		log.Fatalf("Error fetching topic of message '%s': %v. DB is corrupted",
-			eid.String(), err)
+		log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
 	}
-	u := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
-	return u, nil
+	m := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
+	return m, nil
 }
 
 func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
-	log.Debugf("Fetching root messages from the database.")
+	log.Debugf("Fetching root messages from the database")
 
 	var res []*entity.Message
-
 	query := `
-	SELECT Id,
-	       Subject,
-	       Content,
-	       Timestamp,
-	       Author_id,
-	       Parent_id,
-	       Signature
-	FROM Message WHERE Parent_id=?
-	ORDER BY Timestamp DESC
+	SELECT Message.Id,
+	       Message.Subject,
+	       Message.Content,
+	       Message.Timestamp,
+	       Message.Author_id,
+	       Message.Parent_id,
+	       Message.Signature,
+	       GROUP_CONCAT(Tag.Name)
+	FROM Message
+	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
+	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
+	WHERE Message.Parent_id=?
+	GROUP BY Message.Id
+	ORDER BY Message.Timestamp DESC
 	LIMIT ? OFFSET ?
 	`
+	/*
+			SELECT p.*
+			FROM POSTS p
+			WHERE p.id IN (SELECT tg.post_id
+		                       FROM TAGGINGS tg
+				       JOIN TAGS t ON t.id = tg.tag_id
+				       WHERE t.name IN ('Cheese','Wine','Paris','Frace','City','Scenic','Art')
+				       GROUP BY tg.post_id
+				       HAVING COUNT(DISTINCT t.name) = 7)
+	*/
 	db := (*sql.DB)(d)
 	rows, err := db.Query(query, entity.ZeroID[:], limit, offset)
 	if err != nil {
@@ -328,7 +343,7 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 		var encodedSig []byte
 		var rawAuthID []byte
 		var rawParID []byte
-
+		var topicStr string
 		err = rows.Scan(
 			&rawID,
 			&subj,
@@ -336,7 +351,8 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 			&wrdate,
 			&rawAuthID,
 			&rawParID,
-			&encodedSig)
+			&encodedSig,
+			&topicStr)
 		if err != nil {
 			log.Errorf("Error scanning message row: %v", err)
 			return nil, errors.DBOperFailed
@@ -357,10 +373,9 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 			return nil, errors.Parsing
 		}
 
-		topic, err := d.getMessageTopic(&id)
+		topic, err := subs.NewTopic(topicStr)
 		if err != nil {
-			log.Fatalf("Error fetching topic of message '%s': %v. DB is corrupted",
-				id.String(), err)
+			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
 		}
 		m := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
 		res = append(res, m)
@@ -376,7 +391,7 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 }
 
 func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
-	log.Debugf("Fetching message with id '%s' from the database.", eid.String())
+	log.Debugf("Fetching message with id '%s' from the database", eid.String())
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var subj string
@@ -395,7 +410,7 @@ func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
 }
 
 func (d *Database) GetEntity(eid *entity.ID) (entity.Entity, error) {
-	log.Debugf("Fetching entity with id '%s' from the database.", eid.String())
+	log.Debugf("Fetching entity with id '%s' from the database", eid.String())
 
 	m, err := d.GetMessage(eid)
 	if err == errors.NoSuchEntity {
@@ -412,16 +427,11 @@ func (d *Database) GetEntity(eid *entity.ID) (entity.Entity, error) {
 }
 
 func (d *Database) putTag(tag string) error {
-	log.Debugf("Adding tag `%s' to the database.", tag)
+	log.Debugf("Adding tag `%s' to the database", tag)
 
 	query := "INSERT INTO Tag (Name) VALUES (?)"
 	db := (*sql.DB)(d)
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Fatalf("Error preparing 'putTag' statement: %v", err)
-	}
-
-	_, err = stmt.Exec(tag)
+	_, err := db.Exec(query, tag)
 	if err != nil {
 		log.Errorf("Can't execute 'putTag' statement: %s", err.Error())
 		return errors.DBOperFailed
@@ -431,25 +441,18 @@ func (d *Database) putTag(tag string) error {
 }
 
 func (d *Database) putMessageTag(tag string, id *entity.ID) error {
-	log.Debugf("Adding tag '%s' for the message '%s' to the database.", tag, id.Shorten())
-
+	log.Debugf("Adding tag '%s' for the message '%s' to the database", tag, id.Shorten())
 	query := `
 	INSERT INTO Message_Tag
         ( Message_id, Tag_id )
         VALUES (?, (SELECT Id FROM Tag WHERE Name=?))
 	`
 	db := (*sql.DB)(d)
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		log.Fatalf("Error preparing 'putMessageTag' statement: %v", err)
-	}
-
-	_, err = stmt.Exec(tag, id[:])
+	_, err := db.Exec(query, id[:], tag)
 	if err != nil {
 		log.Errorf("Can't execute 'putMessageTag' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
-
 	return nil
 }
 
@@ -460,54 +463,14 @@ func (d *Database) putMesageTopic(m *entity.Message) error {
 	}
 	for _, tag := range t {
 		if d.putTag(tag) != nil {
-			log.Errorf("Failed to store tag %s in the DB.", tag)
+			log.Errorf("Failed to store tag %s in the DB", tag)
 			return errors.DBOperFailed
 		}
 		if d.putMessageTag(tag, m.ID()) != nil {
-			log.Errorf("Failed to store tag %s for message %s in the DB.",
+			log.Errorf("Failed to store tag %s for message %s in the DB",
 				tag, m.ID().Shorten())
 			return errors.DBOperFailed
 		}
 	}
 	return nil
-}
-
-func (d *Database) getMessageTopic(eid *entity.ID) (subs.Topic, error) {
-	log.Debugf("Fetching topic of the message '%s' from the database.", eid.Shorten())
-
-	query := `
-	SELECT Name
-	FROM Tag
-	INNER JOIN Message_Tag
-	ON Tag.Id = Message_Tag.Tag_id AND Message_Tag.Message_id = ?
-	`
-	db := (*sql.DB)(d)
-	rows, err := db.Query(query, eid[:])
-	if err != nil {
-		log.Errorf("Error fetching topic from the database: %v", err)
-		return nil, errors.DBOperFailed
-	} else {
-		log.Debug("The topic found successfully")
-	}
-	defer rows.Close()
-
-	var topic subs.Topic
-	for rows.Next() {
-		var tag string
-		err = rows.Scan(tag)
-		if err != nil {
-			log.Errorf("Error scanning message-tag row: %v", err)
-			return nil, errors.DBOperFailed
-		}
-		topic, err = topic.AddTag(tag)
-		if err != nil {
-			log.Fatalf("Invalid tag '%s' occurred. DB is corrupted.", tag)
-		}
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Errorf("Error getting next message-tag row: %v", err)
-		return nil, errors.DBOperFailed
-	}
-	return topic, nil
 }

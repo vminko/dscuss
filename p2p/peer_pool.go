@@ -29,27 +29,23 @@ import (
 // peers and manages peer life cycle. But it has nothing to do with Entity
 // transferring.
 type PeerPool struct {
-	cp              *ConnectionProvider
-	owner           *owner.Owner
-	storage         *storage.Storage
-	gonePeerChan    chan *peer.Peer
-	stopPeersChan   chan struct{}
-	addrReleaseChan chan string
-	peers           []*peer.Peer
-	peersMx         sync.RWMutex
-	wg              sync.WaitGroup
+	cp            *ConnectionProvider
+	owner         *owner.Owner
+	storage       *storage.Storage
+	gonePeerChan  chan *peer.Peer
+	stopPeersChan chan struct{}
+	peers         []*peer.Peer
+	peersMx       sync.RWMutex
+	wg            sync.WaitGroup
 }
 
 func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner, storage *storage.Storage) *PeerPool {
-	addrReleaseChan := make(chan string)
-	cp.SetReleaseChan(addrReleaseChan)
 	return &PeerPool{
-		cp:              cp,
-		owner:           owner,
-		storage:         storage,
-		gonePeerChan:    make(chan *peer.Peer),
-		stopPeersChan:   make(chan struct{}),
-		addrReleaseChan: addrReleaseChan,
+		cp:            cp,
+		owner:         owner,
+		storage:       storage,
+		gonePeerChan:  make(chan *peer.Peer),
+		stopPeersChan: make(chan struct{}),
 	}
 }
 
@@ -124,10 +120,6 @@ func (pp *PeerPool) removePeer(p *peer.Peer) {
 func (pp *PeerPool) watchGonePeers() {
 	defer pp.wg.Done()
 	for cpeer := range pp.gonePeerChan {
-		for _, addr := range cpeer.Conn.Addresses() {
-			log.Debugf("PP is releasing address %s", addr)
-			pp.addrReleaseChan <- addr
-		}
 		log.Debugf("Removing peer %s from PP", cpeer.Desc())
 		pp.removePeer(cpeer)
 		cpeer.Close()

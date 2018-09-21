@@ -102,7 +102,7 @@ func (m *Message) ID() *ID {
 }
 
 func (m *Message) Desc() string {
-	shortText := strings.Trim(dstrings.Truncate(m.Text, 24), "\\n\\r")
+	shortText := strings.Replace(dstrings.Truncate(m.Text, 24), "\n", " ", -1)
 	return fmt.Sprintf("%s (%s)", m.ShortID(), shortText)
 }
 
@@ -126,7 +126,7 @@ func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
 		log.Debugf("Message %s has invalid ID", m.Desc())
 		return false
 	}
-	if m.Topic == nil || m.Subject == "" || m.Text == "" {
+	if m.Topic == nil || len(m.Topic) == 0 || m.Subject == "" || m.Text == "" {
 		log.Debugf("Message %s has empty topic, subject or text", m.Desc())
 		return false
 	}

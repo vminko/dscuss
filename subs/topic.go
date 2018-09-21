@@ -75,24 +75,17 @@ func (t Topic) IsValid() bool {
 	if t == nil || len(t) == 0 {
 		return false
 	}
+	seen := make(map[string]struct{}, len(t))
 	for _, tag := range t {
+		if _, ok := seen[tag]; ok {
+			return false
+		}
+		seen[tag] = struct{}{}
 		if !isTagValid(tag) {
 			return false
 		}
 	}
 	return true
-}
-
-func (t Topic) AddTag(tag string) (Topic, error) {
-	if !isTagValid(tag) {
-		log.Warningf("Attempt to add invalid tag: '%s'", tag)
-		return nil, errors.Parsing
-	}
-	if t.ContainsTag(tag) {
-		log.Warningf("Attempt to add duplicated tag: '%s'", tag)
-		return t, nil
-	}
-	return append(t, tag), nil
 }
 
 func (t Topic) Copy() Topic {
