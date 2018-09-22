@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 	"vminko.org/dscuss"
+	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/p2p/peer"
 )
@@ -77,9 +78,8 @@ var commandList = []*ishell.Cmd{
 		Func: doMakeReply,
 	},
 	{
-		// TBD: add optional topic parameter
 		Name: "lsboard",
-		Help: "list threads on the board",
+		Help: "[topic], list particular topic or all threads on the board",
 		Func: doListBoard,
 	},
 	{
@@ -142,13 +142,10 @@ func doLogin(c *ishell.Context) {
 			" You need to 'logout' before logging in as another user.")
 		return
 	}
-
 	if len(c.Args) != 1 {
 		c.Println(c.Cmd.HelpText())
 	}
 	nickname := c.Args[0]
-	/* TBD: validate nickname */
-
 	err := dscuss.Login(nickname)
 	if err != nil {
 		c.Printf("Failed to log in as %s: %v\n", nickname, err)
@@ -158,10 +155,12 @@ func doLogin(c *ishell.Context) {
 func doLogout(c *ishell.Context) {
 	if !dscuss.IsLoggedIn() {
 		c.Println("You are not logged in.")
-	} else {
-		c.Println("Logging out...")
-		dscuss.Logout()
 	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.HelpText())
+	}
+	c.Println("Logging out...")
+	dscuss.Logout()
 }
 
 func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
@@ -194,6 +193,9 @@ func doListPeers(c *ishell.Context) {
 		c.Println("You are not logged in.")
 		return
 	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.HelpText())
+	}
 	peers := dscuss.ListPeers()
 	if len(peers) > 0 {
 		if len(peers) > 1 {
@@ -224,6 +226,9 @@ func doMakeThread(c *ishell.Context) {
 	if !dscuss.IsLoggedIn() {
 		c.Println("You are not logged in.")
 		return
+	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.HelpText())
 	}
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
@@ -262,11 +267,25 @@ func doListBoard(c *ishell.Context) {
 		c.Println("You are not logged in.")
 		return
 	}
+	if len(c.Args) > 1 {
+		c.Println(c.Cmd.HelpText())
+	}
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
 
+	topic := ""
+	if len(c.Args) == 1 {
+		topic = c.Args[0]
+	}
+
 	const boardSize = 10
-	messages, err := dscuss.ListBoard(0, boardSize)
+	var messages []*entity.Message
+	var err error
+	if topic != "" {
+		messages, err = dscuss.ListTopic(topic, 0, boardSize)
+	} else {
+		messages, err = dscuss.ListBoard(0, boardSize)
+	}
 	if err != nil {
 		c.Println("Can't list board: " + err.Error() + ".")
 		return
@@ -278,7 +297,9 @@ func doListBoard(c *ishell.Context) {
 		}
 		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(),
 			msg.DateWritten.Format(time.RFC3339))
-		c.Printf("Topic: %s\n", msg.Topic.String())
+		if topic == "" {
+			c.Printf("Topic: %s\n", msg.Topic.String())
+		}
 		c.Printf("Subject: %s\n", msg.Subject)
 		c.Println(msg.Text)
 	}
@@ -309,10 +330,16 @@ func doListSubscriptions(c *ishell.Context) {
 		c.Println("You are not logged in.")
 		return
 	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.HelpText())
+	}
 	c.Print(dscuss.ListSubscriptions())
 }
 
 func doVersion(c *ishell.Context) {
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.HelpText())
+	}
 	c.Println(getVersion())
 }
 

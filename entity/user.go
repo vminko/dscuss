@@ -51,7 +51,7 @@ const (
 	nicknameRegex string = "^[a-zA-Z0-9_]+$"
 )
 
-func isNicknameValid(nickname string) bool {
+func IsNicknameValid(nickname string) bool {
 	var nickRe = regexp.MustCompile(nicknameRegex)
 	return nickRe.MatchString(nickname)
 }
@@ -65,7 +65,7 @@ func EmergeUser(
 	proof crypto.ProofOfWork,
 	signer *crypto.Signer,
 ) (*User, error) {
-	if !isNicknameValid(nickname) {
+	if !IsNicknameValid(nickname) {
 		return nil, errors.WrongNickname
 	}
 	uu := newUnsignedUser(nickname, info, signer.Public(), proof, time.Now())
@@ -146,7 +146,7 @@ func (u *User) IsValid() bool {
 		log.Debugf("User %s has invalid Proof-of-Work", u.Desc())
 		return false
 	}
-	if !isNicknameValid(u.Nickname()) {
+	if !IsNicknameValid(u.Nickname()) {
 		log.Debugf("Message %s has empty nickname", u.Desc())
 		return false
 	}

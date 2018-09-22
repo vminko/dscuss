@@ -22,6 +22,7 @@ import (
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/sqlite"
+	"vminko.org/dscuss/subs"
 )
 
 // Storage is a proxy for the entity database, which provides subscriptions to
@@ -62,7 +63,6 @@ func (s *Storage) notifyObservers(e entity.Entity, sender chan<- entity.Entity) 
 			o <- e
 		}
 	}
-
 }
 
 func (s *Storage) PutUser(u *entity.User, sender chan<- entity.Entity) error {
@@ -93,6 +93,10 @@ func (s *Storage) GetMessage(eid *entity.ID) (*entity.Message, error) {
 
 func (s *Storage) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
 	return s.db.GetRootMessages(offset, limit)
+}
+
+func (s *Storage) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*entity.Message, error) {
+	return s.db.GetTopicMessages(topic, offset, limit)
 }
 
 func (s *Storage) HasMessage(id *entity.ID) (bool, error) {

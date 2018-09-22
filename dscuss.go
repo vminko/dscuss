@@ -146,6 +146,10 @@ func Login(nickname string) error {
 		log.Errorf("Login attempt when %s is already logged in", ownr.User.Nickname)
 		return errors.AlreadyLoggedIn
 	}
+	if !entity.IsNicknameValid(nickname) {
+		log.Errorf("Login attempt with invalid nickname '%s", nickname)
+		return errors.WrongNickname
+	}
 
 	var err error
 	ownr, err = owner.New(dir, nickname, stor)
@@ -244,6 +248,20 @@ func ListBoard(offset, limit int) ([]*entity.Message, error) {
 		return nil, errors.WrongArguments
 	}
 	return stor.GetRootMessages(offset, limit)
+}
+
+func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to list board when no user is logged in")
+	}
+	if offset < 0 || limit < 0 {
+		return nil, errors.WrongArguments
+	}
+	t, err := subs.NewTopic(topic)
+	if err != nil {
+		return nil, errors.WrongTopic
+	}
+	return stor.GetTopicMessages(t, offset, limit)
 }
 
 func ListSubscriptions() string {

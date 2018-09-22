@@ -19,6 +19,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"time"
 	"vminko.org/dscuss/crypto"
@@ -294,47 +295,8 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	return m, nil
 }
 
-func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
-	log.Debugf("Fetching root messages from the database")
-
+func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 	var res []*entity.Message
-	query := `
-	SELECT Message.Id,
-	       Message.Subject,
-	       Message.Content,
-	       Message.Timestamp,
-	       Message.Author_id,
-	       Message.Parent_id,
-	       Message.Signature,
-	       GROUP_CONCAT(Tag.Name)
-	FROM Message
-	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
-	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
-	WHERE Message.Parent_id=?
-	GROUP BY Message.Id
-	ORDER BY Message.Timestamp DESC
-	LIMIT ? OFFSET ?
-	`
-	/*
-			SELECT p.*
-			FROM POSTS p
-			WHERE p.id IN (SELECT tg.post_id
-		                       FROM TAGGINGS tg
-				       JOIN TAGS t ON t.id = tg.tag_id
-				       WHERE t.name IN ('Cheese','Wine','Paris','Frace','City','Scenic','Art')
-				       GROUP BY tg.post_id
-				       HAVING COUNT(DISTINCT t.name) = 7)
-	*/
-	db := (*sql.DB)(d)
-	rows, err := db.Query(query, entity.ZeroID[:], limit, offset)
-	if err != nil {
-		log.Errorf("Error fetching message from the database: %v", err)
-		return nil, errors.DBOperFailed
-	} else {
-		log.Debug("The message found successfully")
-	}
-	defer rows.Close()
-
 	for rows.Next() {
 		var rawID []byte
 		var subj string
@@ -344,7 +306,7 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 		var rawAuthID []byte
 		var rawParID []byte
 		var topicStr string
-		err = rows.Scan(
+		err := rows.Scan(
 			&rawID,
 			&subj,
 			&text,
@@ -380,7 +342,96 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 		m := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
 		res = append(res, m)
 	}
+	return res, nil
+}
 
+func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
+	log.Debugf("Fetching root messages from the database")
+	query := `
+	SELECT Message.Id,
+	       Message.Subject,
+	       Message.Content,
+	       Message.Timestamp,
+	       Message.Author_id,
+	       Message.Parent_id,
+	       Message.Signature,
+	       GROUP_CONCAT(Tag.Name)
+	FROM Message
+	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
+	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
+	WHERE Message.Parent_id=?
+	GROUP BY Message.Id
+	ORDER BY Message.Timestamp DESC
+	LIMIT ? OFFSET ?
+	`
+	db := (*sql.DB)(d)
+	rows, err := db.Query(query, entity.ZeroID[:], limit, offset)
+	if err != nil {
+		log.Errorf("Error fetching message from the database: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	defer rows.Close()
+	res, err := scanMessageRows(rows)
+	if err != nil {
+		log.Errorf("Error scanning message rows: %v", err)
+		return nil, err
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Errorf("Error getting next message row: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	return res, nil
+}
+
+func (d *Database) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*entity.Message, error) {
+	log.Debugf("Fetching topic messages from the database")
+	query := `
+	SELECT Message.Id,
+	       Message.Subject,
+	       Message.Content,
+	       Message.Timestamp,
+	       Message.Author_id,
+	       Message.Parent_id,
+	       Message.Signature,
+	       GROUP_CONCAT(Tag.Name)
+	FROM Message
+	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
+	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
+	WHERE Message.Id IN (
+		SELECT Message_Tag.Message_Id
+		FROM Message_Tag
+		JOIN Tag on Message_Tag.Tag_Id = Tag.Id
+		WHERE Tag.Name IN (%s)
+		GROUP BY Message_Tag.Message_Id
+		HAVING COUNT(DISTINCT Tag.Name) = %d
+	)
+	GROUP BY Message.Id
+	ORDER BY Message.Timestamp DESC
+	LIMIT %d OFFSET %d
+	`
+	var params []interface{}
+	inCondition := ""
+	for _, t := range topic {
+		params = append(params, t)
+		if inCondition != "" {
+			inCondition += ", "
+		}
+		inCondition += "?"
+	}
+	db := (*sql.DB)(d)
+	query = fmt.Sprintf(query, inCondition, len(topic), limit, offset)
+	rows, err := db.Query(query, params...)
+	if err != nil {
+		log.Errorf("Error fetching message from the database: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	defer rows.Close()
+	res, err := scanMessageRows(rows)
+	if err != nil {
+		log.Errorf("Error scanning message rows: %v", err)
+		return nil, err
+	}
 	err = rows.Err()
 	if err != nil {
 		log.Errorf("Error getting next message row: %v", err)
