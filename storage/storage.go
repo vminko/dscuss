@@ -23,6 +23,7 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/sqlite"
 	"vminko.org/dscuss/subs"
+	"vminko.org/dscuss/thread"
 )
 
 // Storage is a proxy for the entity database, which provides subscriptions to
@@ -99,6 +100,10 @@ func (s *Storage) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*enti
 	return s.db.GetTopicMessages(topic, offset, limit)
 }
 
+func (s *Storage) GetThread(root *entity.ID) (*thread.Node, error) {
+	return s.db.GetThread(root)
+}
+
 func (s *Storage) HasMessage(id *entity.ID) (bool, error) {
 	return s.db.HasMessage(id)
 }
@@ -106,6 +111,3 @@ func (s *Storage) HasMessage(id *entity.ID) (bool, error) {
 func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
 	return s.db.GetEntity(eid)
 }
-
-//TBD:
-//GetMessageReplies(id ID, mi MessageIterator)

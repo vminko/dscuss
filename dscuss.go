@@ -37,6 +37,7 @@ import (
 	"vminko.org/dscuss/storage"
 	dstrings "vminko.org/dscuss/strings"
 	"vminko.org/dscuss/subs"
+	"vminko.org/dscuss/thread"
 )
 
 const (
@@ -213,7 +214,7 @@ func Dir() string {
 	return dir
 }
 
-func NewThread(subj string, text string, topic string) (*entity.Message, error) {
+func NewThread(subj, text, topic string) (*entity.Message, error) {
 	if !IsLoggedIn() {
 		log.Fatal("Attempt to create a new thread when no user is logged in")
 	}
@@ -224,9 +225,12 @@ func NewThread(subj string, text string, topic string) (*entity.Message, error) 
 	return entity.EmergeMessage(subj, text, ownr.User.ID(), &entity.ZeroID, ownr.Signer, t)
 }
 
-/*func NewReply(subject string, body string) *entity.Message {
-	return
-}*/
+func NewReply(subj, text string, parent *entity.ID) (*entity.Message, error) {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to create a new reply when no user is logged in")
+	}
+	return entity.EmergeMessage(subj, text, ownr.User.ID(), parent, ownr.Signer, nil)
+}
 
 func PostMessage(m *entity.Message) error {
 	if !IsLoggedIn() {
@@ -262,6 +266,14 @@ func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
 		return nil, errors.WrongTopic
 	}
 	return stor.GetTopicMessages(t, offset, limit)
+}
+
+// TBD: add offset and limit
+func ListThread(id *entity.ID) (*thread.Node, error) {
+	if !IsLoggedIn() {
+		log.Fatal("Attempt to list thread when no user is logged in")
+	}
+	return stor.GetThread(id)
 }
 
 func ListSubscriptions() string {

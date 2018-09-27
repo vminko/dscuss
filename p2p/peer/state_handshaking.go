@@ -167,7 +167,7 @@ func (s *StateHandshaking) finalize() error {
 	}
 	s.p.User = s.u
 	s.p.Subs = s.s
-	if !s.p.validate(s.p) {
+	if !s.p.validator.ValidatePeer(s.p) {
 		log.Debugf("Peer validation failed")
 		return errors.InvalidPeer
 	}

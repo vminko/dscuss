@@ -32,6 +32,11 @@ const (
 )
 
 func NewTopic(str string) (Topic, error) {
+	if str == "" {
+		// strings.Split returns non-nil empty topic
+		// nil topic is ok, but empty topic is forbidden
+		return nil, nil
+	}
 	t := Topic(strings.Split(str, ","))
 	if !t.IsValid() {
 		log.Warningf("This is not a valid topic string: '%s'", str)
@@ -72,7 +77,8 @@ func isTagValid(tag string) bool {
 }
 
 func (t Topic) IsValid() bool {
-	if t == nil || len(t) == 0 {
+	if t != nil && len(t) == 0 {
+		// nil topic is permitted, but empty topic is forbidden
 		return false
 	}
 	seen := make(map[string]struct{}, len(t))

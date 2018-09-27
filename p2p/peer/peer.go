@@ -39,7 +39,7 @@ type Peer struct {
 	Conn          *connection.Connection
 	owner         *owner.Owner
 	storage       *storage.Storage
-	validate      Validator
+	validator     Validator
 	goneChan      chan *Peer
 	stopChan      chan struct{}
 	outEntityChan chan entity.Entity
@@ -60,7 +60,9 @@ type Info struct {
 	Subscriptions   []string
 }
 
-type Validator func(*Peer) bool
+type Validator interface {
+	ValidatePeer(*Peer) bool
+}
 
 const unknownValue string = "[unknown]"
 
@@ -68,14 +70,14 @@ func New(
 	conn *connection.Connection,
 	owner *owner.Owner,
 	storage *storage.Storage,
-	validate Validator,
+	validator Validator,
 	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
 		Conn:          conn,
 		owner:         owner,
 		storage:       storage,
-		validate:      validate,
+		validator:     validator,
 		goneChan:      goneChan,
 		stopChan:      make(chan struct{}),
 		outEntityChan: make(chan entity.Entity),

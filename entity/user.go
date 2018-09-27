@@ -65,10 +65,10 @@ func EmergeUser(
 	proof crypto.ProofOfWork,
 	signer *crypto.Signer,
 ) (*User, error) {
-	if !IsNicknameValid(nickname) {
+	uu := newUnsignedUser(nickname, info, signer.Public(), proof, time.Now())
+	if !uu.isValid() {
 		return nil, errors.WrongNickname
 	}
-	uu := newUnsignedUser(nickname, info, signer.Public(), proof, time.Now())
 	juser, err := json.Marshal(uu)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
@@ -122,8 +122,27 @@ func (u *User) ID() *ID {
 	return &u.UnsignedUser.Descriptor.ID
 }
 
-func (u *User) Desc() string {
-	return fmt.Sprintf("(%s)", u.UnsignedUser.Nickname)
+func (uu *UnsignedUser) Desc() string {
+	return fmt.Sprintf("(%s)", uu.Nickname)
+}
+
+func (uu *UnsignedUser) isValid() bool {
+	correctID := uu.UserContent.ToID()
+	if uu.Descriptor.ID != *correctID {
+		log.Debugf("User %s has invalid ID. Expected: %s, Actual: %s",
+			uu.Desc(), correctID.String(), uu.Descriptor.ID.String())
+		return false
+	}
+	pow := crypto.NewPowFinder(uu.PubKey.EncodeToDER())
+	if !pow.IsValid(uu.Proof) {
+		log.Debugf("User %s has invalid Proof-of-Work", uu.Desc())
+		return false
+	}
+	if !IsNicknameValid(uu.Nickname) {
+		log.Debugf("Message %s has empty nickname", uu.Desc())
+		return false
+	}
+	return true
 }
 
 func (u *User) IsValid() bool {
@@ -135,22 +154,7 @@ func (u *User) IsValid() bool {
 		log.Debugf("User %s has invalid signature", u.Desc())
 		return false
 	}
-	correctID := u.UnsignedUser.UserContent.ToID()
-	if u.UnsignedUser.Descriptor.ID != *correctID {
-		log.Debugf("User %s has invalid ID. Expected: %s, Actual: %s",
-			u.Desc(), correctID.String(), u.UnsignedUser.Descriptor.ID.String())
-		return false
-	}
-	pow := crypto.NewPowFinder(u.PubKey.EncodeToDER())
-	if !pow.IsValid(u.Proof) {
-		log.Debugf("User %s has invalid Proof-of-Work", u.Desc())
-		return false
-	}
-	if !IsNicknameValid(u.Nickname()) {
-		log.Debugf("Message %s has empty nickname", u.Desc())
-		return false
-	}
-	return true
+	return u.UnsignedUser.isValid()
 }
 
 func newUserContent(

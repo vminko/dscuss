@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	dstrings "vminko.org/dscuss/strings"
@@ -72,19 +71,23 @@ func (i *ID) ParseSlice(s []byte) error {
 	return nil
 }
 
-func (i ID) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + base64.StdEncoding.EncodeToString(i[:]) + `"`), nil
+func (i *ID) String() string {
+	return base64.StdEncoding.EncodeToString(i[:])
 }
 
-func (i *ID) UnmarshalJSON(b []byte) error {
-	trimmed := bytes.Trim(b, "\"")
-	res, err := base64.StdEncoding.DecodeString(string(trimmed))
+func (i *ID) ParseString(s string) error {
+	res, err := base64.StdEncoding.DecodeString(s)
 	copy(i[:], res[:])
 	return err
 }
 
-func (i *ID) String() string {
-	return hex.EncodeToString(i[:])
+func (i ID) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + i.String() + `"`), nil
+}
+
+func (i *ID) UnmarshalJSON(b []byte) error {
+	trimmed := bytes.Trim(b, "\"")
+	return i.ParseString(string(trimmed))
 }
 
 func (i *ID) Shorten() string {

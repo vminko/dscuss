@@ -91,7 +91,7 @@ func (pp *PeerPool) watchNewConnections() {
 			conn,
 			pp.owner,
 			pp.storage,
-			pp.validateHandshakedPeer,
+			pp, // Validator
 			pp.gonePeerChan,
 		)
 		pp.peersMx.Lock()
@@ -127,7 +127,7 @@ func (pp *PeerPool) watchGonePeers() {
 	}
 }
 
-func (pp *PeerPool) validateHandshakedPeer(newPeer *peer.Peer) bool {
+func (pp *PeerPool) ValidatePeer(newPeer *peer.Peer) bool {
 	newPid, err := newPeer.ID()
 	if err != nil {
 		log.Fatalf("Handshaked peer %s has no ID", newPeer.Desc())

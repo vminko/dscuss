@@ -34,6 +34,7 @@ import (
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/p2p/peer"
+	"vminko.org/dscuss/thread"
 )
 
 const (
@@ -79,8 +80,13 @@ var commandList = []*ishell.Cmd{
 	},
 	{
 		Name: "lsboard",
-		Help: "[topic], list particular topic or all threads on the board",
+		Help: "[topic], list a particular topic or all threads on the board",
 		Func: doListBoard,
+	},
+	{
+		Name: "lsthread",
+		Help: "<id>, display a particular thread",
+		Func: doListThread,
 	},
 	{
 		Name: "sub",
@@ -143,7 +149,8 @@ func doLogin(c *ishell.Context) {
 		return
 	}
 	if len(c.Args) != 1 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	nickname := c.Args[0]
 	err := dscuss.Login(nickname)
@@ -155,9 +162,11 @@ func doLogin(c *ishell.Context) {
 func doLogout(c *ishell.Context) {
 	if !dscuss.IsLoggedIn() {
 		c.Println("You are not logged in.")
+		return
 	}
 	if len(c.Args) != 0 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	c.Println("Logging out...")
 	dscuss.Logout()
@@ -194,7 +203,8 @@ func doListPeers(c *ishell.Context) {
 		return
 	}
 	if len(c.Args) != 0 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	peers := dscuss.ListPeers()
 	if len(peers) > 0 {
@@ -223,15 +233,17 @@ func readMultiLines(c *ishell.Context, prompt string) string {
 }
 
 func doMakeThread(c *ishell.Context) {
+	c.ShowPrompt(false)
+	defer c.ShowPrompt(true)
+
 	if !dscuss.IsLoggedIn() {
 		c.Println("You are not logged in.")
 		return
 	}
 	if len(c.Args) != 0 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
-	c.ShowPrompt(false)
-	defer c.ShowPrompt(true)
 
 	c.Print("Enter thread topic: ")
 	topic := c.ReadLine()
@@ -268,7 +280,8 @@ func doListBoard(c *ishell.Context) {
 		return
 	}
 	if len(c.Args) > 1 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
@@ -297,6 +310,7 @@ func doListBoard(c *ishell.Context) {
 		}
 		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(),
 			msg.DateWritten.Format(time.RFC3339))
+		c.Printf("ID: %s\n", msg.ID())
 		if topic == "" {
 			c.Printf("Topic: %s\n", msg.Topic.String())
 		}
@@ -305,7 +319,107 @@ func doListBoard(c *ishell.Context) {
 	}
 }
 
-func doMakeReply(c *ishell.Context) { c.Println("Not implemented yet.") }
+type ThreadPrinter struct {
+	c *ishell.Context
+}
+
+func (tp *ThreadPrinter) composeIndentation(n *thread.Node) string {
+	return strings.Repeat(" ", 4*n.Depth())
+}
+
+func (tp *ThreadPrinter) Handle(n *thread.Node) bool {
+	m := n.Msg
+	if m == nil {
+		return true
+	}
+	if n.IsRoot() {
+		tp.c.Printf("Topic: %s\n", m.Topic.String())
+	} else {
+		tp.c.Println()
+	}
+	tp.c.Printf("%sSubject: %s\n", tp.composeIndentation(n), m.Subject)
+	tp.c.Printf("%s%s\n", tp.composeIndentation(n), m.Text)
+	tp.c.Printf("%sby %s, %s\n",
+		tp.composeIndentation(n), m.AuthorID.Shorten(), m.DateWritten.Format(time.RFC3339))
+	return true
+}
+
+func doListThread(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 1 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	c.ShowPrompt(false)
+	defer c.ShowPrompt(true)
+
+	idStr := c.Args[0]
+	var tid entity.ID
+	err := tid.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + "is not a valid entity ID.")
+		return
+	}
+	t, err := dscuss.ListThread(&tid)
+	if err != nil {
+		c.Println("Can't list thread: " + err.Error() + ".")
+		return
+	}
+
+	tp := ThreadPrinter{c}
+	tvis := thread.NewPreOrderVisitor(&tp)
+	t.Traverse(tvis)
+}
+
+func doMakeReply(c *ishell.Context) {
+	c.ShowPrompt(false)
+	defer c.ShowPrompt(true)
+
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 1 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	idStr := c.Args[0]
+	var pid entity.ID
+	err := pid.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + "is not a valid entity ID.")
+		return
+	}
+
+	c.Print("Enter reply subject: ")
+	subj := c.ReadLine()
+	if subj == "" {
+		c.Println("Error: subject can not be empty.")
+		return
+	}
+
+	text := readMultiLines(c, "Enter message text")
+	if text == "" {
+		c.Println("Error: message text can not be empty.")
+		return
+	}
+
+	r, err := dscuss.NewReply(subj, text, &pid)
+	if err != nil {
+		c.Println("Error making new reply: " + err.Error() + ".")
+		return
+	}
+	err = dscuss.PostMessage(r)
+	if err != nil {
+		c.Println("Error posting new reply: " + err.Error() + ".")
+	} else {
+		c.Println("Reply '" + r.Desc() + "' created successfully.")
+	}
+}
+
 func doSubscribe(c *ishell.Context) {
 	msg := `Not implemented yet.
 To edit you subscriptions:
@@ -331,14 +445,16 @@ func doListSubscriptions(c *ishell.Context) {
 		return
 	}
 	if len(c.Args) != 0 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	c.Print(dscuss.ListSubscriptions())
 }
 
 func doVersion(c *ishell.Context) {
 	if len(c.Args) != 0 {
-		c.Println(c.Cmd.HelpText())
+		c.Println(c.Cmd.Help)
+		return
 	}
 	c.Println(getVersion())
 }

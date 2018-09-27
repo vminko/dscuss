@@ -40,6 +40,7 @@ type UnsignedMessage struct {
 	MessageContent
 }
 
+// You have either Topic or ParentID, never both.
 type MessageContent struct {
 	Subject     string
 	Text        string
@@ -60,10 +61,10 @@ func EmergeMessage(
 	signer *crypto.Signer,
 	topic subs.Topic,
 ) (*Message, error) {
-	if subject == "" || text == "" || topic == nil {
+	um := newUnsignedMessage(subject, text, authorID, parentID, time.Now(), topic)
+	if !um.isValid() {
 		return nil, errors.WrongArguments
 	}
-	um := newUnsignedMessage(subject, text, authorID, parentID, time.Now(), topic)
 	jmsg, err := json.Marshal(um)
 	if err != nil {
 		log.Fatal("Can't marshal unsigned Message: " + err.Error())
@@ -84,32 +85,58 @@ func NewMessage(
 	dateWritten time.Time,
 	sig crypto.Signature,
 	topic subs.Topic,
-) *Message {
+) (*Message, error) {
 	um := newUnsignedMessage(subject, text, authorID, parentID, dateWritten, topic)
-	return &Message{UnsignedMessage: *um, Sig: sig}
-}
-
-func (m *Message) ShortID() string {
-	return m.Descriptor.ID.Shorten()
-}
-
-func (m *Message) Type() Type {
-	return m.Descriptor.Type
-}
-
-func (m *Message) ID() *ID {
-	return &m.Descriptor.ID
-}
-
-func (m *Message) Desc() string {
-	shortText := strings.Replace(dstrings.Truncate(m.Text, 24), "\n", " ", -1)
-	return fmt.Sprintf("%s (%s)", m.ShortID(), shortText)
+	if !um.isValid() {
+		return nil, errors.WrongArguments
+	}
+	return &Message{UnsignedMessage: *um, Sig: sig}, nil
 }
 
 func (m *Message) Copy() *Message {
 	res := *m
-	res.Topic = m.Topic.Copy()
+	if m.Topic != nil {
+		res.Topic = m.Topic.Copy()
+	}
 	return &res
+}
+
+func (um *UnsignedMessage) ShortID() string {
+	return um.Descriptor.ID.Shorten()
+}
+
+func (um *UnsignedMessage) Type() Type {
+	return um.Descriptor.Type
+}
+
+func (um *UnsignedMessage) ID() *ID {
+	return &um.Descriptor.ID
+}
+
+func (um *UnsignedMessage) Desc() string {
+	shortText := strings.Replace(dstrings.Truncate(um.Text, 24), "\n", " ", -1)
+	return fmt.Sprintf("%s (%s)", um.ShortID(), shortText)
+}
+
+func (um *UnsignedMessage) isValid() bool {
+	correctID := um.MessageContent.ToID()
+	if um.Descriptor.ID != *correctID {
+		log.Debugf("Message %s has invalid ID", um.Desc())
+		return false
+	}
+	if um.Subject == "" || um.Text == "" {
+		log.Debugf("Message %s has empty subject or text", um.Desc())
+		return false
+	}
+	if um.Topic == nil && um.ParentID == ZeroID {
+		log.Debugf("Message %s is a thread with nil topic", um.Desc())
+		return false
+	}
+	if um.Topic != nil && um.ParentID != ZeroID {
+		log.Debugf("Message %s is a reply with non-nil topic", um.Desc())
+		return false
+	}
+	return true
 }
 
 func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
@@ -121,16 +148,7 @@ func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
 		log.Debugf("Message %s has invalid signature", m.Desc())
 		return false
 	}
-	correctID := m.UnsignedMessage.MessageContent.ToID()
-	if m.UnsignedMessage.Descriptor.ID != *correctID {
-		log.Debugf("Message %s has invalid ID", m.Desc())
-		return false
-	}
-	if m.Topic == nil || len(m.Topic) == 0 || m.Subject == "" || m.Text == "" {
-		log.Debugf("Message %s has empty topic, subject or text", m.Desc())
-		return false
-	}
-	return true
+	return m.UnsignedMessage.isValid()
 }
 
 func newMessageContent(
@@ -141,14 +159,17 @@ func newMessageContent(
 	dateWritten time.Time,
 	topic subs.Topic,
 ) *MessageContent {
-	return &MessageContent{
+	mc := &MessageContent{
 		Subject:     subject,
 		Text:        text,
 		AuthorID:    *authorID,
 		ParentID:    *parentID,
 		DateWritten: dateWritten,
-		Topic:       topic.Copy(),
 	}
+	if topic != nil {
+		mc.Topic = topic.Copy()
+	}
+	return mc
 }
 
 func (mc *MessageContent) ToID() *ID {

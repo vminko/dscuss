@@ -27,6 +27,7 @@ import (
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/subs"
+	"vminko.org/dscuss/thread"
 )
 
 // Database stores Entities. Implements EntityStorage interface.
@@ -245,8 +246,8 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	var text string
 	var wrdate time.Time
 	var encodedSig []byte
-	var authID entity.ID
-	var parID entity.ID
+	var rawAuthID []byte
+	var rawParID []byte
 	var topicStr string
 	query := `
 	SELECT Message.Subject,
@@ -268,8 +269,8 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 		&subj,
 		&text,
 		&wrdate,
-		&authID,
-		&parID,
+		&rawAuthID,
+		&rawParID,
 		&encodedSig,
 		&topicStr)
 	switch {
@@ -282,6 +283,13 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	default:
 		log.Debug("The message found successfully")
 	}
+
+	var authID, parID entity.ID
+	parsOK := authID.ParseSlice(rawAuthID) == nil && parID.ParseSlice(rawParID) == nil
+	if !parsOK {
+		log.Error("Can't parse ID fetched from DB")
+		return nil, errors.Parsing
+	}
 	sig, err := crypto.ParseSignature(encodedSig)
 	if err != nil {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
@@ -291,7 +299,10 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	if err != nil {
 		log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
 	}
-	m := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
+	m, err := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
+	if err != nil {
+		log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
+	}
 	return m, nil
 }
 
@@ -331,16 +342,25 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 			authID.ParseSlice(rawAuthID) == nil &&
 			parID.ParseSlice(rawParID) == nil
 		if !parsOK {
-			log.Error("Can't parse ID fetched from DB")
+			log.Error("Can't parse an ID fetched from DB")
 			return nil, errors.Parsing
 		}
+		log.Debugf("Found message id %s", id.String())
 
 		topic, err := subs.NewTopic(topicStr)
 		if err != nil {
 			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
 		}
-		m := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
+		m, err := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
+		if err != nil {
+			log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
+		}
 		res = append(res, m)
+	}
+	err := rows.Err()
+	if err != nil {
+		log.Errorf("Error getting next message row: %v", err)
+		return nil, errors.DBOperFailed
 	}
 	return res, nil
 }
@@ -375,11 +395,6 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 	if err != nil {
 		log.Errorf("Error scanning message rows: %v", err)
 		return nil, err
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Errorf("Error getting next message row: %v", err)
-		return nil, errors.DBOperFailed
 	}
 	return res, nil
 }
@@ -432,13 +447,72 @@ func (d *Database) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*ent
 		log.Errorf("Error scanning message rows: %v", err)
 		return nil, err
 	}
-	err = rows.Err()
+	return res, nil
+}
+
+func (d *Database) GetReplies(eid *entity.ID) ([]*entity.Message, error) {
+	log.Debugf("Fetching replies for '%s' from the database", eid.Shorten())
+	query := `
+	SELECT Message.Id,
+	       Message.Subject,
+	       Message.Content,
+	       Message.Timestamp,
+	       Message.Author_id,
+	       Message.Parent_id,
+	       Message.Signature,
+	       ''
+	FROM Message
+	WHERE Message.Parent_id=?
+	ORDER BY Message.Timestamp DESC
+	`
+	db := (*sql.DB)(d)
+	rows, err := db.Query(query, eid[:])
 	if err != nil {
-		log.Errorf("Error getting next message row: %v", err)
+		log.Errorf("Error fetching message from the database: %v", err)
 		return nil, errors.DBOperFailed
 	}
-
+	defer rows.Close()
+	res, err := scanMessageRows(rows)
+	if err != nil {
+		log.Errorf("Error scanning message rows: %v", err)
+		return nil, err
+	}
 	return res, nil
+}
+
+func (d *Database) fillSubthreads(t *thread.Node) error {
+	eid := t.Msg.ID()
+	replies, err := d.GetReplies(eid)
+	if err != nil {
+		log.Errorf("Error fetching replies for %s: %v", eid.Shorten())
+		return err
+	}
+	for _, r := range replies {
+		node := t.AddReply(r)
+		err = d.fillSubthreads(node)
+		if err != nil {
+			log.Errorf("Error fetching replies for %s: %v", eid.Shorten())
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *Database) GetThread(eid *entity.ID) (*thread.Node, error) {
+	log.Debugf("Fetching thread %s from the database", eid.Shorten())
+	root, err := d.GetMessage(eid)
+	if err != nil {
+		log.Errorf("Error fetching root if the thread %s: %v", eid.Shorten())
+		return nil, err
+	}
+	t := thread.New(root)
+	err = d.fillSubthreads(t)
+	if err != nil {
+		log.Errorf("Error fetching replies for %s: %v", eid.Shorten())
+		return nil, err
+	}
+
+	return t, nil
 }
 
 func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
@@ -509,9 +583,6 @@ func (d *Database) putMessageTag(tag string, id *entity.ID) error {
 
 func (d *Database) putMesageTopic(m *entity.Message) error {
 	t := m.Topic
-	if t == nil {
-		log.Fatalf("BUG: messages with empty topics are prohibited")
-	}
 	for _, tag := range t {
 		if d.putTag(tag) != nil {
 			log.Errorf("Failed to store tag %s in the DB", tag)
