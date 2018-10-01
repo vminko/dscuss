@@ -1,9 +1,9 @@
 Title:      Protocol
 Summary:    This article describes the Dscuss protocol.
-Copyright:  (c) 2015-2016 Vitaly Minko
+Copyright:  (c) 2015-2018 Vitaly Minko
             Content is available under GNU Free Documentation License 1.3 and
             Creative Commons Attribution-Share Alike 3.0 Unported License
-Date:       18 Sep 2016
+Date:       01 Oct 2018
 Web:        http://vminko.org/dscuss/protocol
 
 
@@ -29,8 +29,16 @@ Brief description of the protocol
 * Protocol __connections are multiplexed__ - all communication between two peers
   is performed through one TCP connection.
 * __Packet exchange is synchronous__ - a peer sends one packet and waits for
-  response before sending another packet. The only exception to this rule is the
-  handshaking process, where packet exchange is asynchronous.
+  response before sending another packet.
+
+
+Sources
+-------
+
+The Dscuss git repository contains the source files of the schemes
+(`docs/illustrations`). The schemes can be opened and edited in [Dia][dia].
+
+[dia]: https://wiki.gnome.org/Apps/Dia/
 
 
 Peer states
@@ -42,12 +50,7 @@ view.
 ![peer statechart][psd_img]
 View in [full][psd_img] resolution.
 
-The Dscuss git repository contains the source file of the scheme. It can be
-opened and edited in [Dia][dia].
-
-
 [psd_img]: /storage/dscuss/illustrations/peer_state_diagram.png
-[dia]: https://wiki.gnome.org/Apps/Dia/
 
 
 Sequence diagrams
@@ -67,24 +70,20 @@ __Processing advertisement__ :
 ![Flowchart][pradv]  
 View in [full][pradv] resolution.
 
-__Processing incoming entities__ :  
-![Flowchart][princ]  
-View in [full][princ] resolution.
+__Checking list of pending entities__ :  
+![Flowchart][chpnd]  
+View in [full][chpnd] resolution.
 
-__Processing list of pending entities__ :  
-![Flowchart][prpnd]  
-View in [full][prpnd] resolution.
+__Checking user__ :  
+![Flowchart][chusr]
 
-__Processing user__ :  
-![Flowchart][prusr]
+__Checking message__ :  
+![Flowchart][chmsg]  
+View in [full][chmsg] resolution.
 
-__Processing message__ :  
-![Flowchart][prmsg]  
-View in [full][prmsg] resolution.
-
-__Processing operation__ :  
-![Flowchart][propr]  
-View in [full][propr] resolution.
+__Checking operation__ :  
+![Flowchart][chopr]  
+View in [full][chopr] resolution.
 
 __Advertising user__ :  
 ![Flowchart][advusr]  
@@ -99,21 +98,13 @@ __Advertising operation__ :
 View in [full][advopr] resolution.
 
 
-Sources
--------
-
-The sources of the schemes are available [here][src].
-
-
 [hnds]: /storage/dscuss/illustrations/handshaking.png
 [pub]: /storage/dscuss/illustrations/publishing.png
 [pradv]: /storage/dscuss/illustrations/process_advert.png 
-[princ]: /storage/dscuss/illustrations/process_incoming_entity.png 
-[prpnd]: /storage/dscuss/illustrations/process_pending_entities.png
-[prmsg]: /storage/dscuss/illustrations/process_msg.png
-[propr]: /storage/dscuss/illustrations/process_oper.png
-[prusr]: /storage/dscuss/illustrations/process_user.png
+[chpnd]: /storage/dscuss/illustrations/check_list.png
+[chmsg]: /storage/dscuss/illustrations/check_msg.png
+[chopr]: /storage/dscuss/illustrations/check_oper.png
+[chusr]: /storage/dscuss/illustrations/check_user.png
 [advusr]: /storage/dscuss/illustrations/advertise_user.png
 [advmsg]: /storage/dscuss/illustrations/advertise_message.png
 [advopr]: /storage/dscuss/illustrations/advertise_oper.png
-[src]: /storage/dscuss/illustrations/sources/
