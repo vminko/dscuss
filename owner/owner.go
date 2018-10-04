@@ -94,7 +94,7 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 	log.Debugf("Dumping emerged User %s:", nickname)
 	log.Debug(user.String())
 
-	err = s.PutUser(user, nil)
+	err = s.PutEntity((entity.Entity)(user), nil)
 	if err != nil {
 		log.Errorf("Can't add user '%s' to the storage: %v", user.Nickname(), err)
 		return errors.Database

@@ -236,7 +236,7 @@ func PostMessage(m *entity.Message) error {
 	if !IsLoggedIn() {
 		log.Fatal("Attempt to post message when no user is logged in")
 	}
-	err := stor.PutMessage(m, nil)
+	err := stor.PutEntity((entity.Entity)(m), nil)
 	if err != nil {
 		log.Errorf("Failed to post message '%s': %v", m.Desc(), err)
 		return err

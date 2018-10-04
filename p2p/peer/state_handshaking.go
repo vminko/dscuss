@@ -156,14 +156,12 @@ func (s *StateHandshaking) finalize() error {
 	// in performance.
 	_, err := s.p.storage.GetUser(s.u.ID())
 	if err == errors.NoSuchEntity {
-		err = s.p.storage.PutUser(s.u, s.p.outEntityChan)
+		err = s.p.storage.PutEntity((entity.Entity)(s.u), s.p.outEntityChan)
 		if err != nil {
-			log.Errorf("Failed to put user into the DB: %v", err)
-			return errors.Database
+			log.Fatalf("Failed to put user into the DB: %v", err)
 		}
 	} else if err != nil {
-		log.Errorf("Unexpected error occurred while getting user from the DB: %v", err)
-		return errors.Database
+		log.Fatalf("Unexpected error occurred while getting user from the DB: %v", err)
 	}
 	s.p.User = s.u
 	s.p.Subs = s.s

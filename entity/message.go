@@ -139,16 +139,24 @@ func (um *UnsignedMessage) isValid() bool {
 	return true
 }
 
-func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
+func (m *Message) IsUnsignedPartValid() bool {
+	return m.UnsignedMessage.isValid()
+}
+
+func (m *Message) IsSigValid(pubKey *crypto.PublicKey) bool {
 	jmsg, err := json.Marshal(&m.UnsignedMessage)
 	if err != nil {
 		log.Fatal("Can't marshal UnsignedMessage: " + err.Error())
 	}
-	if !pubKey.Verify(jmsg, m.Sig) {
+	res := pubKey.Verify(jmsg, m.Sig)
+	if !res {
 		log.Debugf("Message %s has invalid signature", m.Desc())
-		return false
 	}
-	return m.UnsignedMessage.isValid()
+	return res
+}
+
+func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
+	return m.IsUnsignedPartValid() && m.IsSigValid(pubKey)
 }
 
 func newMessageContent(

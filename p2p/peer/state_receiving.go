@@ -24,14 +24,20 @@ import (
 	"vminko.org/dscuss/packet"
 )
 
+const (
+	// Encapsulates a user entity.
+	MaxPendingEntitiesNum int = 100
+)
+
 type StateReceiving struct {
 	p               *Peer
-	pendingPackets  []*packet.Packet
+	initialPacket   *packet.Packet
+	pendingEntities []entity.Entity
 	requestedEntity *entity.ID
 }
 
 func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
-	return &StateReceiving{p, []*packet.Packet{pckt}, nil}
+	return &StateReceiving{p, pckt, nil, nil}
 }
 
 func (s *StateReceiving) perform() (nextState State, err error) {
@@ -43,26 +49,64 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 	}
 	has, err := s.p.storage.HasMessage(&a.ID)
 	if err != nil {
-		log.Errorf("Got unexpected error while looking for a message in the DB: %v", err)
-		return nil, errors.Database
+		log.Fatalf("Got unexpected error while looking for a message in the DB: %v", err)
 	}
-	if has {
-		err = s.sendAck()
+
+	neededID := &a.ID
+	allMatched := has
+	for !allMatched {
+		err = s.sendReq(neededID)
 		if err != nil {
-			log.Errorf("Failed to send ack for %s: %v", a.ID.Shorten(), err)
+			log.Errorf("Failed to request entity %s: %v", neededID.Shorten(), err)
 			return nil, err
 		}
-	} else {
-		err = s.sendReq(&a.ID)
+		e, err := s.readEntity()
 		if err != nil {
-			log.Errorf("Failed to request entity %s: %v", a.ID.Shorten(), err)
+			log.Infof("Failed to receive requested entity %s: %v",
+				neededID.Shorten(), err)
 			return nil, err
 		}
-		err = s.readAndProcessMessage()
-		if err != nil {
-			log.Infof("Failed to receive requested entity %s: %v", a.ID.Shorten(), err)
-			return nil, err
+		s.pendingEntities = append(s.pendingEntities, e)
+		err = s.checkPendingEntities()
+		if err == nil {
+			for _, e := range s.pendingEntities {
+				err = s.p.storage.PutEntity(e, s.p.outEntityChan)
+				if err != nil {
+					log.Fatalf("Failed to put entity %s into the DB: %v",
+						e.Desc(), err)
+				}
+			}
+			allMatched = true
+		} else {
+			switch e := err.(type) {
+			case *needIDError:
+				if len(s.pendingEntities) < MaxPendingEntitiesNum {
+					neededID = e.ID
+				} else {
+					// TBD: limit max depth of threads, then
+					// ban a.AuthorID here
+					return nil, err
+				}
+			case *banSenderError:
+				// TBD: ban Sender
+				return nil, err
+			case *banIDError:
+				// TBD: ban ID
+				allMatched = true
+			case *bannedError:
+				// TBD: check rate of banned entities
+				allMatched = true
+			case *skipError:
+				allMatched = true
+			default:
+				log.Fatal("BUG: unexpected result type %T.")
+			}
 		}
+	}
+	err = s.sendAck()
+	if err != nil {
+		log.Errorf("Failed to send ack for %s: %v", a.ID.Shorten(), err)
+		return nil, err
 	}
 	return newStateIdle(s.p), nil
 }
@@ -91,7 +135,7 @@ func (s *StateReceiving) sendAck() error {
 }
 
 func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
-	pkt := s.pendingPackets[0]
+	pkt := s.initialPacket
 	if !pkt.VerifySig(&s.p.User.PubKey) {
 		log.Infof("Peer %s sent a packet with invalid signature: %s", s.p.Desc())
 		return nil, errors.ProtocolViolation
@@ -115,50 +159,108 @@ func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
 	return a, nil
 }
 
-func (s *StateReceiving) readAndProcessMessage() error {
+func (s *StateReceiving) readEntity() (entity.Entity, error) {
 	pkt, err := s.p.Conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
-		return err
+		return nil, err
 	}
 	if !pkt.VerifySig(&s.p.User.PubKey) {
 		log.Infof("Peer %s sent a packet with invalid signature", s.p.Desc())
-		return errors.ProtocolViolation
-	}
-	if pkt.VerifyHeader(packet.TypeMessage, s.p.owner.User.ID()) != nil {
-		log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
-		return errors.ProtocolViolation
+		return nil, errors.ProtocolViolation
 	}
 
+	verifyType := func(t packet.Type) bool {
+		return t == packet.TypeUser || t == packet.TypeMessage
+	}
+
+	if pkt.VerifyHeaderFull(verifyType, s.p.owner.User.ID()) != nil {
+		log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
+		return nil, errors.ProtocolViolation
+	}
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
-		return errors.Parsing
+		return nil, errors.Parsing
 	}
-	m, ok := (i).(*entity.Message)
+	e, ok := (i).(entity.Entity)
 	if !ok {
-		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
+		log.Fatal("BUG: payload is not entity, when packet type asserts that it is.")
 	}
-	if !m.IsValid(&s.p.User.PubKey) {
-		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
-		return errors.ProtocolViolation
-	}
-	if m.Descriptor.ID != *s.requestedEntity {
-		log.Infof("Peer %s sent a Message, which was not requested", s.p.Desc())
-		return errors.ProtocolViolation
+	if *e.ID() != *s.requestedEntity {
+		log.Infof("Peer %s sent an entity, which was not requested", s.p.Desc())
+		return nil, errors.ProtocolViolation
 	}
 
+	return e, nil
+}
+
+func (s *StateReceiving) checkPendingEntities() error {
+	e := s.pendingEntities[0]
+	_, ok := (e).(*entity.User)
+	if ok {
+		log.Infof("Peer %s advertised a user entity", s.p.Desc())
+		return &banSenderError{}
+	}
+	for _, ent := range s.pendingEntities {
+		var err error
+		switch e := ent.(type) {
+		case *entity.User:
+			err = s.checkUser(e)
+		case *entity.Message:
+			err = s.checkMessage(e)
+		// TBD: case *entity.Operation
+		default:
+			log.Fatalf("BUG: unexpected type of entity: %T", e)
+		}
+		if err != nil {
+			log.Debugf("unmatched condition: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *StateReceiving) checkUser(u *entity.User) error {
+	if !u.IsValid() {
+		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
+		return &banSenderError{}
+	}
+	// TBD: check if u.ID() is banned
+	return nil
+}
+
+func (s *StateReceiving) checkMessage(m *entity.Message) error {
+	if !m.IsUnsignedPartValid() {
+		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
+		return &banSenderError{}
+	}
 	if !s.p.owner.Subs.Covers(m.Topic) {
 		log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
-		log.Debugf("Message topic is %s", m.Topic.String())
-		log.Debugf("My subs are %s", s.p.Subs.String())
-		return errors.ProtocolViolation
+		return &banSenderError{}
 	}
-
-	err = s.p.storage.PutMessage(m, s.p.outEntityChan)
-	if err != nil {
-		log.Errorf("Failed to put user into the DB: %v", err)
-		return errors.Database
+	// TBD: check if m.AuthorID is banned
+	u, err := s.p.storage.GetUser(&m.AuthorID)
+	if err == errors.NoSuchEntity {
+		log.Debugf("Need user ID (%s) - author of the message",
+			m.AuthorID.Shorten(), m.ID().Shorten())
+		return &needIDError{&m.AuthorID}
+	} else if err != nil {
+		log.Fatalf("Unexpected error occurred while getting user from the DB: %v", err)
+	}
+	if !m.IsSigValid(&u.PubKey) {
+		log.Infof("Peer %s sent Message entity with invalid sig", s.p.Desc())
+		return &banSenderError{}
+	}
+	// TBD: check rate of messages posted by u
+	if m.ParentID != entity.ZeroID {
+		has, err := s.p.storage.HasMessage(&m.ParentID)
+		if err != nil {
+			log.Fatalf("Unexpected error while looking for a message in the DB: %v", err)
+		}
+		if !has {
+			return &needIDError{&m.ParentID}
+		}
 	}
 
 	return nil

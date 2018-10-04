@@ -20,6 +20,7 @@ package storage
 import (
 	"sync"
 	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/sqlite"
 	"vminko.org/dscuss/subs"
@@ -66,26 +67,8 @@ func (s *Storage) notifyObservers(e entity.Entity, sender chan<- entity.Entity) 
 	}
 }
 
-func (s *Storage) PutUser(u *entity.User, sender chan<- entity.Entity) error {
-	err := s.db.PutUser(u)
-	if err != nil {
-		return err
-	}
-	s.notifyObservers((entity.Entity)(u), sender)
-	return nil
-}
-
 func (s *Storage) GetUser(eid *entity.ID) (*entity.User, error) {
 	return s.db.GetUser(eid)
-}
-
-func (s *Storage) PutMessage(m *entity.Message, sender chan<- entity.Entity) error {
-	err := s.db.PutMessage(m)
-	if err != nil {
-		return err
-	}
-	s.notifyObservers((entity.Entity)(m), sender)
-	return nil
 }
 
 func (s *Storage) GetMessage(eid *entity.ID) (*entity.Message, error) {
@@ -109,5 +92,34 @@ func (s *Storage) HasMessage(id *entity.ID) (bool, error) {
 }
 
 func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
-	return s.db.GetEntity(eid)
+	m, err := s.db.GetMessage(eid)
+	if err == errors.NoSuchEntity {
+		u, err := s.db.GetUser(eid)
+		if err != nil {
+			return nil, err
+		} else {
+			return (entity.Entity)(u), nil
+		}
+	} else {
+		return nil, err
+	}
+	return (entity.Entity)(m), nil
+}
+
+func (s *Storage) PutEntity(ent entity.Entity, sender chan<- entity.Entity) error {
+	var err error
+	switch e := ent.(type) {
+	case *entity.Message:
+		err = s.db.PutMessage(e)
+	case *entity.User:
+		err = s.db.PutUser(e)
+	// TBD: case *entity.Operation:
+	default:
+		log.Fatal("BUG: unexpected entity type %T.")
+	}
+	if err != nil {
+		return err
+	}
+	s.notifyObservers(ent, sender)
+	return nil
 }

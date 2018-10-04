@@ -34,7 +34,7 @@ import (
 type Database sql.DB
 
 func Open(fileName string) (*Database, error) {
-	db, err := sql.Open("sqlite3", fileName+"?_mutex=no")
+	db, err := sql.Open("sqlite3", fileName+"?_mutex=no&_timeout=60")
 	if err != nil {
 		log.Errorf("Unable to open SQLite connection: %s", err.Error())
 		return nil, errors.CantOpenDB
@@ -180,7 +180,7 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 		&encodedSig)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Warning("No user with that ID.")
+		log.Debug("No user with that ID.")
 		return nil, errors.NoSuchEntity
 	case err != nil:
 		log.Errorf("Error fetching user from the database: %v", err)
@@ -275,7 +275,7 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 		&topicStr)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Warning("No message with that ID.")
+		log.Debug("No message with that ID.")
 		return nil, errors.NoSuchEntity
 	case err != nil:
 		log.Errorf("Error fetching message from the database: %v", err)
@@ -532,23 +532,6 @@ func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
 	default:
 		return true, nil
 	}
-}
-
-func (d *Database) GetEntity(eid *entity.ID) (entity.Entity, error) {
-	log.Debugf("Fetching entity with id '%s' from the database", eid.String())
-
-	m, err := d.GetMessage(eid)
-	if err == errors.NoSuchEntity {
-		u, err := d.GetUser(eid)
-		if err != nil {
-			return nil, err
-		} else {
-			return (entity.Entity)(u), nil
-		}
-	} else {
-		return nil, err
-	}
-	return (entity.Entity)(m), nil
 }
 
 func (d *Database) putTag(tag string) error {
