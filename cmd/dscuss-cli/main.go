@@ -341,6 +341,7 @@ func (tp *ThreadPrinter) Handle(n *thread.Node) bool {
 	tp.c.Printf("%s%s\n", tp.composeIndentation(n), m.Text)
 	tp.c.Printf("%sby %s, %s\n",
 		tp.composeIndentation(n), m.AuthorID.Shorten(), m.DateWritten.Format(time.RFC3339))
+	tp.c.Printf("%sID: %s\n", tp.composeIndentation(n), m.ID().String())
 	return true
 }
 
@@ -368,7 +369,6 @@ func doListThread(c *ishell.Context) {
 		c.Println("Can't list thread: " + err.Error() + ".")
 		return
 	}
-
 	tp := ThreadPrinter{c}
 	tvis := thread.NewPreOrderVisitor(&tp)
 	t.Traverse(tvis)

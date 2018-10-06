@@ -248,7 +248,7 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	var encodedSig []byte
 	var rawAuthID []byte
 	var rawParID []byte
-	var topicStr string
+	var topicStr sql.NullString
 	query := `
 	SELECT Message.Subject,
 	       Message.Content,
@@ -258,8 +258,8 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	       Message.Signature,
 	       GROUP_CONCAT(Tag.Name)
 	FROM Message
-	INNER JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
-	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
+	LEFT JOIN Message_Tag on Message.Id=Message_Tag.Message_Id
+	LEFT JOIN Tag on Tag.Id=Message_Tag.Tag_Id
 	WHERE Message.Id=?
 	GROUP BY Message.Id
 	`
@@ -295,9 +295,12 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 		log.Errorf("Can't parse signature fetched from DB: %v", err)
 		return nil, errors.Parsing
 	}
-	topic, err := subs.NewTopic(topicStr)
-	if err != nil {
-		log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
+	var topic subs.Topic
+	if topicStr.Valid {
+		topic, err = subs.NewTopic(topicStr.String)
+		if err != nil {
+			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr.String)
+		}
 	}
 	m, err := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
 	if err != nil {

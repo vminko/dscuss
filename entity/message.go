@@ -159,6 +159,10 @@ func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
 	return m.IsUnsignedPartValid() && m.IsSigValid(pubKey)
 }
 
+func (m *Message) IsReply() bool {
+	return m.ParentID != ZeroID
+}
+
 func newMessageContent(
 	subject string,
 	text string,

@@ -154,14 +154,21 @@ func (p *Peer) ShortID() string {
 	}
 }
 
-func (p *Peer) isInterestedInEntity(e entity.Entity) bool {
-	switch e.Type() {
-	case entity.TypeMessage:
-		m, ok := (e).(*entity.Message)
-		if !ok {
-			log.Fatal("BUG: entity type does not match Type value")
+func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
+	switch e := ent.(type) {
+	case *entity.Message:
+		var t subs.Topic
+		if e.IsReply() {
+			r, err := p.storage.GetRoot(e)
+			if err != nil {
+				log.Fatalf("Got an error while fetching root of %s from DB: %v",
+					e.Desc(), err)
+			}
+			t = r.Topic
+		} else {
+			t = e.Topic
 		}
-		return p.Subs.Covers(m.Topic)
+		return p.Subs.Covers(t)
 	default:
 		log.Fatal("BUG: nothing but messages should be here yet.")
 	}

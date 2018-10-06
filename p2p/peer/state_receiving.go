@@ -40,6 +40,43 @@ func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
 	return &StateReceiving{p, pckt, nil, nil}
 }
 
+func (s *StateReceiving) getPendingEntity(id *entity.ID) entity.Entity {
+	for _, e := range s.pendingEntities {
+		if *e.ID() == *id {
+			return e
+		}
+	}
+	return nil
+}
+
+func (s *StateReceiving) getPendingUser(id *entity.ID) *entity.User {
+	e := s.getPendingEntity(id)
+	if e == nil {
+		return nil
+	}
+	u, ok := (e).(*entity.User)
+	if !ok {
+		log.Warningf("Found entity with requested ID %s, but it's not a user (%T)",
+			id.Shorten(), e)
+		return nil
+	}
+	return u
+}
+
+func (s *StateReceiving) getPendingMessage(id *entity.ID) *entity.Message {
+	e := s.getPendingEntity(id)
+	if e == nil {
+		return nil
+	}
+	m, ok := (e).(*entity.Message)
+	if !ok {
+		log.Warningf("Found entity with requested ID %s, but it's not a message (%T)",
+			id.Shorten(), e)
+		return nil
+	}
+	return m
+}
+
 func (s *StateReceiving) perform() (nextState State, err error) {
 	log.Debugf("Peer %s is performing state %s", s.p.Desc(), s.Name())
 
@@ -235,34 +272,38 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
 		return &banSenderError{}
 	}
-	if !s.p.owner.Subs.Covers(m.Topic) {
-		log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
-		return &banSenderError{}
-	}
 	// TBD: check if m.AuthorID is banned
-	u, err := s.p.storage.GetUser(&m.AuthorID)
-	if err == errors.NoSuchEntity {
-		log.Debugf("Need user ID (%s) - author of the message",
-			m.AuthorID.Shorten(), m.ID().Shorten())
-		return &needIDError{&m.AuthorID}
-	} else if err != nil {
-		log.Fatalf("Unexpected error occurred while getting user from the DB: %v", err)
+	u := s.getPendingUser(&m.AuthorID)
+	if u == nil {
+		var err error
+		u, err = s.p.storage.GetUser(&m.AuthorID)
+		if err == errors.NoSuchEntity {
+			log.Debugf("Need user ID (%s) - author of the message",
+				m.AuthorID.Shorten(), m.ID().Shorten())
+			return &needIDError{&m.AuthorID}
+		} else if err != nil {
+			log.Fatalf("Unexpected error occurred while getting user from the DB: %v", err)
+		}
 	}
 	if !m.IsSigValid(&u.PubKey) {
 		log.Infof("Peer %s sent Message entity with invalid sig", s.p.Desc())
 		return &banSenderError{}
 	}
 	// TBD: check rate of messages posted by u
-	if m.ParentID != entity.ZeroID {
+	if m.ParentID == entity.ZeroID {
+		if !s.p.owner.Subs.Covers(m.Topic) {
+			log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
+			return &banSenderError{}
+		}
+	} else {
 		has, err := s.p.storage.HasMessage(&m.ParentID)
 		if err != nil {
 			log.Fatalf("Unexpected error while looking for a message in the DB: %v", err)
 		}
-		if !has {
+		if !has && s.getPendingMessage(&m.ParentID) == nil {
 			return &needIDError{&m.ParentID}
 		}
 	}
-
 	return nil
 }
 

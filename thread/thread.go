@@ -41,7 +41,7 @@ func (n *Node) AddReply(m *entity.Message) *Node {
 func (n *Node) Depth() int {
 	depth := 0
 	for tmp := n; tmp.Parent != nil; depth++ {
-		tmp = n.Parent
+		tmp = tmp.Parent
 	}
 	return depth
 }

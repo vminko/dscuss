@@ -91,19 +91,32 @@ func (s *Storage) HasMessage(id *entity.ID) (bool, error) {
 	return s.db.HasMessage(id)
 }
 
-func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
-	m, err := s.db.GetMessage(eid)
-	if err == errors.NoSuchEntity {
-		u, err := s.db.GetUser(eid)
+func (s *Storage) GetRoot(m *entity.Message) (*entity.Message, error) {
+	for m.IsReply() {
+		p, err := s.db.GetMessage(&m.ParentID)
 		if err != nil {
 			return nil, err
-		} else {
+		}
+		m = p
+	}
+	return m, nil
+}
+
+func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
+	m, err := s.db.GetMessage(eid)
+	if err == nil {
+		return (entity.Entity)(m), nil
+	}
+	if err == errors.NoSuchEntity {
+		u, err := s.db.GetUser(eid)
+		if err == nil {
 			return (entity.Entity)(u), nil
+		} else {
+			return nil, err
 		}
 	} else {
 		return nil, err
 	}
-	return (entity.Entity)(m), nil
 }
 
 func (s *Storage) PutEntity(ent entity.Entity, sender chan<- entity.Entity) error {
