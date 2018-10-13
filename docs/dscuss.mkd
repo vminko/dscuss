@@ -1,17 +1,18 @@
 Title:      Dscuss
 Name:       Dscuss
 Summary:    Project of developing a decentralized network for public discussion.
-Copyright:  (c) 2011-2015 Vitaly Minko
+Copyright:  (c) 2011-2018 Vitaly Minko
             Content is available under GNU Free Documentation License 1.3 and
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       04 May 2018
+Date:       13 Oct 2018
 Priority:   4
 
 
-**Dscuss** is a free software for public discussion. It builds an unstructured pure
-P2P topic-based publish-subscribe network. Currently it's in early development.
+**Dscuss** is a free software for public discussions. It builds an unstructured
+pure P2P topic-based publish-subscribe network. Currently it's in early
+development.
 
 
 The idea of the project
@@ -24,7 +25,7 @@ there is one fundamental difference -- social equality of all members involved
 This leads to the following key features, which will be provided by Dscuss:
 
 * _Decentralization_. All the information will be stored on the users' machines.
-* _Personal censorship_. Every user will be able to manage her own copy of data
+* _Personal moderation_. Every user will be able to manage her own copy of data
   and may share her management operations (edit message, remove message, ban
   user and so on) with others, who would like to accept them.
 
@@ -97,14 +98,14 @@ What is done so far:
 * Registration (via proof-of-work).
 * The network subsystem.
 * Bootstrapping (via list of rendezvous nodes).
-
-What is planned for the proof-of-concept version:
-
 * Handshaking.
 * Publishing a message.
 * Listing a category.
-* Subscription to categories (by editing a text file).
+* Subscription to categories (via editing a text file).
 * Threading (replying to messages).
+
+What is planned for the proof-of-concept version:
+
 * Operations on messages and users.
 * Database synchronization with other peers.
 
