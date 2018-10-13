@@ -136,7 +136,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 			case *skipError:
 				allMatched = true
 			default:
-				log.Fatal("BUG: unexpected result type %T.")
+				log.Fatalf("BUG: unexpected result type %T.", err)
 			}
 		}
 	}

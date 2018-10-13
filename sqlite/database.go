@@ -204,6 +204,25 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 	return u, nil
 }
 
+func (d *Database) HasUser(eid *entity.ID) (bool, error) {
+	log.Debugf("Fetching user with id '%s' from the database", eid.String())
+
+	// FIXME: This is definitely not the most efficient implementation.
+	var nick string
+	query := `SELECT Nickname FROM User WHERE Id=?`
+	db := (*sql.DB)(d)
+	err := db.QueryRow(query, eid[:]).Scan(&nick)
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
+		log.Errorf("Error fetching message from the database: %v", err)
+		return false, errors.DBOperFailed
+	default:
+		return true, nil
+	}
+}
+
 func (d *Database) PutMessage(msg *entity.Message) error {
 	log.Debugf("Adding message `%s' to the database", msg.ShortID())
 	query := `
@@ -579,6 +598,108 @@ func (d *Database) putMesageTopic(m *entity.Message) error {
 				tag, m.ID().Shorten())
 			return errors.DBOperFailed
 		}
+	}
+	return nil
+}
+
+func (d *Database) putMessageOperation(operID, msgID *entity.ID) error {
+	log.Debugf("Adding association between operation '%s' and message '%s' to the database",
+		operID.Shorten(), msgID.Shorten())
+	query := `
+	INSERT INTO Operation_on_Message
+        ( Operation_id, Message_id )
+        VALUES (?, ?)
+	`
+	db := (*sql.DB)(d)
+	_, err := db.Exec(query, operID[:], msgID[:])
+	if err != nil {
+		log.Errorf("Can't execute 'putMessageOperation' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	return nil
+}
+
+func (d *Database) putUserOperation(operID, userID *entity.ID) error {
+	log.Debugf("Adding association between operation '%s' and user '%s' to the database",
+		operID.Shorten(), userID.Shorten())
+	query := `
+	INSERT INTO Operation_on_User
+        ( Operation_id, User_id )
+        VALUES (?, ?)
+	`
+	db := (*sql.DB)(d)
+	_, err := db.Exec(query, operID[:], userID[:])
+	if err != nil {
+		log.Errorf("Can't execute 'putUserOperation' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	return nil
+}
+
+func (d *Database) putOperationObject(o *entity.Operation) error {
+	var hasFunc func(*entity.ID) (bool, error)
+	var putFunc func(op, obj *entity.ID) error
+	switch o.OperationType() {
+	case entity.OperationTypeRemoveMessage:
+		hasFunc = d.HasMessage
+		putFunc = d.putMessageOperation
+	case entity.OperationTypeBanUser:
+		hasFunc = d.HasUser
+		putFunc = d.putUserOperation
+	default:
+		log.Fatalf("BUG: unexpected operation type %d.", o.Type)
+	}
+
+	has, err := hasFunc(&o.ObjectID)
+	if err != nil {
+		log.Errorf("Failed to check if the DB contains %s: %v", o.ID().Shorten(), err)
+		return err
+	}
+	if !has {
+		log.Errorf("Attempt to store operation %s on non-stored object %s",
+			o.ID().Shorten(), o.ObjectID.Shorten())
+		return errors.NoSuchEntity
+	}
+	if putFunc(o.ID(), &o.ObjectID) != nil {
+		log.Errorf("Failed to store association between operation %s and object %s",
+			o.ID().Shorten(), o.ObjectID.Shorten())
+		return errors.DBOperFailed
+	}
+	return nil
+}
+
+func (d *Database) PutOperation(oper *entity.Operation) error {
+	log.Debugf("Adding operation `%s' to the database", oper.ShortID())
+	query := `
+	INSERT INTO Operation
+	( Id,
+	  Type,
+	  Reason,
+	  Comment,
+	  Author_id,
+	  Timestamp,
+	  Signature )
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	db := (*sql.DB)(d)
+	_, err := db.Exec(
+		query,
+		oper.ID()[:],
+		oper.OperationType(),
+		oper.Reason,
+		oper.Comment,
+		oper.AuthorID[:],
+		oper.DatePerformed,
+		oper.Sig.Encode(),
+	)
+	if err != nil {
+		log.Errorf("Can't execute 'putOperation' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	if d.putOperationObject(oper) != nil {
+		log.Errorf("The DB is corrupted. Operation %s is saved without associated objectg",
+			oper.Desc())
+		return errors.DBOperFailed
 	}
 	return nil
 }

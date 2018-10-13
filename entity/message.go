@@ -50,9 +50,8 @@ type MessageContent struct {
 	Topic       subs.Topic
 }
 
-// EmergeMessage creates a new message entity. It should only be called when
-// signature is not known yet.  Signature will be created using the provided
-// signer.
+// EmergeMessage creates a new message. It should be called when owner wants to
+// post a new message. Signature will be created using the provided signer.
 func EmergeMessage(
 	subject string,
 	text string,
@@ -76,6 +75,7 @@ func EmergeMessage(
 	return &Message{UnsignedMessage: *um, Sig: sig}, nil
 }
 
+// NewMessage composes a new message entity object from the specified data.
 func NewMessage(
 	id *ID,
 	subject string,

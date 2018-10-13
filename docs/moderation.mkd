@@ -1,0 +1,29 @@
+Title:      Moderation business logic
+Summary:    This article describes algorithms for applying operations.
+Copyright:  (c) 2018 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       13 Oct 2018
+Web:        http://vminko.org/dscuss/moderation
+
+
+Algorithms
+----------
+
+This article describes algorithms for applying operations and preparing
+moderated listing of board and threads.
+
+__Moderate message__ :  
+![Flowchart][modmsg]  
+View in [full][modmsg] resolution.
+
+__Moderate board__ :  
+![Flowchart][modbrd]  
+
+__Moderate thread__ :  
+![Flowchart][modthr]  
+
+
+[modmsg]: /storage/dscuss/illustrations/moderate_message.png
+[modbrd]: /storage/dscuss/illustrations/moderate_board.png
+[modthr]: /storage/dscuss/illustrations/moderate_thread.png
