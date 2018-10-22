@@ -27,6 +27,7 @@ import (
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/sqlite"
 	"vminko.org/dscuss/storage"
 	"vminko.org/dscuss/subs"
 )
@@ -34,13 +35,15 @@ import (
 type Owner struct {
 	User    *entity.User
 	Subs    subs.Subscriptions
+	Profile *Profile
 	Signer  *crypto.Signer
 	storage *storage.Storage
 }
 
 const (
-	privKeyFileName       string = "privkey.pem"
-	subscriptionsFileName string = "subscriptions.txt"
+	privKeyFileName         string = "privkey.pem"
+	subscriptionsFileName   string = "subscriptions.txt"
+	profileDatabaseFileName string = "profile.db"
 )
 
 func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.Storage) error {
@@ -103,12 +106,12 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 	return nil
 }
 
-func New(dir, nickname string, s *storage.Storage) (*Owner, error) {
+func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
 	userDir := filepath.Join(dir, nickname)
-	log.Debugf("Login uses the following user directory: %s", userDir)
+	log.Debugf("Owner uses the following user directory: %s", userDir)
 	if _, err := os.Stat(userDir); os.IsNotExist(err) {
 		log.Warningf("User directory '%s' does not exist", userDir)
-		return nil, errors.Filesystem
+		return nil, errors.NoSuchUser
 	}
 
 	privKeyPath := filepath.Join(userDir, privKeyFileName)
@@ -125,7 +128,7 @@ func New(dir, nickname string, s *storage.Storage) (*Owner, error) {
 	}
 
 	eid := entity.NewID(privKey.Public().EncodeToDER())
-	u, err := s.GetUser(&eid)
+	u, err := stor.GetUser(&eid)
 	if err != nil {
 		log.Errorf("Can't fetch the user with id '%x' from the storage: %v", eid, err)
 		return nil, err
@@ -140,14 +143,25 @@ func New(dir, nickname string, s *storage.Storage) (*Owner, error) {
 		return nil, err
 	}
 
+	profileDatabasePath := filepath.Join(userDir, profileDatabaseFileName)
+	db, err := sqlite.OpenProfileDatabase(profileDatabasePath)
+	if err != nil {
+		log.Errorf("Can't open profile database file %s: %v", profileDatabasePath, err)
+		return nil, errors.Database
+	}
+
 	return &Owner{
 		User:    u,
 		Subs:    sub,
+		Profile: NewProfile(db, u.ID()),
 		Signer:  crypto.NewSigner(privKey),
-		storage: s,
+		storage: stor,
 	}, nil
 }
 
 func (o *Owner) Close() {
-	// Detach from storage, for example
+	err := o.Profile.Close()
+	if err != nil {
+		log.Errorf("Error closing entity storage: %v", err)
+	}
 }

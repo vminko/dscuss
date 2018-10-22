@@ -33,7 +33,7 @@ const (
 
 func NewTopic(str string) (Topic, error) {
 	if str == "" {
-		// strings.Split returns non-nil empty topic
+		// strings.Split returns non-nil empty slice
 		// nil topic is ok, but empty topic is forbidden
 		return nil, nil
 	}

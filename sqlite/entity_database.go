@@ -30,16 +30,16 @@ import (
 	"vminko.org/dscuss/thread"
 )
 
-// Database stores Entities. Implements EntityStorage interface.
-type Database sql.DB
+// EntityDatabase stores Entities.
+type EntityDatabase sql.DB
 
-func Open(fileName string) (*Database, error) {
+func OpenEntityDatabase(fileName string) (*EntityDatabase, error) {
 	db, err := sql.Open("sqlite3", fileName+"?_mutex=no&_timeout=60")
 	if err != nil {
 		log.Errorf("Unable to open SQLite connection: %s", err.Error())
 		return nil, errors.CantOpenDB
 	}
-	db.SetMaxOpenConns(2)
+	db.SetMaxOpenConns(1)
 
 	var execErr error
 	exec := func(req string) {
@@ -104,10 +104,10 @@ func Open(fileName string) (*Database, error) {
 		return nil, errors.DBOperFailed
 	}
 
-	return (*Database)(db), nil
+	return (*EntityDatabase)(db), nil
 }
 
-func (d *Database) Close() error {
+func (d *EntityDatabase) Close() error {
 	db := (*sql.DB)(d)
 	err := db.Close()
 	if err != nil {
@@ -117,7 +117,7 @@ func (d *Database) Close() error {
 	return nil
 }
 
-func (d *Database) PutUser(user *entity.User) error {
+func (d *EntityDatabase) PutUser(user *entity.User) error {
 	log.Debugf("Adding user `%s' to the database", user.Nickname())
 
 	query := `
@@ -144,14 +144,14 @@ func (d *Database) PutUser(user *entity.User) error {
 		user.Sig.Encode(),
 	)
 	if err != nil {
-		log.Errorf("Can't execute 'putUser' statement: %s", err.Error())
+		log.Errorf("Can't execute 'PutUser' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
 
 	return nil
 }
 
-func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
+func (d *EntityDatabase) GetUser(eid *entity.ID) (*entity.User, error) {
 	log.Debugf("Fetching user with id '%s' from the database", eid.String())
 
 	var nickname string
@@ -204,7 +204,7 @@ func (d *Database) GetUser(eid *entity.ID) (*entity.User, error) {
 	return u, nil
 }
 
-func (d *Database) HasUser(eid *entity.ID) (bool, error) {
+func (d *EntityDatabase) HasUser(eid *entity.ID) (bool, error) {
 	log.Debugf("Fetching user with id '%s' from the database", eid.String())
 
 	// FIXME: This is definitely not the most efficient implementation.
@@ -223,7 +223,7 @@ func (d *Database) HasUser(eid *entity.ID) (bool, error) {
 	}
 }
 
-func (d *Database) PutMessage(msg *entity.Message) error {
+func (d *EntityDatabase) PutMessage(msg *entity.Message) error {
 	log.Debugf("Adding message `%s' to the database", msg.ShortID())
 	query := `
 	INSERT INTO Message
@@ -248,7 +248,7 @@ func (d *Database) PutMessage(msg *entity.Message) error {
 		msg.Sig.Encode(),
 	)
 	if err != nil {
-		log.Errorf("Can't execute 'putMessage' statement: %s", err.Error())
+		log.Errorf("Can't execute 'PutMessage' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
 	if d.putMesageTopic(msg) != nil {
@@ -258,7 +258,7 @@ func (d *Database) PutMessage(msg *entity.Message) error {
 	return nil
 }
 
-func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
+func (d *EntityDatabase) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	log.Debugf("Fetching message with id '%s' from the database", eid.String())
 
 	var subj string
@@ -321,7 +321,7 @@ func (d *Database) GetMessage(eid *entity.ID) (*entity.Message, error) {
 			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr.String)
 		}
 	}
-	m, err := entity.NewMessage(eid, subj, text, &authID, &parID, wrdate, sig, topic)
+	m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 	if err != nil {
 		log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
 	}
@@ -373,7 +373,7 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 		if err != nil {
 			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
 		}
-		m, err := entity.NewMessage(&id, subj, text, &authID, &parID, wrdate, sig, topic)
+		m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 		if err != nil {
 			log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
 		}
@@ -387,7 +387,7 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 	return res, nil
 }
 
-func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
+func (d *EntityDatabase) GetRootMessages(offset, limit int) ([]*entity.Message, error) {
 	log.Debugf("Fetching root messages from the database")
 	query := `
 	SELECT Message.Id,
@@ -421,7 +421,7 @@ func (d *Database) GetRootMessages(offset, limit int) ([]*entity.Message, error)
 	return res, nil
 }
 
-func (d *Database) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*entity.Message, error) {
+func (d *EntityDatabase) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*entity.Message, error) {
 	log.Debugf("Fetching topic messages from the database")
 	query := `
 	SELECT Message.Id,
@@ -472,7 +472,7 @@ func (d *Database) GetTopicMessages(topic subs.Topic, offset, limit int) ([]*ent
 	return res, nil
 }
 
-func (d *Database) GetReplies(eid *entity.ID) ([]*entity.Message, error) {
+func (d *EntityDatabase) GetReplies(eid *entity.ID) ([]*entity.Message, error) {
 	log.Debugf("Fetching replies for '%s' from the database", eid.Shorten())
 	query := `
 	SELECT Message.Id,
@@ -502,7 +502,7 @@ func (d *Database) GetReplies(eid *entity.ID) ([]*entity.Message, error) {
 	return res, nil
 }
 
-func (d *Database) fillSubthreads(t *thread.Node) error {
+func (d *EntityDatabase) fillSubthreads(t *thread.Node) error {
 	eid := t.Msg.ID()
 	replies, err := d.GetReplies(eid)
 	if err != nil {
@@ -520,7 +520,7 @@ func (d *Database) fillSubthreads(t *thread.Node) error {
 	return nil
 }
 
-func (d *Database) GetThread(eid *entity.ID) (*thread.Node, error) {
+func (d *EntityDatabase) GetThread(eid *entity.ID) (*thread.Node, error) {
 	log.Debugf("Fetching thread %s from the database", eid.Shorten())
 	root, err := d.GetMessage(eid)
 	if err != nil {
@@ -537,7 +537,7 @@ func (d *Database) GetThread(eid *entity.ID) (*thread.Node, error) {
 	return t, nil
 }
 
-func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
+func (d *EntityDatabase) HasMessage(eid *entity.ID) (bool, error) {
 	log.Debugf("Fetching message with id '%s' from the database", eid.String())
 
 	// FIXME: This is definitely not the most efficient implementation.
@@ -556,7 +556,7 @@ func (d *Database) HasMessage(eid *entity.ID) (bool, error) {
 	}
 }
 
-func (d *Database) putTag(tag string) error {
+func (d *EntityDatabase) putTag(tag string) error {
 	log.Debugf("Adding tag `%s' to the database", tag)
 
 	query := "INSERT INTO Tag (Name) VALUES (?)"
@@ -570,7 +570,7 @@ func (d *Database) putTag(tag string) error {
 	return nil
 }
 
-func (d *Database) putMessageTag(tag string, id *entity.ID) error {
+func (d *EntityDatabase) putMessageTag(tag string, id *entity.ID) error {
 	log.Debugf("Adding tag '%s' for the message '%s' to the database", tag, id.Shorten())
 	query := `
 	INSERT INTO Message_Tag
@@ -586,7 +586,7 @@ func (d *Database) putMessageTag(tag string, id *entity.ID) error {
 	return nil
 }
 
-func (d *Database) putMesageTopic(m *entity.Message) error {
+func (d *EntityDatabase) putMesageTopic(m *entity.Message) error {
 	t := m.Topic
 	for _, tag := range t {
 		if d.putTag(tag) != nil {
@@ -602,7 +602,7 @@ func (d *Database) putMesageTopic(m *entity.Message) error {
 	return nil
 }
 
-func (d *Database) putMessageOperation(operID, msgID *entity.ID) error {
+func (d *EntityDatabase) putMessageOperation(operID, msgID *entity.ID) error {
 	log.Debugf("Adding association between operation '%s' and message '%s' to the database",
 		operID.Shorten(), msgID.Shorten())
 	query := `
@@ -619,7 +619,7 @@ func (d *Database) putMessageOperation(operID, msgID *entity.ID) error {
 	return nil
 }
 
-func (d *Database) putUserOperation(operID, userID *entity.ID) error {
+func (d *EntityDatabase) putUserOperation(operID, userID *entity.ID) error {
 	log.Debugf("Adding association between operation '%s' and user '%s' to the database",
 		operID.Shorten(), userID.Shorten())
 	query := `
@@ -636,7 +636,7 @@ func (d *Database) putUserOperation(operID, userID *entity.ID) error {
 	return nil
 }
 
-func (d *Database) putOperationObject(o *entity.Operation) error {
+func (d *EntityDatabase) putOperationObject(o *entity.Operation) error {
 	var hasFunc func(*entity.ID) (bool, error)
 	var putFunc func(op, obj *entity.ID) error
 	switch o.OperationType() {
@@ -668,7 +668,7 @@ func (d *Database) putOperationObject(o *entity.Operation) error {
 	return nil
 }
 
-func (d *Database) PutOperation(oper *entity.Operation) error {
+func (d *EntityDatabase) PutOperation(oper *entity.Operation) error {
 	log.Debugf("Adding operation `%s' to the database", oper.ShortID())
 	query := `
 	INSERT INTO Operation
@@ -693,7 +693,7 @@ func (d *Database) PutOperation(oper *entity.Operation) error {
 		oper.Sig.Encode(),
 	)
 	if err != nil {
-		log.Errorf("Can't execute 'putOperation' statement: %s", err.Error())
+		log.Errorf("Can't execute 'PutOperation' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
 	if d.putOperationObject(oper) != nil {
@@ -702,4 +702,122 @@ func (d *Database) PutOperation(oper *entity.Operation) error {
 		return errors.DBOperFailed
 	}
 	return nil
+}
+
+func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, error) {
+	var res []*entity.Operation
+	for rows.Next() {
+		var rawID []byte
+		var typ int
+		var reason int
+		var comment string
+		var rawAuthID []byte
+		var perfDate time.Time
+		var encodedSig []byte
+		err := rows.Scan(
+			&rawID,
+			&typ,
+			&reason,
+			&comment,
+			&rawAuthID,
+			&perfDate,
+			&encodedSig)
+		if err != nil {
+			log.Errorf("Error scanning opertion row: %v", err)
+			return nil, errors.DBOperFailed
+		}
+
+		sig, err := crypto.ParseSignature(encodedSig)
+		if err != nil {
+			log.Errorf("Can't parse signature fetched from DB: %v", err)
+			return nil, errors.Parsing
+		}
+
+		var id, authID entity.ID
+		parsOK := id.ParseSlice(rawID) == nil && authID.ParseSlice(rawAuthID) == nil
+		if !parsOK {
+			log.Error("Can't parse an ID fetched from DB")
+			return nil, errors.Parsing
+		}
+		log.Debugf("Found operation id %s", id.String())
+
+		o, err := entity.NewOperation(
+			(entity.OperationType)(typ),
+			(entity.OperationReason)(reason),
+			comment,
+			&authID,
+			objID,
+			perfDate,
+			sig)
+		if err != nil {
+			log.Fatalf("The message '%s' fetched from DB is invalid", o.Desc())
+		}
+		res = append(res, o)
+	}
+	err := rows.Err()
+	if err != nil {
+		log.Errorf("Error getting next operation row: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	return res, nil
+}
+
+func (d *EntityDatabase) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operation, error) {
+	log.Debugf("Fetching operation on user %s from the database", uid.Shorten())
+	query := `
+	SELECT Operation.Id,
+	       Operation.Type,
+	       Operation.Reason,
+	       Operation.Comment,
+	       Operation.Author_id,
+	       Operation.Timestamp,
+	       Operation.Signature
+	FROM Operation
+	INNER JOIN Operation_on_User on Operation.Id=Operation_on_User.Operation_Id
+	WHERE Operation_on_User.User_id=?
+	GROUP BY Operation.Id
+	`
+	db := (*sql.DB)(d)
+	rows, err := db.Query(query, uid[:])
+	if err != nil {
+		log.Errorf("Error fetching operations from the database: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	defer rows.Close()
+	res, err := scanOperationRows(rows, uid)
+	if err != nil {
+		log.Errorf("Error scanning operation rows: %v", err)
+		return nil, err
+	}
+	return res, nil
+}
+
+func (d *EntityDatabase) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Operation, error) {
+	log.Debugf("Fetching operation on message %s from the database", mid.Shorten())
+	query := `
+	SELECT Operation.Id,
+	       Operation.Type,
+	       Operation.Reason,
+	       Operation.Comment,
+	       Operation.Author_id,
+	       Operation.Timestamp,
+	       Operation.Signature
+	FROM Operation
+	INNER JOIN Operation_on_Message on Operation.Id=Operation_on_Message.Message_Id
+	WHERE Operation_on_Message.Message_id=?
+	GROUP BY Operation.Id
+	`
+	db := (*sql.DB)(d)
+	rows, err := db.Query(query, mid[:])
+	if err != nil {
+		log.Errorf("Error fetching operations from the database: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	defer rows.Close()
+	res, err := scanOperationRows(rows, mid)
+	if err != nil {
+		log.Errorf("Error scanning operation rows: %v", err)
+		return nil, err
+	}
+	return res, nil
 }

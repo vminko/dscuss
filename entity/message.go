@@ -77,7 +77,6 @@ func EmergeMessage(
 
 // NewMessage composes a new message entity object from the specified data.
 func NewMessage(
-	id *ID,
 	subject string,
 	text string,
 	authorID *ID,

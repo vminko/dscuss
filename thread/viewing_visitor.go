@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2017-2018  Vitaly Minko
+Copyright (C) 2018  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,23 +17,27 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package thread
 
-type PreOrderVisitor struct {
-	handler Handler
+type ViewingVisitor struct {
+	handler ViewingHandler
 }
 
-func NewPreOrderVisitor(handler Handler) *PreOrderVisitor {
-	return &PreOrderVisitor{handler: handler}
+type ViewingHandler interface {
+	Handle(n *Node) bool
 }
 
-func (v *PreOrderVisitor) Visit(n *Node) bool {
+func NewViewingVisitor(handler ViewingHandler) *ViewingVisitor {
+	return &ViewingVisitor{handler: handler}
+}
+
+func (vv *ViewingVisitor) Visit(n *Node) bool {
 	if n == nil {
 		return true
 	}
-	if !v.handler.Handle(n) {
+	if !vv.handler.Handle(n) {
 		return false
 	}
-	for _, r := range n.Replies {
-		if !v.Visit(r) {
+	for _, c := range n.Children {
+		if !vv.Visit(c) {
 			return false
 		}
 	}

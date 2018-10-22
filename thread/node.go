@@ -22,9 +22,9 @@ import (
 )
 
 type Node struct {
-	Msg     *entity.Message
-	Replies []*Node
-	Parent  *Node
+	Msg      *entity.Message
+	Children []*Node
+	Parent   *Node
 }
 
 func New(m *entity.Message) *Node {
@@ -33,9 +33,14 @@ func New(m *entity.Message) *Node {
 
 func (n *Node) AddReply(m *entity.Message) *Node {
 	child := New(m)
-	n.Replies = append(n.Replies, child)
+	n.Children = append(n.Children, child)
 	child.Parent = n
 	return child
+}
+
+func (n *Node) AddChild(child *Node) {
+	n.Children = append(n.Children, child)
+	child.Parent = n
 }
 
 func (n *Node) Depth() int {
@@ -50,14 +55,10 @@ func (n *Node) IsRoot() bool {
 	return n.Depth() == 0
 }
 
-func (n *Node) Traverse(visitor Visitor) {
+func (n *Node) View(visitor *ViewingVisitor) {
 	visitor.Visit(n)
 }
 
-type Visitor interface {
-	Visit(*Node) bool
-}
-
-type Handler interface {
-	Handle(n *Node) bool
+func (n *Node) Moderate(visitor *ModeratingVisitor) (*Node, error) {
+	return visitor.Visit(n)
 }

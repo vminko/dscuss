@@ -32,6 +32,7 @@ import (
 	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/entity"
+	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/p2p/peer"
 	"vminko.org/dscuss/thread"
@@ -102,6 +103,21 @@ var commandList = []*ishell.Cmd{
 		Name: "lssubs",
 		Help: "list the current user's subscriptions",
 		Func: doListSubscriptions,
+	},
+	{
+		Name: "mkmdr",
+		Help: "<id>, make user <id> a moderator",
+		Func: doMakeModerator,
+	},
+	{
+		Name: "rmmdr",
+		Help: "<id>, remove user <id> from the list of moderators",
+		Func: doRemoveModerator,
+	},
+	{
+		Name: "lsmdr",
+		Help: "list the current user's moderators",
+		Func: doListModerators,
 	},
 	{
 		Name: "ver",
@@ -206,7 +222,10 @@ func doListPeers(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	peers := dscuss.ListPeers()
+	peers, err := dscuss.ListPeers()
+	if err != nil {
+		c.Println("Error listing peers: " + err.Error() + ".")
+	}
 	if len(peers) > 0 {
 		if len(peers) > 1 {
 			c.Printf("There are %d connected peers:\n", len(peers))
@@ -308,7 +327,7 @@ func doListBoard(c *ishell.Context) {
 		if i != 0 {
 			c.Println()
 		}
-		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.Shorten(),
+		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.String(),
 			msg.DateWritten.Format(time.RFC3339))
 		c.Printf("ID: %s\n", msg.ID())
 		if topic == "" {
@@ -361,7 +380,7 @@ func doListThread(c *ishell.Context) {
 	var tid entity.ID
 	err := tid.ParseString(idStr)
 	if err != nil {
-		c.Println(idStr + "is not a valid entity ID.")
+		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
 	t, err := dscuss.ListThread(&tid)
@@ -370,8 +389,8 @@ func doListThread(c *ishell.Context) {
 		return
 	}
 	tp := ThreadPrinter{c}
-	tvis := thread.NewPreOrderVisitor(&tp)
-	t.Traverse(tvis)
+	tvis := thread.NewViewingVisitor(&tp)
+	t.View(tvis)
 }
 
 func doMakeReply(c *ishell.Context) {
@@ -390,7 +409,7 @@ func doMakeReply(c *ishell.Context) {
 	var pid entity.ID
 	err := pid.ParseString(idStr)
 	if err != nil {
-		c.Println(idStr + "is not a valid entity ID.")
+		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
 
@@ -429,6 +448,7 @@ To edit you subscriptions:
 `
 	c.Printf(msg, dscuss.Dir())
 }
+
 func doUnsubscribe(c *ishell.Context) {
 	msg := `Not implemented yet.
 To edit you subscriptions:
@@ -449,6 +469,79 @@ func doListSubscriptions(c *ishell.Context) {
 		return
 	}
 	c.Print(dscuss.ListSubscriptions())
+}
+
+func doMakeModerator(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 1 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	idStr := c.Args[0]
+	var id entity.ID
+	err := id.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + " is not a valid entity ID.")
+		return
+	}
+	err = dscuss.MakeModerator(&id)
+	if err != nil {
+		c.Println("Error making new moderator: " + err.Error() + ".")
+	}
+}
+
+func doRemoveModerator(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 1 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	idStr := c.Args[0]
+	var id entity.ID
+	err := id.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + " is not a valid entity ID.")
+		return
+	}
+	err = dscuss.RemoveModerator(&id)
+	if err != nil {
+		c.Println("Error removing moderator: " + err.Error() + ".")
+	}
+}
+
+func doListModerators(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	mm, err := dscuss.ListModerators()
+	if err != nil {
+		c.Println("Error removing moderator: " + err.Error() + ".")
+	}
+	for i, mdr := range mm {
+		u, err := dscuss.GetUser(mdr)
+		var nick string
+
+		switch {
+		case err == errors.NoSuchEntity:
+			nick = "[unknown user]"
+		case err != nil:
+			nick = "[error fetching user from db]"
+		default:
+			nick = u.Nickname()
+		}
+		c.Printf("#%d %s (%s)\n", i, nick, mdr.String())
+	}
 }
 
 func doVersion(c *ishell.Context) {
@@ -491,7 +584,7 @@ func main() {
 	flag.Parse()
 
 	if *argHelp {
-		fmt.Println(dscuss.Name + " - P2P network for public discussion.")
+		fmt.Println(dscuss.Name + " - P2P network for public discussions.")
 		flag.Usage()
 		return
 	}

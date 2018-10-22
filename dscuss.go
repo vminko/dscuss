@@ -47,7 +47,7 @@ const (
 	logFileName            string = "dscuss.log"
 	cfgFileName            string = "config.json"
 	entityDatabaseFileName string = "entity.db"
-	addressListFileName    string = "addresses"
+	addressListFileName    string = "addresses.txt"
 	debug                  bool   = true
 )
 
@@ -55,7 +55,6 @@ var (
 	logFile *os.File
 	dir     string
 	cfg     *config
-	db      *sqlite.Database
 	stor    *storage.Storage
 	ownr    *owner.Owner
 	pp      *p2p.PeerPool
@@ -106,7 +105,7 @@ func Init(initDir string) error {
 	}
 
 	entityDatabasePath := filepath.Join(dir, entityDatabaseFileName)
-	db, err = sqlite.Open(entityDatabasePath)
+	db, err := sqlite.OpenEntityDatabase(entityDatabasePath)
 	if err != nil {
 		log.Errorf("Can't open entity database file %s: %v", entityDatabasePath, err)
 		return errors.Database
@@ -123,9 +122,9 @@ func Uninit() {
 		Logout()
 	}
 
-	err := db.Close()
+	err := stor.Close()
 	if err != nil {
-		log.Errorf("Can't close entity database: %v", err)
+		log.Errorf("Error closing entity storage: %v", err)
 	}
 
 	log.Debug("Dscuss uninitialized.")
@@ -199,11 +198,12 @@ func IsLoggedIn() bool {
 	return ownr != nil
 }
 
-func ListPeers() []*peer.Info {
+func ListPeers() ([]*peer.Info, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to list peers when no user is logged in")
+		log.Error("Attempt to list peers when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
-	return pp.ListPeers()
+	return pp.ListPeers(), nil
 }
 
 func FullVersion() string {
@@ -214,9 +214,14 @@ func Dir() string {
 	return dir
 }
 
+func GetUser(id *entity.ID) (*entity.User, error) {
+	return stor.GetUser(id)
+}
+
 func NewThread(subj, text, topic string) (*entity.Message, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to create a new thread when no user is logged in")
+		log.Error("Attempt to create a new thread when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
 	t, err := subs.NewTopic(topic)
 	if err != nil {
@@ -227,14 +232,16 @@ func NewThread(subj, text, topic string) (*entity.Message, error) {
 
 func NewReply(subj, text string, parent *entity.ID) (*entity.Message, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to create a new reply when no user is logged in")
+		log.Error("Attempt to create a new reply when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
 	return entity.EmergeMessage(subj, text, ownr.User.ID(), parent, ownr.Signer, nil)
 }
 
 func PostMessage(m *entity.Message) error {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to post message when no user is logged in")
+		log.Error("Attempt to post message when no user is logged in")
+		return errors.NotLoggedIn
 	}
 	err := stor.PutEntity((entity.Entity)(m), nil)
 	if err != nil {
@@ -246,7 +253,8 @@ func PostMessage(m *entity.Message) error {
 
 func ListBoard(offset, limit int) ([]*entity.Message, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to list board when no user is logged in")
+		log.Error("Attempt to list board when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
 	if offset < 0 || limit < 0 {
 		return nil, errors.WrongArguments
@@ -256,7 +264,8 @@ func ListBoard(offset, limit int) ([]*entity.Message, error) {
 
 func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to list board when no user is logged in")
+		log.Error("Attempt to list board when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
 	if offset < 0 || limit < 0 {
 		return nil, errors.WrongArguments
@@ -271,14 +280,49 @@ func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
 // TBD: add offset and limit
 func ListThread(id *entity.ID) (*thread.Node, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to list thread when no user is logged in")
+		log.Error("Attempt to list thread when no user is logged in")
+		return nil, errors.NotLoggedIn
 	}
 	return stor.GetThread(id)
 }
 
-func ListSubscriptions() string {
+func ListSubscriptions() (string, error) {
 	if !IsLoggedIn() {
-		log.Fatal("Attempt to list subscriptions when no user is logged in")
+		log.Error("Attempt to list subscriptions when no user is logged in")
+		return "", errors.NotLoggedIn
 	}
-	return ownr.Subs.String()
+	return ownr.Subs.String(), nil
+}
+
+func ListModerators() ([]*entity.ID, error) {
+	if !IsLoggedIn() {
+		log.Error("Attempt to list moderators when no user is logged in")
+		return nil, errors.NotLoggedIn
+	}
+	return ownr.Profile.GetModerators()
+}
+
+func MakeModerator(id *entity.ID) error {
+	if !IsLoggedIn() {
+		log.Error("Attempt to add moderator when no user is logged in")
+		return errors.NotLoggedIn
+	}
+	has, err := stor.HasUser(id)
+	if err != nil {
+		log.Errorf("Failed to check if storage contains %s: %v", id.Shorten(), err)
+		return err
+	}
+	if !has {
+		log.Errorf("Attempt to make unknown user %s a moderator", id.Shorten())
+		return errors.NoSuchUser
+	}
+	return ownr.Profile.PutModerator(id)
+}
+
+func RemoveModerator(id *entity.ID) error {
+	if !IsLoggedIn() {
+		log.Error("Attempt to remove moderator when no user is logged in")
+		return errors.NotLoggedIn
+	}
+	return ownr.Profile.RemoveModerator(id)
 }

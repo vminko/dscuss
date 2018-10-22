@@ -32,7 +32,9 @@ type OperationReason int
 const (
 	OperationTypeRemoveMessage OperationType = iota
 	OperationTypeBanUser
+	// TBD: OperationTypeBanUserTemporarily
 	// TBD: OperationTypeEditMessageTopic
+	// TBD: OperationTypeEditMessageSubject
 	// TBD: OperationTypeEditMessageText
 )
 
@@ -179,6 +181,23 @@ func EmergeOperation(
 	sig, err := signer.Sign(joper)
 	if err != nil {
 		log.Fatal("Can't sign JSON-encoded Operation entity: " + err.Error())
+	}
+	return &Operation{UnsignedOperation: *uo, Sig: sig}, nil
+}
+
+// NewOperation composes a new operation entity object from the specified data.
+func NewOperation(
+	typ OperationType,
+	reason OperationReason,
+	comment string,
+	authorID *ID,
+	objectID *ID,
+	datePerformed time.Time,
+	sig crypto.Signature,
+) (*Operation, error) {
+	uo := newUnsignedOperation(typ, reason, comment, authorID, objectID, datePerformed)
+	if !uo.isValid() {
+		return nil, errors.WrongArguments
 	}
 	return &Operation{UnsignedOperation: *uo, Sig: sig}, nil
 }

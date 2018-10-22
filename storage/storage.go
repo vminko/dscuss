@@ -28,15 +28,19 @@ import (
 )
 
 // Storage is a proxy for the entity database, which provides subscriptions to
-// new entities.
+// new entities and few additional functions for managing entities.
 type Storage struct {
-	db        *sqlite.Database
+	db        *sqlite.EntityDatabase
 	observers []chan<- entity.Entity
 	mx        sync.Mutex
 }
 
-func New(db *sqlite.Database) *Storage {
+func New(db *sqlite.EntityDatabase) *Storage {
 	return &Storage{db: db}
+}
+
+func (s *Storage) Close() error {
+	return s.db.Close()
 }
 
 func (s *Storage) AttachObserver(c chan<- entity.Entity) {
@@ -71,6 +75,10 @@ func (s *Storage) GetUser(eid *entity.ID) (*entity.User, error) {
 	return s.db.GetUser(eid)
 }
 
+func (s *Storage) HasUser(id *entity.ID) (bool, error) {
+	return s.db.HasUser(id)
+}
+
 func (s *Storage) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	return s.db.GetMessage(eid)
 }
@@ -102,6 +110,14 @@ func (s *Storage) GetRoot(m *entity.Message) (*entity.Message, error) {
 	return m, nil
 }
 
+func (s *Storage) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operation, error) {
+	return s.db.GetOperationsOnUser(uid)
+}
+
+func (s *Storage) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Operation, error) {
+	return s.db.GetOperationsOnMessage(mid)
+}
+
 func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
 	m, err := s.db.GetMessage(eid)
 	if err == nil {
@@ -122,13 +138,14 @@ func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
 func (s *Storage) PutEntity(ent entity.Entity, sender chan<- entity.Entity) error {
 	var err error
 	switch e := ent.(type) {
-	case *entity.Message:
-		err = s.db.PutMessage(e)
 	case *entity.User:
 		err = s.db.PutUser(e)
-	// TBD: case *entity.Operation:
+	case *entity.Message:
+		err = s.db.PutMessage(e)
+	case *entity.Operation:
+		err = s.db.PutOperation(e)
 	default:
-		log.Fatal("BUG: unexpected entity type %T.")
+		log.Fatalf("BUG: unknown entity type %T.", ent)
 	}
 	if err != nil {
 		return err
