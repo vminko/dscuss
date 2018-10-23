@@ -669,7 +669,7 @@ func (d *EntityDatabase) putOperationObject(o *entity.Operation) error {
 }
 
 func (d *EntityDatabase) PutOperation(oper *entity.Operation) error {
-	log.Debugf("Adding operation `%s' to the database", oper.ShortID())
+	log.Debugf("Adding operation '%s' to the database", oper.ShortID())
 	query := `
 	INSERT INTO Operation
 	( Id,
@@ -696,9 +696,13 @@ func (d *EntityDatabase) PutOperation(oper *entity.Operation) error {
 		log.Errorf("Can't execute 'PutOperation' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
-	if d.putOperationObject(oper) != nil {
-		log.Errorf("The DB is corrupted. Operation %s is saved without associated objectg",
-			oper.Desc())
+	err = d.putOperationObject(oper)
+	if err == errors.NoSuchEntity {
+		return err
+	} else if err != nil {
+		log.Errorf("The DB is corrupted. Operation %s is saved,"+
+			" but association with object %s is not",
+			oper.Desc(), oper.ObjectID.Shorten())
 		return errors.DBOperFailed
 	}
 	return nil
@@ -763,7 +767,7 @@ func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, e
 }
 
 func (d *EntityDatabase) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operation, error) {
-	log.Debugf("Fetching operation on user %s from the database", uid.Shorten())
+	log.Debugf("Fetching operations on user %s from the database", uid.Shorten())
 	query := `
 	SELECT Operation.Id,
 	       Operation.Type,
@@ -793,7 +797,7 @@ func (d *EntityDatabase) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operatio
 }
 
 func (d *EntityDatabase) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Operation, error) {
-	log.Debugf("Fetching operation on message %s from the database", mid.Shorten())
+	log.Debugf("Fetching operations on message %s from the database", mid.Shorten())
 	query := `
 	SELECT Operation.Id,
 	       Operation.Type,
@@ -803,7 +807,7 @@ func (d *EntityDatabase) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Opera
 	       Operation.Timestamp,
 	       Operation.Signature
 	FROM Operation
-	INNER JOIN Operation_on_Message on Operation.Id=Operation_on_Message.Message_Id
+	INNER JOIN Operation_on_Message on Operation.Id=Operation_on_Message.Operation_Id
 	WHERE Operation_on_Message.Message_id=?
 	GROUP BY Operation.Id
 	`

@@ -120,6 +120,21 @@ var commandList = []*ishell.Cmd{
 		Func: doListModerators,
 	},
 	{
+		Name: "rmmsg",
+		Help: "<id> <reason>, remove message <id> because of <reason>",
+		Func: doRemoveMessage,
+	},
+	{
+		Name: "ban",
+		Help: "<id> <reason>, ban user <id> because of <reason>",
+		Func: doBanUser,
+	},
+	{
+		Name: "lsop",
+		Help: "(user|msg) <id>, list operations on user or message <id>",
+		Func: doListOperations,
+	},
+	{
 		Name: "ver",
 		Help: "display versions of " + dscuss.Name + " and the CLI",
 		Func: doVersion,
@@ -285,7 +300,7 @@ func doMakeThread(c *ishell.Context) {
 		c.Println("Error making new thread: " + err.Error() + ".")
 		return
 	}
-	err = dscuss.PostMessage(t)
+	err = dscuss.PostEntity((entity.Entity)(t))
 	if err != nil {
 		c.Println("Error posting new thread: " + err.Error() + ".")
 	} else {
@@ -431,7 +446,7 @@ func doMakeReply(c *ishell.Context) {
 		c.Println("Error making new reply: " + err.Error() + ".")
 		return
 	}
-	err = dscuss.PostMessage(r)
+	err = dscuss.PostEntity((entity.Entity)(r))
 	if err != nil {
 		c.Println("Error posting new reply: " + err.Error() + ".")
 	} else {
@@ -541,6 +556,98 @@ func doListModerators(c *ishell.Context) {
 			nick = u.Nickname()
 		}
 		c.Printf("#%d %s (%s)\n", i, nick, mdr.String())
+	}
+}
+
+func makeOperation(c *ishell.Context, typ entity.OperationType) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 2 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	idStr := c.Args[0]
+	var id entity.ID
+	err := id.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + " is not a valid entity ID.")
+		return
+	}
+	reasonStr := c.Args[1]
+	var reason entity.OperationReason
+	err = reason.ParseString(reasonStr)
+	if err != nil {
+		c.Println(idStr + " is not a valid operation reason.")
+		return
+	}
+	c.Print("Enter optional comment: ")
+	comment := c.ReadLine()
+	op, err := dscuss.NewOperation(typ, reason, comment, &id)
+	if err != nil {
+		c.Println("Error making new operation: " + err.Error() + ".")
+	}
+	err = dscuss.PostEntity((entity.Entity)(op))
+	if err != nil {
+		c.Println("Error posting new operation: " + err.Error() + ".")
+	} else {
+		c.Println("Operation performed successfully.")
+	}
+}
+
+func doBanUser(c *ishell.Context) {
+	makeOperation(c, entity.OperationTypeBanUser)
+}
+
+func doRemoveMessage(c *ishell.Context) {
+	makeOperation(c, entity.OperationTypeRemoveMessage)
+}
+
+func doListOperations(c *ishell.Context) {
+	if !dscuss.IsLoggedIn() {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 2 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	idStr := c.Args[0]
+	var id entity.ID
+	err := id.ParseString(idStr)
+	if err != nil {
+		c.Println(idStr + " is not a valid entity ID.")
+		return
+	}
+	entType := c.Args[1]
+	var ops []*entity.Operation
+	switch entType {
+	case "user":
+		ops, err = dscuss.ListOperationsOnUser(&id)
+	case "msg":
+		ops, err = dscuss.ListOperationsOnMessage(&id)
+	default:
+		c.Println(idStr + " is not a valid entity type.")
+		c.Println("Expected: 'user' or 'msg'")
+		return
+	}
+	if err != nil {
+		c.Println("Error fetching operations: " + err.Error() + ".")
+		return
+	}
+	for i, op := range ops {
+		if i != 0 {
+			c.Println()
+		}
+		c.Printf("#%d by %s, %s\n", i, op.AuthorID.String(),
+			op.DatePerformed.Format(time.RFC3339))
+		c.Printf("ID: %s\n", op.ID())
+		c.Printf("Type: %s\n", op.OperationType().String())
+		c.Printf("Reason: %s\n", op.Reason.String())
+		if op.Comment != "" {
+			c.Printf("Comment: %s\n", op.Comment)
+		}
 	}
 }
 

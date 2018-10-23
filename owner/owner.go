@@ -37,6 +37,7 @@ type Owner struct {
 	Subs    subs.Subscriptions
 	Profile *Profile
 	Signer  *crypto.Signer
+	View    *View
 	storage *storage.Storage
 }
 
@@ -150,11 +151,13 @@ func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
 		return nil, errors.Database
 	}
 
+	prf := NewProfile(db, u.ID())
 	return &Owner{
 		User:    u,
 		Subs:    sub,
-		Profile: NewProfile(db, u.ID()),
+		Profile: prf,
 		Signer:  crypto.NewSigner(privKey),
+		View:    NewView(prf, stor),
 		storage: stor,
 	}, nil
 }

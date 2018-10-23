@@ -238,14 +238,14 @@ func NewReply(subj, text string, parent *entity.ID) (*entity.Message, error) {
 	return entity.EmergeMessage(subj, text, ownr.User.ID(), parent, ownr.Signer, nil)
 }
 
-func PostMessage(m *entity.Message) error {
+func PostEntity(e entity.Entity) error {
 	if !IsLoggedIn() {
 		log.Error("Attempt to post message when no user is logged in")
 		return errors.NotLoggedIn
 	}
-	err := stor.PutEntity((entity.Entity)(m), nil)
+	err := stor.PutEntity(e, nil)
 	if err != nil {
-		log.Errorf("Failed to post message '%s': %v", m.Desc(), err)
+		log.Errorf("Failed to post entity '%s': %v", e.Desc(), err)
 		return err
 	}
 	return nil
@@ -259,7 +259,12 @@ func ListBoard(offset, limit int) ([]*entity.Message, error) {
 	if offset < 0 || limit < 0 {
 		return nil, errors.WrongArguments
 	}
-	return stor.GetRootMessages(offset, limit)
+	mm, err := stor.GetRootMessages(offset, limit)
+	if err != nil {
+		log.Error("Failed to fetch root messages from the storage " + err.Error())
+		return nil, err
+	}
+	return ownr.View.ModerateMessages(mm)
 }
 
 func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
@@ -274,7 +279,12 @@ func ListTopic(topic string, offset, limit int) ([]*entity.Message, error) {
 	if err != nil {
 		return nil, errors.WrongTopic
 	}
-	return stor.GetTopicMessages(t, offset, limit)
+	mm, err := stor.GetTopicMessages(t, offset, limit)
+	if err != nil {
+		log.Error("Failed to get topic from the storage " + err.Error())
+		return nil, err
+	}
+	return ownr.View.ModerateMessages(mm)
 }
 
 // TBD: add offset and limit
@@ -283,7 +293,12 @@ func ListThread(id *entity.ID) (*thread.Node, error) {
 		log.Error("Attempt to list thread when no user is logged in")
 		return nil, errors.NotLoggedIn
 	}
-	return stor.GetThread(id)
+	t, err := stor.GetThread(id)
+	if err != nil {
+		log.Error("Failed to get topic from the storage " + err.Error())
+		return nil, err
+	}
+	return ownr.View.ModerateThread(t)
 }
 
 func ListSubscriptions() (string, error) {
@@ -325,4 +340,37 @@ func RemoveModerator(id *entity.ID) error {
 		return errors.NotLoggedIn
 	}
 	return ownr.Profile.RemoveModerator(id)
+}
+
+func NewOperation(
+	typ entity.OperationType,
+	reason entity.OperationReason,
+	comment string,
+	objectID *entity.ID,
+) (*entity.Operation, error) {
+	if !IsLoggedIn() {
+		log.Error("Attempt to create a new operation when no user is logged in")
+		return nil, errors.NotLoggedIn
+	}
+	return entity.EmergeOperation(typ, reason, comment, ownr.User.ID(), objectID, ownr.Signer)
+}
+
+func ListOperationsOnUser(id *entity.ID) ([]*entity.Operation, error) {
+	// Technically we don't need the user to be logged in to list operations.
+	// This restriction was introduced in order to make the API consistent.
+	if !IsLoggedIn() {
+		log.Error("Attempt to list operations when no user is logged in")
+		return nil, errors.NotLoggedIn
+	}
+	return stor.GetOperationsOnUser(id)
+}
+
+func ListOperationsOnMessage(id *entity.ID) ([]*entity.Operation, error) {
+	// Technically we don't need the user to be logged in to list operations.
+	// This restriction was introduced in order to make the API consistent.
+	if !IsLoggedIn() {
+		log.Error("Attempt to list operations when no user is logged in")
+		return nil, errors.NotLoggedIn
+	}
+	return stor.GetOperationsOnMessage(id)
 }

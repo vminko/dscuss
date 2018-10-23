@@ -15,23 +15,23 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package view
+package owner
 
 import (
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
-	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/storage"
+	"vminko.org/dscuss/thread"
 )
 
 // View personalizes content for the owner. It applies operation performed by
 // the owner's moderators.
 type View struct {
-	prf  *owner.Profile
+	prf  *Profile
 	stor *storage.Storage
 }
 
-func New(prf *owner.Profile, stor *storage.Storage) *View {
+func NewView(prf *Profile, stor *storage.Storage) *View {
 	return &View{prf, stor}
 }
 
@@ -103,7 +103,7 @@ func (v *View) ModerateMessage(m *entity.Message) (*entity.Message, error) {
 	return m, nil
 }
 
-func (v *View) ModerateBoard(brd []*entity.Message) (res []*entity.Message, err error) {
+func (v *View) ModerateMessages(brd []*entity.Message) (res []*entity.Message, err error) {
 	for _, m := range brd {
 		mm, err := v.ModerateMessage(m)
 		if err != nil {
@@ -121,7 +121,7 @@ type ThreadModerator struct {
 	v *View
 }
 
-func (tm *ThreadModerator) Handle(n *thread.Node) (*thread.Node, error) {
+func (tm *ThreadModerator) Handle(n *thread.Node) (*entity.Message, error) {
 	m := n.Msg
 	if m == nil {
 		log.Fatal("Bug: thread node with nil message")

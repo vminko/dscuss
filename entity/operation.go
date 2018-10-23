@@ -39,10 +39,22 @@ const (
 )
 
 const (
+	OperationTypeRemoveMessageStr string = "RemoveMessage"
+	OperationTypeBanUserStr       string = "BanUser"
+)
+
+const (
 	OperationReasonSpam OperationReason = iota
 	OperationReasonOfftopic
 	OperationReasonAbuse
 	OperationReasonDuplicate
+)
+
+const (
+	OperationReasonSpamStr      string = "SPAM"
+	OperationReasonOfftopicStr  string = "Offtopic"
+	OperationReasonAbuseStr     string = "Abuse"
+	OperationReasonDuplicateStr string = "Duplicate"
 )
 
 // Operation is an action performed on a user or a message.
@@ -68,9 +80,9 @@ type OperationContent struct {
 func (ot OperationType) String() string {
 	switch ot {
 	case OperationTypeRemoveMessage:
-		return "RemoveMessage"
+		return OperationTypeRemoveMessageStr
 	case OperationTypeBanUser:
-		return "BanUser"
+		return OperationTypeBanUserStr
 	default:
 		return "unknown operation type"
 	}
@@ -79,16 +91,32 @@ func (ot OperationType) String() string {
 func (or OperationReason) String() string {
 	switch or {
 	case OperationReasonSpam:
-		return "SPAM"
+		return OperationReasonSpamStr
 	case OperationReasonOfftopic:
-		return "Offtopic"
+		return OperationReasonOfftopicStr
 	case OperationReasonAbuse:
-		return "Abuse"
+		return OperationReasonAbuseStr
 	case OperationReasonDuplicate:
-		return "Duplicate"
+		return OperationReasonDuplicateStr
 	default:
 		return "unknown operation reason"
 	}
+}
+
+func (or *OperationReason) ParseString(s string) error {
+	switch s {
+	case OperationReasonSpamStr:
+		*or = OperationReasonSpam
+	case OperationReasonOfftopicStr:
+		*or = OperationReasonOfftopic
+	case OperationReasonAbuseStr:
+		*or = OperationReasonAbuse
+	case OperationReasonDuplicateStr:
+		*or = OperationReasonDuplicate
+	default:
+		return errors.Parsing
+	}
+	return nil
 }
 
 func (uo *UnsignedOperation) ShortID() string {
@@ -109,7 +137,8 @@ func (uo *UnsignedOperation) ID() *ID {
 
 func (uo *UnsignedOperation) Desc() string {
 	return fmt.Sprintf("%s (%s performed oper type %s reason %s on %s)",
-		uo.ShortID(), uo.AuthorID.Shorten(), uo.Type, uo.Reason, uo.ObjectID.Shorten())
+		uo.ShortID(), uo.AuthorID.Shorten(), uo.OperationType().String(),
+		uo.Reason, uo.ObjectID.Shorten())
 }
 
 func (uo *UnsignedOperation) isValid() bool {
