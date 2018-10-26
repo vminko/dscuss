@@ -205,7 +205,7 @@ func (d *EntityDatabase) GetUser(eid *entity.ID) (*entity.User, error) {
 }
 
 func (d *EntityDatabase) HasUser(eid *entity.ID) (bool, error) {
-	log.Debugf("Fetching user with id '%s' from the database", eid.String())
+	log.Debugf("Checking whether DB contains user with id '%s'", eid.String())
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var nick string
@@ -318,12 +318,14 @@ func (d *EntityDatabase) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	if topicStr.Valid {
 		topic, err = subs.NewTopic(topicStr.String)
 		if err != nil {
-			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr.String)
+			log.Errorf("The topic '%s' fetched from DB is invalid", topicStr.String)
+			return nil, errors.InconsistentDB
 		}
 	}
 	m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 	if err != nil {
-		log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
+		log.Errorf("The message '%s' fetched from DB is invalid", m.Desc())
+		return nil, errors.InconsistentDB
 	}
 	return m, nil
 }
@@ -371,11 +373,13 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 
 		topic, err := subs.NewTopic(topicStr)
 		if err != nil {
-			log.Fatalf("The topic '%s' fetched from DB is invalid", topicStr)
+			log.Errorf("The topic '%s' fetched from DB is invalid", topicStr)
+			return nil, errors.InconsistentDB
 		}
 		m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 		if err != nil {
-			log.Fatalf("The message '%s' fetched from DB is invalid", m.Desc())
+			log.Errorf("The message '%s' fetched from DB is invalid", m.Desc())
+			return nil, errors.InconsistentDB
 		}
 		res = append(res, m)
 	}
@@ -538,7 +542,7 @@ func (d *EntityDatabase) GetThread(eid *entity.ID) (*thread.Node, error) {
 }
 
 func (d *EntityDatabase) HasMessage(eid *entity.ID) (bool, error) {
-	log.Debugf("Fetching message with id '%s' from the database", eid.String())
+	log.Debugf("Checking whether DB contains message with id '%s'", eid.String())
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var subj string
@@ -754,7 +758,8 @@ func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, e
 			perfDate,
 			sig)
 		if err != nil {
-			log.Fatalf("The message '%s' fetched from DB is invalid", o.Desc())
+			log.Errorf("The message '%s' fetched from DB is invalid", o.Desc())
+			return nil, errors.InconsistentDB
 		}
 		res = append(res, o)
 	}
@@ -824,4 +829,107 @@ func (d *EntityDatabase) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Opera
 		return nil, err
 	}
 	return res, nil
+}
+
+func (d *EntityDatabase) GetOperation(oid *entity.ID) (*entity.Operation, error) {
+	log.Debugf("Fetching operation with id '%s' from the database", oid.String())
+
+	var typ int
+	var reason int
+	var comment string
+	var rawAuthID []byte
+	var perfDate time.Time
+	var encodedSig []byte
+	var rawMsgID []byte
+	var rawUserID []byte
+	query := `
+	SELECT Operation.Type,
+	       Operation.Reason,
+	       Operation.Comment,
+	       Operation.Author_id,
+	       Operation.Timestamp,
+	       Operation.Signature
+	       Operation_on_Message.Message_Id
+	       Operation_on_User.User_Id
+	FROM Operation
+	LEFT JOIN Operation_on_Message on Operation.Id=Operation_on_Message.Operation_Id
+	LEFT JOIN Operation_on_User on Operation.Id=Operation_on_User.Operation_Id
+	WHERE Operation.Id=?
+	GROUP BY Operation.Id
+	`
+	db := (*sql.DB)(d)
+	err := db.QueryRow(query, oid[:]).Scan(
+		&typ,
+		&reason,
+		&comment,
+		&rawAuthID,
+		&perfDate,
+		&encodedSig,
+		&rawMsgID,
+		&rawUserID)
+	switch {
+	case err == sql.ErrNoRows:
+		log.Debug("No message with that ID.")
+		return nil, errors.NoSuchEntity
+	case err != nil:
+		log.Errorf("Error fetching message from the database: %v", err)
+		return nil, errors.DBOperFailed
+	default:
+		log.Debug("The message found successfully")
+	}
+
+	var authID, objID entity.ID
+	var rawObjID []byte
+	switch {
+	case len(rawMsgID) > 0:
+		rawObjID = rawMsgID
+	case err != nil:
+		rawObjID = rawUserID
+	default:
+		log.Errorf("Failed to fetch object ID of the operation %s", oid.Shorten())
+		return nil, errors.InconsistentDB
+	}
+
+	parsOK := authID.ParseSlice(rawAuthID) == nil && objID.ParseSlice(rawObjID) == nil
+	if !parsOK {
+		log.Error("Can't parse ID fetched from DB")
+		return nil, errors.Parsing
+	}
+	sig, err := crypto.ParseSignature(encodedSig)
+	if err != nil {
+		log.Errorf("Can't parse signature fetched from DB: %v", err)
+		return nil, errors.Parsing
+	}
+	o, err := entity.NewOperation(
+		(entity.OperationType)(typ),
+		(entity.OperationReason)(reason),
+		comment,
+		&authID,
+		&objID,
+		perfDate,
+		sig)
+	if err != nil {
+		log.Errorf("The operation '%s' fetched from DB is invalid", o.Desc())
+		return nil, errors.InconsistentDB
+	}
+	return o, nil
+}
+
+func (d *EntityDatabase) HasOperation(eid *entity.ID) (bool, error) {
+	log.Debugf("Checking whether DB contains operation with id '%s'", eid.String())
+
+	// FIXME: This is definitely not the most efficient implementation.
+	var typ int
+	query := `SELECT Type FROM Operation WHERE Id=?`
+	db := (*sql.DB)(d)
+	err := db.QueryRow(query, eid[:]).Scan(&typ)
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
+		log.Errorf("Error fetching operation from the database: %v", err)
+		return false, errors.DBOperFailed
+	default:
+		return true, nil
+	}
 }

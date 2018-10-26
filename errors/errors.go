@@ -29,6 +29,7 @@ var (
 	Database           = errors.New("database error")
 	CantOpenDB         = errors.New("unable to open the database")
 	DBOperFailed       = errors.New("error operating on the database")
+	InconsistentDB     = errors.New("the database contains inconsistent data")
 	NoSuchEntity       = errors.New("can't find requested entity")
 	WrongNickname      = errors.New("unacceptable nickname")
 	AlreadyLoggedIn    = errors.New("another user is already logged in")

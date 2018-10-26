@@ -44,17 +44,19 @@ const (
 )
 
 const (
-	OperationReasonSpam OperationReason = iota
+	OperationReasonProtocolViolation OperationReason = iota
+	OperationReasonSpam
 	OperationReasonOfftopic
 	OperationReasonAbuse
 	OperationReasonDuplicate
 )
 
 const (
-	OperationReasonSpamStr      string = "SPAM"
-	OperationReasonOfftopicStr  string = "Offtopic"
-	OperationReasonAbuseStr     string = "Abuse"
-	OperationReasonDuplicateStr string = "Duplicate"
+	OperationReasonProtocolViolationStr string = "ProtocolViolation"
+	OperationReasonSpamStr              string = "SPAM"
+	OperationReasonOfftopicStr          string = "Offtopic"
+	OperationReasonAbuseStr             string = "Abuse"
+	OperationReasonDuplicateStr         string = "Duplicate"
 )
 
 // Operation is an action performed on a user or a message.
@@ -90,6 +92,8 @@ func (ot OperationType) String() string {
 
 func (or OperationReason) String() string {
 	switch or {
+	case OperationReasonProtocolViolation:
+		return OperationReasonProtocolViolationStr
 	case OperationReasonSpam:
 		return OperationReasonSpamStr
 	case OperationReasonOfftopic:
@@ -105,6 +109,8 @@ func (or OperationReason) String() string {
 
 func (or *OperationReason) ParseString(s string) error {
 	switch s {
+	case OperationReasonProtocolViolationStr:
+		*or = OperationReasonProtocolViolation
 	case OperationReasonSpamStr:
 		*or = OperationReasonSpam
 	case OperationReasonOfftopicStr:

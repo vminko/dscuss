@@ -118,21 +118,53 @@ func (s *Storage) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Operation, e
 	return s.db.GetOperationsOnMessage(mid)
 }
 
+func (s *Storage) GetOperation(oid *entity.ID) (*entity.Operation, error) {
+	return s.db.GetOperation(oid)
+}
+
+func (s *Storage) HasEntity(eid *entity.ID) (bool, error) {
+	h, err := s.db.HasUser(eid)
+	if h {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	h, err = s.db.HasMessage(eid)
+	if h {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return s.db.HasOperation(eid)
+}
+
 func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
+	u, err := s.db.GetUser(eid)
+	if err == nil {
+		return (entity.Entity)(u), nil
+	}
+	if err != errors.NoSuchEntity {
+		return nil, err
+	}
+
 	m, err := s.db.GetMessage(eid)
 	if err == nil {
 		return (entity.Entity)(m), nil
 	}
-	if err == errors.NoSuchEntity {
-		u, err := s.db.GetUser(eid)
-		if err == nil {
-			return (entity.Entity)(u), nil
-		} else {
-			return nil, err
-		}
-	} else {
+	if err != errors.NoSuchEntity {
 		return nil, err
 	}
+
+	o, err := s.db.GetOperation(eid)
+	if err == nil {
+		return (entity.Entity)(o), nil
+	}
+
+	return nil, err
 }
 
 func (s *Storage) PutEntity(ent entity.Entity, sender chan<- entity.Entity) error {

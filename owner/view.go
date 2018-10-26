@@ -35,7 +35,7 @@ func NewView(prf *Profile, stor *storage.Storage) *View {
 	return &View{prf, stor}
 }
 
-func (v *View) isUserBanned(uid *entity.ID) (bool, error) {
+func (v *View) IsUserBanned(uid *entity.ID) (bool, error) {
 	authOps, err := v.stor.GetOperationsOnUser(uid)
 	if err != nil {
 		log.Errorf("Failed to get operations on user %s: %v", uid.Shorten(), err)
@@ -71,7 +71,7 @@ func (v *View) applyOperationToMessage(m *entity.Message, op *entity.Operation) 
 }
 
 func (v *View) ModerateMessage(m *entity.Message) (*entity.Message, error) {
-	isBanned, err := v.isUserBanned(&m.AuthorID)
+	isBanned, err := v.IsUserBanned(&m.AuthorID)
 	if err != nil {
 		log.Errorf("Failed check whether %s is banned: %v", m.AuthorID.Shorten(), err)
 		return nil, err

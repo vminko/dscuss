@@ -31,6 +31,7 @@ func (e *needIDError) Error() string {
 }
 
 type banSenderError struct {
+	Comment string
 }
 
 func (e *banSenderError) Error() string {
@@ -38,7 +39,8 @@ func (e *banSenderError) Error() string {
 }
 
 type banIDError struct {
-	ID *entity.ID
+	ID      *entity.ID
+	Comment string
 }
 
 func (e *banIDError) Error() string {

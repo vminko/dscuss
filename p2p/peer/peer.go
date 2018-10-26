@@ -154,23 +154,39 @@ func (p *Peer) ShortID() string {
 	}
 }
 
+func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
+	var t subs.Topic
+	if m.IsReply() {
+		r, err := p.storage.GetRoot(m)
+		if err != nil {
+			log.Fatalf("Got an error while fetching root of %s from DB: %v",
+				m.Desc(), err)
+		}
+		t = r.Topic
+	} else {
+		t = m.Topic
+	}
+	return p.Subs.Covers(t)
+}
+
 func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
 	switch e := ent.(type) {
 	case *entity.Message:
-		var t subs.Topic
-		if e.IsReply() {
-			r, err := p.storage.GetRoot(e)
-			if err != nil {
-				log.Fatalf("Got an error while fetching root of %s from DB: %v",
-					e.Desc(), err)
-			}
-			t = r.Topic
-		} else {
-			t = e.Topic
+		return p.isInterestedInMessage(e)
+	case *entity.Operation:
+		if e.OperationType() == entity.OperationTypeBanUser {
+			return true
 		}
-		return p.Subs.Covers(t)
+		m, err := p.storage.GetMessage(&e.ObjectID)
+		if err != nil {
+			log.Fatalf("Got an error while fetching msg %s from DB: %v",
+				e.ObjectID.Shorten(), err)
+		}
+		return p.isInterestedInMessage(m)
+	case *entity.User:
+		return false
 	default:
-		log.Fatal("BUG: nothing but messages should be here yet.")
+		log.Fatal("BUG: unknown entity type")
 	}
 	return false
 }

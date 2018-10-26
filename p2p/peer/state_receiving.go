@@ -40,6 +40,25 @@ func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
 	return &StateReceiving{p, pckt, nil, nil}
 }
 
+func (s *StateReceiving) banUser(id *entity.ID, comment string) {
+	o, err := entity.EmergeOperation(
+		entity.OperationTypeBanUser,
+		entity.OperationReasonProtocolViolation,
+		comment,
+		s.p.owner.User.ID(),
+		id,
+		s.p.owner.Signer,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create a new operation: %v", err)
+	}
+	err = s.p.storage.PutEntity(o, nil)
+	if err != nil {
+		//
+		log.Errorf("Failed to put entity %s in storage: %v", o.Desc(), err)
+	}
+}
+
 func (s *StateReceiving) getPendingEntity(id *entity.ID) entity.Entity {
 	for _, e := range s.pendingEntities {
 		if *e.ID() == *id {
@@ -84,7 +103,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 	if err != nil {
 		return nil, err
 	}
-	has, err := s.p.storage.HasMessage(&a.ID)
+	has, err := s.p.storage.HasEntity(&a.ID)
 	if err != nil {
 		log.Fatalf("Got unexpected error while looking for a message in the DB: %v", err)
 	}
@@ -125,10 +144,10 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 					return nil, err
 				}
 			case *banSenderError:
-				// TBD: ban Sender
+				s.banUser(s.p.User.ID(), e.Comment)
 				return nil, err
 			case *banIDError:
-				// TBD: ban ID
+				s.banUser(e.ID, e.Comment)
 				allMatched = true
 			case *bannedError:
 				// TBD: check rate of banned entities
@@ -237,7 +256,7 @@ func (s *StateReceiving) checkPendingEntities() error {
 	_, ok := (e).(*entity.User)
 	if ok {
 		log.Infof("Peer %s advertised a user entity", s.p.Desc())
-		return &banSenderError{}
+		return &banSenderError{"peer advertised a user entity " + e.ID().Shorten()}
 	}
 	for _, ent := range s.pendingEntities {
 		var err error
@@ -246,7 +265,8 @@ func (s *StateReceiving) checkPendingEntities() error {
 			err = s.checkUser(e)
 		case *entity.Message:
 			err = s.checkMessage(e)
-		// TBD: case *entity.Operation
+		case *entity.Operation:
+			err = s.checkOperation(e)
 		default:
 			log.Fatalf("BUG: unexpected type of entity: %T", e)
 		}
@@ -261,24 +281,36 @@ func (s *StateReceiving) checkPendingEntities() error {
 func (s *StateReceiving) checkUser(u *entity.User) error {
 	if !u.IsValid() {
 		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
-		return &banSenderError{}
+		return &banSenderError{"peer sent malformed user " + u.ID().Shorten()}
 	}
-	// TBD: check if u.ID() is banned
+	isBanned, err := s.p.owner.View.IsUserBanned(u.ID())
+	if err != nil {
+		log.Fatalf("Failed check whether %s is banned: %v", u.ID().Shorten(), err)
+	}
+	if isBanned {
+		return &bannedError{}
+	}
 	return nil
 }
 
 func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	if !m.IsUnsignedPartValid() {
 		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
-		return &banSenderError{}
+		return &banSenderError{"peer sent malformed message " + m.ID().Shorten()}
 	}
-	// TBD: check if m.AuthorID is banned
+	isBanned, err := s.p.owner.View.IsUserBanned(&m.AuthorID)
+	if err != nil {
+		log.Fatalf("Failed check whether %s is banned: %v", m.AuthorID.Shorten(), err)
+	}
+	if isBanned {
+		return &bannedError{}
+	}
 	u := s.getPendingUser(&m.AuthorID)
 	if u == nil {
 		var err error
 		u, err = s.p.storage.GetUser(&m.AuthorID)
 		if err == errors.NoSuchEntity {
-			log.Debugf("Need user ID (%s) - author of the message",
+			log.Debugf("Need user ID (%s) - author of the message %s",
 				m.AuthorID.Shorten(), m.ID().Shorten())
 			return &needIDError{&m.AuthorID}
 		} else if err != nil {
@@ -287,13 +319,14 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	}
 	if !m.IsSigValid(&u.PubKey) {
 		log.Infof("Peer %s sent Message entity with invalid sig", s.p.Desc())
-		return &banSenderError{}
+		comment := "peer sent message " + m.ID().Shorten() + " with invalid signature"
+		return &banSenderError{comment}
 	}
 	// TBD: check rate of messages posted by u
 	if m.ParentID == entity.ZeroID {
 		if !s.p.owner.Subs.Covers(m.Topic) {
 			log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
-			return &banSenderError{}
+			return &banSenderError{"peer sent unsolicited message " + m.ID().Shorten()}
 		}
 	} else {
 		has, err := s.p.storage.HasMessage(&m.ParentID)
@@ -302,6 +335,58 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 		}
 		if !has && s.getPendingMessage(&m.ParentID) == nil {
 			return &needIDError{&m.ParentID}
+		}
+	}
+	return nil
+}
+
+func (s *StateReceiving) checkOperation(o *entity.Operation) error {
+	if !o.IsUnsignedPartValid() {
+		log.Infof("Peer %s sent malformed Operation entity", s.p.Desc())
+		return &banSenderError{"peer sent malformed operation " + o.ID().Shorten()}
+	}
+	isBanned, err := s.p.owner.View.IsUserBanned(&o.AuthorID)
+	if err != nil {
+		log.Fatalf("Failed check whether %s is banned: %v", o.AuthorID.Shorten(), err)
+	}
+	if isBanned {
+		return &bannedError{}
+	}
+	u := s.getPendingUser(&o.AuthorID)
+	if u == nil {
+		var err error
+		u, err = s.p.storage.GetUser(&o.AuthorID)
+		if err == errors.NoSuchEntity {
+			log.Debugf("Need user ID (%s) - author of the operation %s",
+				o.AuthorID.Shorten(), o.ID().Shorten())
+			return &needIDError{&o.AuthorID}
+		} else if err != nil {
+			log.Fatalf("Unexpected error occurred while getting user %s: %v",
+				o.AuthorID.Shorten(), err)
+		}
+	}
+	if !o.IsSigValid(&u.PubKey) {
+		log.Infof("Peer %s sent Operation with invalid sig", s.p.Desc())
+		comment := "peer sent operation " + o.ID().Shorten() + " with invalid signature"
+		return &banSenderError{comment}
+	}
+	// TBD: check rate of operations performed by u
+	if s.getPendingEntity(&o.ObjectID) == nil {
+		has, err := s.p.storage.HasEntity(&o.ObjectID)
+		if err != nil {
+			log.Fatalf("Unexpected error occurred while checking for entity %s: %v",
+				o.ObjectID.Shorten(), err)
+		}
+		if !has {
+			if o.OperationType() == entity.OperationTypeBanUser {
+				log.Debugf("Skipping operation on unknown user (%s)",
+					o.ObjectID.Shorten())
+				return &skipError{}
+			} else {
+				log.Debugf("Need message ID (%s) - object of the operation %s",
+					o.ObjectID.Shorten(), o.ID().Shorten())
+				return &needIDError{&o.ObjectID}
+			}
 		}
 	}
 	return nil
