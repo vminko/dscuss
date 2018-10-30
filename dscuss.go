@@ -198,6 +198,14 @@ func IsLoggedIn() bool {
 	return ownr != nil
 }
 
+func GetLoggedUser() (*entity.User, error) {
+	if !IsLoggedIn() {
+		log.Error("Attempt to get logged user when no user is logged in")
+		return nil, errors.NotLoggedIn
+	}
+	return ownr.User, nil
+}
+
 func ListPeers() ([]*peer.Info, error) {
 	if !IsLoggedIn() {
 		log.Error("Attempt to list peers when no user is logged in")

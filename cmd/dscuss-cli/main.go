@@ -135,6 +135,11 @@ var commandList = []*ishell.Cmd{
 		Func: doListOperations,
 	},
 	{
+		Name: "whoami",
+		Help: "display nickname of the current user",
+		Func: doWhoAmI,
+	},
+	{
 		Name: "ver",
 		Help: "display versions of " + dscuss.Name + " and the CLI",
 		Func: doVersion,
@@ -224,7 +229,7 @@ func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
 		}
 		c.Printf("State:			%s\n", p.StateName)
 	} else {
-		c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ID, p.RemoteAddr, p.StateName)
+		c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ShortID, p.RemoteAddr, p.StateName)
 	}
 }
 
@@ -233,7 +238,7 @@ func doListPeers(c *ishell.Context) {
 		c.Println("You are not logged in.")
 		return
 	}
-	if len(c.Args) != 0 {
+	if len(c.Args) > 1 {
 		c.Println(c.Cmd.Help)
 		return
 	}
@@ -483,7 +488,12 @@ func doListSubscriptions(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	c.Print(dscuss.ListSubscriptions())
+	subs, err := dscuss.ListSubscriptions()
+	if err != nil {
+		c.Println("Failed to list subscriptions: " + err.Error())
+		return
+	}
+	c.Print(subs)
 }
 
 func doMakeModerator(c *ishell.Context) {
@@ -613,14 +623,14 @@ func doListOperations(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	idStr := c.Args[0]
+	idStr := c.Args[1]
 	var id entity.ID
 	err := id.ParseString(idStr)
 	if err != nil {
 		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
-	entType := c.Args[1]
+	entType := c.Args[0]
 	var ops []*entity.Operation
 	switch entType {
 	case "user":
@@ -649,6 +659,23 @@ func doListOperations(c *ishell.Context) {
 			c.Printf("Comment: %s\n", op.Comment)
 		}
 	}
+}
+
+func doWhoAmI(c *ishell.Context) {
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	if !dscuss.IsLoggedIn() {
+		c.Println("No user is logged in.")
+		return
+	}
+	u, err := dscuss.GetLoggedUser()
+	if err != nil {
+		c.Println("Failed to get logged user: " + err.Error())
+		return
+	}
+	c.Printf("%s (%s)\n", u.Nickname(), u.ID())
 }
 
 func doVersion(c *ishell.Context) {

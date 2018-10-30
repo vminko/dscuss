@@ -138,6 +138,7 @@ func (s *StateSending) processAck(pkt *packet.Packet) error {
 }
 
 func (s *StateSending) sendEntity(e entity.Entity) error {
+	log.Debugf("DEBUG: entity type is %d", e.Type())
 	var t packet.Type
 	switch e.Type() {
 	case entity.TypeMessage:
@@ -149,6 +150,7 @@ func (s *StateSending) sendEntity(e entity.Entity) error {
 	default:
 		log.Fatal("BUG: unknown entity type.")
 	}
+	log.Debugf("DEBUG: packet type is %s", t)
 	pkt := packet.New(t, s.p.User.ID(), e, s.p.owner.Signer)
 	err := s.p.Conn.Write(pkt)
 	if err != nil {

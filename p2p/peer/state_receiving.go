@@ -227,7 +227,7 @@ func (s *StateReceiving) readEntity() (entity.Entity, error) {
 	}
 
 	verifyType := func(t packet.Type) bool {
-		return t == packet.TypeUser || t == packet.TypeMessage
+		return t == packet.TypeUser || t == packet.TypeMessage || t == packet.TypeOperation
 	}
 
 	if pkt.VerifyHeaderFull(verifyType, s.p.owner.User.ID()) != nil {

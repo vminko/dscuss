@@ -64,9 +64,15 @@ func (s *Storage) notifyObservers(e entity.Entity, sender chan<- entity.Entity) 
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	for i, o := range s.observers {
-		if o != sender {
-			log.Debugf("Notifying observer #%d", i)
-			o <- e
+		if o == sender {
+			continue
+		}
+		log.Debugf("Notifying observer #%d", i)
+		select {
+		case o <- e:
+			log.Debugf("Entity %s passes to observer #%d", e.Desc(), i)
+		default:
+			log.Debugf("Failed to pass entity %s to observer #%d", e.Desc(), i)
 		}
 	}
 }

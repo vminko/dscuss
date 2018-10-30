@@ -65,16 +65,11 @@ func (p *Profile) HasModerator(id *entity.ID) (bool, error) {
 	if *id == *p.self {
 		return true, nil
 	}
-	p.modersMx.Lock()
-	defer p.modersMx.Unlock()
-	if p.moderators != nil {
-		var err error
-		p.moderators, err = p.db.GetModerators()
-		if err != nil {
-			return false, err
-		}
+	mm, err := p.GetModerators()
+	if err != nil {
+		return false, err
 	}
-	for _, m := range p.moderators {
+	for _, m := range mm {
 		if *m == *id {
 			return true, nil
 		}
@@ -85,12 +80,15 @@ func (p *Profile) HasModerator(id *entity.ID) (bool, error) {
 func (p *Profile) GetModerators() ([]*entity.ID, error) {
 	p.modersMx.Lock()
 	defer p.modersMx.Unlock()
-	if p.moderators != nil {
+	if p.moderators == nil {
 		var err error
 		p.moderators, err = p.db.GetModerators()
 		if err != nil {
 			return nil, err
 		}
+		p.moderators = append(p.moderators, p.self)
 	}
-	return append(p.moderators, p.self), nil
+	res := make([]*entity.ID, len(p.moderators))
+	copy(res, p.moderators)
+	return res, nil
 }

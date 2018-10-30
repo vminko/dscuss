@@ -111,6 +111,7 @@ func (pp *PeerPool) removePeer(p *peer.Peer) {
 			break
 		}
 	}
+	log.Debugf("len(pp.peers) became %d", len(pp.peers))
 	pp.peersMx.Unlock()
 	if !isFound {
 		log.Errorf("Failed to remove %s from the PeerPool", p.Desc())
@@ -128,15 +129,15 @@ func (pp *PeerPool) watchGonePeers() {
 }
 
 func (pp *PeerPool) ValidatePeer(newPeer *peer.Peer) bool {
-	newPid, err := newPeer.ID()
-	if err != nil {
+	newPid := newPeer.ID()
+	if newPid == nil {
 		log.Fatalf("Handshaked peer %s has no ID", newPeer.Desc())
 	}
 	pp.peersMx.RLock()
 	defer pp.peersMx.RUnlock()
 	for _, p := range pp.peers {
-		pid, err := p.ID()
-		if err == nil && *pid == *newPid && p != newPeer {
+		pid := p.ID()
+		if pid != nil && *pid == *newPid && p != newPeer {
 			p.Conn.AddAddresses(newPeer.Conn.Addresses())
 			newPeer.Conn.ClearAddresses()
 			return false

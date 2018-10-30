@@ -182,7 +182,7 @@ func (cp *ConnectionProvider) listenIncomingConnections() {
 		}
 		log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 		atomic.AddUint32(&cp.inConnCount, 1)
-		dconn := connection.New(conn, false)
+		dconn := connection.New(conn, true)
 		dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 		cp.outChan <- dconn
 	}
@@ -205,7 +205,7 @@ func (cp *ConnectionProvider) tryToConnect(addr string, isUsed bool) bool {
 	log.Infof("Established new connection with %s", conn.RemoteAddr().String())
 	atomic.AddUint32(&cp.outConnCount, 1)
 	cp.outAddrs.Change(addr, true)
-	dconn := connection.New(conn, true)
+	dconn := connection.New(conn, false)
 	dconn.RegisterCloseHandler(cp.createCloseConnHandler())
 	cp.outChan <- dconn
 	if atomic.LoadUint32(&cp.outConnCount) == cp.maxOutConnCount {
@@ -261,5 +261,7 @@ func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connecti
 				cp.outAddrs.Change(addr, false)
 			}
 		}
+		log.Debugf("Leaving closeConnHandler, inConnCount = %d, outConnCount=%d",
+			atomic.LoadUint32(&cp.inConnCount), atomic.LoadUint32(&cp.outConnCount))
 	}
 }

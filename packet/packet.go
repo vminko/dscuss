@@ -84,6 +84,8 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 		pld = new(entity.User)
 	case TypeMessage:
 		pld = new(entity.Message)
+	case TypeOperation:
+		pld = new(entity.Operation)
 	case TypeHello:
 		pld = new(PayloadHello)
 	case TypeAnnounce:

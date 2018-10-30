@@ -52,8 +52,8 @@ type EntityProvider interface {
 }
 
 type Descriptor struct {
-	Type Type
-	ID   ID
+	Type Type `json:"type"`
+	ID   ID   `json:"id"`
 }
 
 var ZeroID ID

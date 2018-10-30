@@ -51,6 +51,7 @@ type Peer struct {
 
 // Info is a static Peer description for UI.
 type Info struct {
+	ShortID         string
 	ID              string
 	LocalAddr       string
 	RemoteAddr      string
@@ -64,7 +65,19 @@ type Validator interface {
 	ValidatePeer(*Peer) bool
 }
 
-const unknownValue string = "[unknown]"
+const (
+	outEntityQueueCapacity int    = 100
+	unknownValue           string = "[unknown]"
+)
+
+func (i *ID) String() string {
+	s := unknownValue
+	if i != nil {
+		eid := (*entity.ID)(i)
+		s = eid.String()
+	}
+	return s
+}
 
 func New(
 	conn *connection.Connection,
@@ -80,7 +93,7 @@ func New(
 		validator:     validator,
 		goneChan:      goneChan,
 		stopChan:      make(chan struct{}),
-		outEntityChan: make(chan entity.Entity),
+		outEntityChan: make(chan entity.Entity, outEntityQueueCapacity),
 	}
 	p.State = newStateHandshaking(p)
 	p.storage.AttachObserver(p.outEntityChan)
@@ -130,28 +143,28 @@ func (p *Peer) run() {
 func (p *Peer) Desc() string {
 	if p.State.ID() != StateIDHandshaking {
 		u := p.User
-		return fmt.Sprintf("%s-%s/%s", u.Nickname(), u.ShortID(), p.Conn.RemoteAddr())
+		return fmt.Sprintf("%s-%s/%s-%s",
+			u.Nickname(), u.ShortID(), p.Conn.LocalAddr(), p.Conn.RemoteAddr())
 	} else {
 		return fmt.Sprintf("(not handshaked), %s", p.Conn.RemoteAddr())
 	}
 }
 
-func (p *Peer) ID() (*ID, error) {
+func (p *Peer) ID() *ID {
 	if p.User != nil {
-		return (*ID)(p.User.ID()), nil
+		return (*ID)(p.User.ID())
 	} else {
-		return &ZeroID, errors.PeerIDUnknown
+		return nil
 	}
 }
 
 func (p *Peer) ShortID() string {
-	id, err := p.ID()
-	if err == nil {
-		eid := (*entity.ID)(id)
-		return eid.Shorten()
-	} else {
-		return unknownValue
+	shortID := unknownValue
+	if p.ID() != nil {
+		eid := (*entity.ID)(p.ID())
+		shortID = eid.Shorten()
 	}
+	return shortID
 }
 
 func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
@@ -201,7 +214,8 @@ func (p *Peer) Info() *Info {
 		subs = p.Subs.StringSlice()
 	}
 	return &Info{
-		ID:              p.ShortID(),
+		ShortID:         p.ShortID(),
+		ID:              p.ID().String(),
 		LocalAddr:       p.Conn.LocalAddr(),
 		RemoteAddr:      p.Conn.RemoteAddr(),
 		AssociatedAddrs: p.Conn.Addresses(),

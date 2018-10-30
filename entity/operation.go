@@ -159,7 +159,8 @@ func (uo *UnsignedOperation) isValid() bool {
 		return false
 	}
 	isReasonOK := uo.Reason == OperationReasonSpam || uo.Reason == OperationReasonOfftopic ||
-		uo.Reason == OperationReasonAbuse || uo.Reason == OperationReasonDuplicate
+		uo.Reason == OperationReasonAbuse || uo.Reason == OperationReasonDuplicate ||
+		uo.Reason == OperationReasonProtocolViolation
 	if !isReasonOK {
 		log.Debugf("Operation %s has invalid reason %d", uo.Desc(), uo.Reason)
 		return false

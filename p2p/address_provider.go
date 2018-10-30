@@ -70,7 +70,7 @@ func (al *AddressList) readAddresses() {
 	file, err := os.Open(al.filepath)
 	if err != nil {
 		log.Errorf("Can't open file %s: %v", al.filepath, err)
-		al.ac.ErrorFindingAddresses(errors.Filesystem)
+		return
 	}
 	defer file.Close()
 
