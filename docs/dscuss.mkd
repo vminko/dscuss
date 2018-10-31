@@ -6,7 +6,7 @@ Copyright:  (c) 2011-2018 Vitaly Minko
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       13 Oct 2018
+Date:       31 Oct 2018
 Priority:   4
 
 
@@ -90,29 +90,28 @@ Or use this command if you just want to run Dscuss for one time:
 Progress of development
 -----------------------
 
-What is done so far:
+The current version is proof-of-work. It has the following features:
 
 * Command-line interface.
-* The crypto subsystem.
-* Basics of the storage subsystem.
+* Basic security based on ECDSA.
+* Persistent storage for entities.
+* Basic networking (TCP only).
 * Registration (via proof-of-work).
-* The network subsystem.
 * Bootstrapping (via list of rendezvous nodes).
-* Handshaking.
+* Peer handshaking.
 * Publishing a message.
 * Listing a category.
 * Subscription to categories (via editing a text file).
 * Threading (replying to messages).
-
-What is planned for the proof-of-concept version:
-
 * Operations on messages and users.
+
+What is planned for the version 0.1:
+
 * Database synchronization with other peers.
-
-Possible features for future versions:
-
-* Bootstrapping via DHT.
-* Bootstrapping via DNS.
+* Improved connectivity (bootstrapping via DHT. DNS).
+* Improved security (premoderation, limit rate of messages/operations, limit
+depth of threads, etc).
+* Web interface.
 
 
 Similar projects
