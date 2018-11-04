@@ -33,7 +33,7 @@ var (
 	NoSuchEntity       = errors.New("can't find requested entity")
 	WrongNickname      = errors.New("unacceptable nickname")
 	AlreadyLoggedIn    = errors.New("another user is already logged in")
-	NotLoggedIn        = errors.New("you have to log first")
+	NotLoggedIn        = errors.New("you have to login first")
 	AlreadyRegistered  = errors.New("such user is already registered")
 	NoSuchUser         = errors.New("can't find specified user")
 	NoSuchModerator    = errors.New("can't find specified moderator")
@@ -47,6 +47,7 @@ var (
 	WrongArguments     = errors.New("wrong arguments")
 	WrongTopic         = errors.New("unacceptable topic")
 	ForbiddenOperation = errors.New("forbidden operation")
+	UserBanned         = errors.New("user is banned")
 )
 
 // TBD: consider https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully

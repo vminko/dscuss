@@ -138,8 +138,8 @@ func (pp *PeerPool) ValidatePeer(newPeer *peer.Peer) bool {
 	for _, p := range pp.peers {
 		pid := p.ID()
 		if pid != nil && *pid == *newPid && p != newPeer {
-			p.Conn.AddAddresses(newPeer.Conn.Addresses())
-			newPeer.Conn.ClearAddresses()
+			p.AddAddresses(newPeer.Addresses())
+			newPeer.ClearAddresses()
 			return false
 		}
 	}

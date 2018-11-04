@@ -36,7 +36,7 @@ var ZeroID ID
 // Peer is responsible for communication with other nodes.
 // Implements the Dscuss protocol.
 type Peer struct {
-	Conn          *connection.Connection
+	conn          *connection.Connection
 	owner         *owner.Owner
 	storage       *storage.Storage
 	validator     Validator
@@ -87,7 +87,7 @@ func New(
 	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
-		Conn:          conn,
+		conn:          conn,
 		owner:         owner,
 		storage:       storage,
 		validator:     validator,
@@ -115,8 +115,8 @@ func (p *Peer) watchStop() {
 	defer p.wg.Done()
 	select {
 	case <-p.stopChan:
-		log.Debugf("Peer %s is closing its Conn", p.Desc())
-		p.Conn.Close()
+		log.Debugf("Peer %s is closing its conn", p.Desc())
+		p.conn.Close()
 	}
 	log.Debugf("Peer %s is leaving watchStop", p.Desc())
 }
@@ -144,9 +144,9 @@ func (p *Peer) Desc() string {
 	if p.State.ID() != StateIDHandshaking {
 		u := p.User
 		return fmt.Sprintf("%s-%s/%s-%s",
-			u.Nickname(), u.ShortID(), p.Conn.LocalAddr(), p.Conn.RemoteAddr())
+			u.Nickname, u.ShortID(), p.conn.LocalAddr(), p.conn.RemoteAddr())
 	} else {
-		return fmt.Sprintf("(not handshaked), %s", p.Conn.RemoteAddr())
+		return fmt.Sprintf("(not handshaked), %s", p.conn.RemoteAddr())
 	}
 }
 
@@ -207,7 +207,7 @@ func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
 func (p *Peer) Info() *Info {
 	nick := unknownValue
 	if p.User != nil {
-		nick = p.User.Nickname()
+		nick = p.User.Nickname
 	}
 	subs := []string{unknownValue}
 	if p.Subs != nil {
@@ -216,11 +216,23 @@ func (p *Peer) Info() *Info {
 	return &Info{
 		ShortID:         p.ShortID(),
 		ID:              p.ID().String(),
-		LocalAddr:       p.Conn.LocalAddr(),
-		RemoteAddr:      p.Conn.RemoteAddr(),
-		AssociatedAddrs: p.Conn.Addresses(),
+		LocalAddr:       p.conn.LocalAddr(),
+		RemoteAddr:      p.conn.RemoteAddr(),
+		AssociatedAddrs: p.conn.Addresses(),
 		Nickname:        nick,
 		StateName:       p.State.Name(),
 		Subscriptions:   subs,
 	}
+}
+
+func (p *Peer) Addresses() []string {
+	return p.conn.Addresses()
+}
+
+func (p *Peer) AddAddresses(new []string) {
+	p.conn.AddAddresses(new)
+}
+
+func (p *Peer) ClearAddresses() {
+	p.conn.ClearAddresses()
 }

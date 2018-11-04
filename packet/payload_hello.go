@@ -20,7 +20,7 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
-// PayloadHello is used for handshaking.
+// PayloadHello is used for introducing peers during handshake.
 // When user A sends this packet to user B, he/she
 // notifies user B about topics of A's interests/
 type PayloadHello struct {

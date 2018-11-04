@@ -16,7 +16,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
-// PayloadAck  is used as an acknowledgment for an announcement.
+// PayloadAck is used as an acknowledgment for an announcement.
 type PayloadAck struct {
 }
 

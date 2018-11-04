@@ -25,6 +25,7 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
+// StateHandshaking implements the handshaking protocol.
 type StateHandshaking struct {
 	p *Peer
 	u *entity.User
@@ -43,7 +44,7 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 		}
 		perfErr = f()
 	}
-	if s.p.Conn.IsIncoming() {
+	if s.p.conn.IsIncoming() {
 		perfUnlessErr(s.readAndProcessUser)
 		perfUnlessErr(s.sendUser)
 		perfUnlessErr(s.readAndProcessHello)
@@ -64,7 +65,7 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 
 func (s *StateHandshaking) sendUser() error {
 	pkt := packet.New(packet.TypeUser, &entity.ZeroID, s.p.owner.User, s.p.owner.Signer)
-	err := s.p.Conn.Write(pkt)
+	err := s.p.conn.Write(pkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err
@@ -73,7 +74,7 @@ func (s *StateHandshaking) sendUser() error {
 }
 
 func (s *StateHandshaking) readAndProcessUser() error {
-	pkt, err := s.p.Conn.Read()
+	pkt, err := s.p.conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 		return err
@@ -103,6 +104,14 @@ func (s *StateHandshaking) readAndProcessUser() error {
 		log.Infof("Peer %s sent Hello packet with invalid signature", s.p.Desc())
 		return errors.ProtocolViolation
 	}
+	isBanned, err := s.p.owner.View.IsUserBanned(u.ID())
+	if err != nil {
+		log.Fatalf("Failed check whether %s is banned: %v", u.ID().Shorten(), err)
+	}
+	if isBanned {
+		return errors.UserBanned
+	}
+
 	s.u = u
 	return nil
 }
@@ -110,7 +119,7 @@ func (s *StateHandshaking) readAndProcessUser() error {
 func (s *StateHandshaking) sendHello() error {
 	hPld := packet.NewPayloadHello(s.p.owner.Subs)
 	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
-	err := s.p.Conn.Write(hPkt)
+	err := s.p.conn.Write(hPkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", hPkt.Desc(), s.p.Desc(), err)
 		return err
@@ -119,7 +128,7 @@ func (s *StateHandshaking) sendHello() error {
 }
 
 func (s *StateHandshaking) readAndProcessHello() error {
-	pkt, err := s.p.Conn.Read()
+	pkt, err := s.p.conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 		return err

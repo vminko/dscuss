@@ -27,22 +27,22 @@ import (
 // View personalizes content for the owner. It applies operation performed by
 // the owner's moderators.
 type View struct {
-	prf  *Profile
-	stor *storage.Storage
+	profile *Profile
+	storage *storage.Storage
 }
 
-func NewView(prf *Profile, stor *storage.Storage) *View {
-	return &View{prf, stor}
+func NewView(profile *Profile, storage *storage.Storage) *View {
+	return &View{profile, storage}
 }
 
 func (v *View) IsUserBanned(uid *entity.ID) (bool, error) {
-	authOps, err := v.stor.GetOperationsOnUser(uid)
+	authOps, err := v.storage.GetOperationsOnUser(uid)
 	if err != nil {
 		log.Errorf("Failed to get operations on user %s: %v", uid.Shorten(), err)
 		return false, err
 	}
 	for _, o := range authOps {
-		isModer, err := v.prf.HasModerator(&o.AuthorID)
+		isModer, err := v.profile.HasModerator(&o.AuthorID)
 		if err != nil {
 			log.Errorf("Failed to check whether %s is a moderator: %v",
 				&o.AuthorID, err)
@@ -81,13 +81,13 @@ func (v *View) ModerateMessage(m *entity.Message) (*entity.Message, error) {
 			m.ID().Shorten(), m.AuthorID.Shorten())
 		return nil, nil
 	}
-	msgOps, err := v.stor.GetOperationsOnMessage(m.ID())
+	msgOps, err := v.storage.GetOperationsOnMessage(m.ID())
 	if err != nil {
 		log.Errorf("Failed to get operations on message %s: %v", m.ID().Shorten(), err)
 		return nil, err
 	}
 	for _, o := range msgOps {
-		isModer, err := v.prf.HasModerator(&o.AuthorID)
+		isModer, err := v.profile.HasModerator(&o.AuthorID)
 		if err != nil {
 			log.Errorf("Failed to check whether %s is a moderator: %v",
 				&o.AuthorID, err)

@@ -29,6 +29,7 @@ const (
 	MaxPendingEntitiesNum int = 100
 )
 
+// StateReceiving implements the entity receiving protocol.
 type StateReceiving struct {
 	p               *Peer
 	initialPacket   *packet.Packet
@@ -170,7 +171,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 func (s *StateReceiving) sendReq(id *entity.ID) error {
 	pld := packet.NewPayloadReq(id)
 	pkt := packet.New(packet.TypeReq, s.p.User.ID(), pld, s.p.owner.Signer)
-	err := s.p.Conn.Write(pkt)
+	err := s.p.conn.Write(pkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err
@@ -182,7 +183,7 @@ func (s *StateReceiving) sendReq(id *entity.ID) error {
 func (s *StateReceiving) sendAck() error {
 	pld := packet.NewPayloadAck()
 	pkt := packet.New(packet.TypeAck, s.p.User.ID(), pld, s.p.owner.Signer)
-	err := s.p.Conn.Write(pkt)
+	err := s.p.conn.Write(pkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err
@@ -216,7 +217,7 @@ func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
 }
 
 func (s *StateReceiving) readEntity() (entity.Entity, error) {
-	pkt, err := s.p.Conn.Read()
+	pkt, err := s.p.conn.Read()
 	if err != nil {
 		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 		return nil, err

@@ -27,12 +27,12 @@ import (
 	"vminko.org/dscuss/thread"
 )
 
-// Storage is a proxy for the entity database, which provides subscriptions to
-// new entities and few additional functions for managing entities.
+// Storage is a mediator between Owner and Peers. It provides subscriptions to
+// new entities and functions for managing entities.
 type Storage struct {
-	db        *sqlite.EntityDatabase
-	observers []chan<- entity.Entity
-	mx        sync.Mutex
+	db          *sqlite.EntityDatabase
+	observers   []chan<- entity.Entity
+	observersMx sync.Mutex
 }
 
 func New(db *sqlite.EntityDatabase) *Storage {
@@ -44,14 +44,14 @@ func (s *Storage) Close() error {
 }
 
 func (s *Storage) AttachObserver(c chan<- entity.Entity) {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+	s.observersMx.Lock()
+	defer s.observersMx.Unlock()
 	s.observers = append(s.observers, c)
 }
 
 func (s *Storage) DetachObserver(c chan<- entity.Entity) {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+	s.observersMx.Lock()
+	defer s.observersMx.Unlock()
 	for i, o := range s.observers {
 		if o == c {
 			s.observers = append(s.observers[:i], s.observers[i+1:]...)
@@ -61,8 +61,8 @@ func (s *Storage) DetachObserver(c chan<- entity.Entity) {
 }
 
 func (s *Storage) notifyObservers(e entity.Entity, sender chan<- entity.Entity) {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+	s.observersMx.Lock()
+	defer s.observersMx.Unlock()
 	for i, o := range s.observers {
 		if o == sender {
 			continue

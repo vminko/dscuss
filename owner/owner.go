@@ -32,6 +32,7 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
+// Owner represents the owner of the current node in the network.
 type Owner struct {
 	User    *entity.User
 	Subs    subs.Subscriptions
@@ -100,7 +101,7 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 
 	err = s.PutEntity((entity.Entity)(user), nil)
 	if err != nil {
-		log.Errorf("Can't add user '%s' to the storage: %v", user.Nickname(), err)
+		log.Errorf("Can't add user '%s' to the storage: %v", user.Nickname, err)
 		return errors.Database
 	}
 

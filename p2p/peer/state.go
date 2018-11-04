@@ -17,10 +17,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package peer
 
-import (
-//"vminko.org/dscuss/packet"
-)
-
 type StateID int
 
 const (
@@ -30,6 +26,7 @@ const (
 	StateIDReceiving
 )
 
+// State isolates peer from implementation of particular state protocol.
 type State interface {
 	perform() (nextState State, err error)
 	ID() StateID

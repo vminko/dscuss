@@ -102,14 +102,6 @@ func (u *User) String() string {
 	return string(userStr)
 }
 
-func (u *User) Nickname() string {
-	return u.UnsignedUser.Nickname
-}
-
-func (u *User) Info() string {
-	return u.UnsignedUser.Info
-}
-
 func (u *User) ShortID() string {
 	return u.UnsignedUser.Descriptor.ID.Shorten()
 }
@@ -134,7 +126,7 @@ func (uu *UnsignedUser) isValid() bool {
 		return false
 	}
 	pow := crypto.NewPowFinder(uu.PubKey.EncodeToDER())
-	if !pow.IsValid(uu.Proof) {
+	if !pow.Validate(uu.Proof) {
 		log.Debugf("User %s has invalid Proof-of-Work", uu.Desc())
 		return false
 	}

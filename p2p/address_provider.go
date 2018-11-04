@@ -30,6 +30,8 @@ type AddressConsumer interface {
 	ErrorFindingAddresses(err error)
 }
 
+// AddressProvider isolates ConnectionProvider from implementations of various
+// address discovery methods.
 type AddressProvider interface {
 	RegisterAddressConsumer(ac AddressConsumer)
 	Start()

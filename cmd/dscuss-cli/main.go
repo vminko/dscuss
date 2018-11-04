@@ -377,7 +377,9 @@ func (tp *ThreadPrinter) Handle(n *thread.Node) bool {
 		tp.c.Println()
 	}
 	tp.c.Printf("%sSubject: %s\n", tp.composeIndentation(n), m.Subject)
-	tp.c.Printf("%s%s\n", tp.composeIndentation(n), m.Text)
+	lines := strings.Split(m.Text, "\n")
+	indentedText := strings.Join(lines, "\n"+tp.composeIndentation(n))
+	tp.c.Printf("%s%s\n", tp.composeIndentation(n), indentedText)
 	tp.c.Printf("%sby %s, %s\n",
 		tp.composeIndentation(n), m.AuthorID.Shorten(), m.DateWritten.Format(time.RFC3339))
 	tp.c.Printf("%sID: %s\n", tp.composeIndentation(n), m.ID().String())
@@ -563,7 +565,7 @@ func doListModerators(c *ishell.Context) {
 		case err != nil:
 			nick = "[error fetching user from db]"
 		default:
-			nick = u.Nickname()
+			nick = u.Nickname
 		}
 		c.Printf("#%d %s (%s)\n", i, nick, mdr.String())
 	}
@@ -675,7 +677,7 @@ func doWhoAmI(c *ishell.Context) {
 		c.Println("Failed to get logged user: " + err.Error())
 		return
 	}
-	c.Printf("%s (%s)\n", u.Nickname(), u.ID())
+	c.Printf("%s (%s)\n", u.Nickname, u.ID())
 }
 
 func doVersion(c *ishell.Context) {

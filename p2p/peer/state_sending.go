@@ -24,6 +24,7 @@ import (
 	"vminko.org/dscuss/packet"
 )
 
+// StateSending implements the entity sending protocol.
 type StateSending struct {
 	p              *Peer
 	outgoingEntity entity.Entity
@@ -47,7 +48,7 @@ func (s *StateSending) perform() (nextState State, err error) {
 	}
 	acked := false
 	for !acked {
-		pkt, err := s.p.Conn.Read()
+		pkt, err := s.p.conn.Read()
 		if err != nil {
 			log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
 			return nil, err
@@ -90,7 +91,7 @@ func (s *StateSending) perform() (nextState State, err error) {
 func (s *StateSending) sendAnnounce(id *entity.ID) error {
 	pld := packet.NewPayloadAnnounce(id)
 	pkt := packet.New(packet.TypeAnnounce, s.p.User.ID(), pld, s.p.owner.Signer)
-	err := s.p.Conn.Write(pkt)
+	err := s.p.conn.Write(pkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err
@@ -152,7 +153,7 @@ func (s *StateSending) sendEntity(e entity.Entity) error {
 	}
 	log.Debugf("DEBUG: packet type is %s", t)
 	pkt := packet.New(t, s.p.User.ID(), e, s.p.owner.Signer)
-	err := s.p.Conn.Write(pkt)
+	err := s.p.conn.Write(pkt)
 	if err != nil {
 		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
 		return err

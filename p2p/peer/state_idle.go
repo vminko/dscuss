@@ -22,6 +22,8 @@ import (
 	"vminko.org/dscuss/log"
 )
 
+// StateIdle implements the idle protocol (when peer is waiting for new entities
+// from either side).
 type StateIdle struct {
 	p *Peer
 }
@@ -33,7 +35,7 @@ func newStateIdle(p *Peer) *StateIdle {
 func (s *StateIdle) perform() (nextState State, err error) {
 	for {
 		log.Debugf("Peer %s is trying to read packets...", s.p.Desc())
-		pckt, err := s.p.Conn.Read()
+		pckt, err := s.p.conn.Read()
 		if err != nil {
 			if neterr, ok := err.(net.Error); !(ok && neterr.Timeout()) {
 				log.Debugf("Peer %s failed to read packet: %v", s.p.Desc(), err)

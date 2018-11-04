@@ -24,17 +24,17 @@ import (
 	"vminko.org/dscuss/sqlite"
 )
 
-// Profile is a proxy for the entity database, which implements caching and
+// Profile is a proxy for the profile database, which implements caching and
 // provides few additional functions for managing owner's settings.
 type Profile struct {
 	db         *sqlite.ProfileDatabase
 	moderators []*entity.ID
 	modersMx   sync.Mutex
-	self       *entity.ID
+	selfID     *entity.ID
 }
 
 func NewProfile(db *sqlite.ProfileDatabase, id *entity.ID) *Profile {
-	return &Profile{db: db, self: id}
+	return &Profile{db: db, selfID: id}
 }
 
 func (p *Profile) Close() error {
@@ -42,7 +42,7 @@ func (p *Profile) Close() error {
 }
 
 func (p *Profile) PutModerator(id *entity.ID) error {
-	if *id == *p.self {
+	if *id == *p.selfID {
 		return errors.AlreadyModerator
 	}
 	p.modersMx.Lock()
@@ -52,7 +52,7 @@ func (p *Profile) PutModerator(id *entity.ID) error {
 }
 
 func (p *Profile) RemoveModerator(id *entity.ID) error {
-	if *id == *p.self {
+	if *id == *p.selfID {
 		return errors.ForbiddenOperation
 	}
 	p.modersMx.Lock()
@@ -62,7 +62,7 @@ func (p *Profile) RemoveModerator(id *entity.ID) error {
 }
 
 func (p *Profile) HasModerator(id *entity.ID) (bool, error) {
-	if *id == *p.self {
+	if *id == *p.selfID {
 		return true, nil
 	}
 	mm, err := p.GetModerators()
@@ -86,7 +86,7 @@ func (p *Profile) GetModerators() ([]*entity.ID, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.moderators = append(p.moderators, p.self)
+		p.moderators = append(p.moderators, p.selfID)
 	}
 	res := make([]*entity.ID, len(p.moderators))
 	copy(res, p.moderators)

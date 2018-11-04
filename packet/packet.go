@@ -30,12 +30,13 @@ type Type string
 
 // Time and ReceiverID protect from replay attack.
 type Body struct {
-	Type       Type            `json:"type"`
-	ReceiverID entity.ID       `json:"receiver_id"` // Id of the user this packet is designated for.
-	Composed   time.Time       `json:"composed"`    // Date and time when the payload was composed.
-	Payload    json.RawMessage `json:"payload"`
+	Type         Type            `json:"type"`
+	ReceiverID   entity.ID       `json:"receiver_id"`   // Id of the user this packet is designated for.
+	DateComposed time.Time       `json:"date_composed"` // Date and time when the payload was composed.
+	Payload      json.RawMessage `json:"payload"`
 }
 
+// Packet is a unit of raw data for communication between peers.
 type Packet struct {
 	Body Body             `json:"body"`
 	Sig  crypto.Signature `json:"sig"`
@@ -63,7 +64,7 @@ func New(t Type, rcv *entity.ID, pld interface{}, s *crypto.Signer) *Packet {
 	if err != nil {
 		log.Fatal("Can't marshal packet payload: " + err.Error())
 	}
-	b := &Body{Type: t, Composed: time.Now(), Payload: jp}
+	b := &Body{Type: t, DateComposed: time.Now(), Payload: jp}
 	copy(b.ReceiverID[:], rcv[:])
 
 	jb, err := json.Marshal(b)
@@ -129,9 +130,9 @@ func (p *Packet) VerifyHeaderFull(f func(Type) bool, rcv *entity.ID) error {
 		return errors.ProtocolViolation
 	}
 	const MaxTimeDiscrepancy = 3 * time.Minute
-	if time.Since(p.Body.Composed) > MaxTimeDiscrepancy {
+	if time.Since(p.Body.DateComposed) > MaxTimeDiscrepancy {
 		log.Errorf("Got packet with obsolete timestamp: '%s'.",
-			p.Body.Composed.Format(time.RFC3339))
+			p.Body.DateComposed.Format(time.RFC3339))
 		return errors.ProtocolViolation
 	}
 	return nil

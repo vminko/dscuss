@@ -43,6 +43,7 @@ type ID [32]byte
 type Entity interface {
 	Type() Type
 	ID() *ID
+	ShortID() string
 	Desc() string
 }
 

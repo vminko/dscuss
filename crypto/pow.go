@@ -75,7 +75,7 @@ func (pf *PowFinder) worker(
 			return
 		default:
 			log.Debugf("Worker #%d is trying PoW %d", workerID, nonce)
-			if pf.IsValid(ProofOfWork(nonce)) {
+			if pf.Validate(ProofOfWork(nonce)) {
 				log.Debugf("Worker #%d has found PoW: \"%d\"", workerID, nonce)
 				resultChan <- nonce
 				return
@@ -107,7 +107,7 @@ func (pf *PowFinder) Find() ProofOfWork {
 	return ProofOfWork(proof)
 }
 
-func (pf *PowFinder) IsValid(nonce ProofOfWork) bool {
+func (pf *PowFinder) Validate(nonce ProofOfWork) bool {
 	var keyInt big.Int
 	var key []byte
 	data := pf.prepareData(uint64(nonce))

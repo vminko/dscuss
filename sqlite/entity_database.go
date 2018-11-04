@@ -118,7 +118,7 @@ func (d *EntityDatabase) Close() error {
 }
 
 func (d *EntityDatabase) PutUser(user *entity.User) error {
-	log.Debugf("Adding user `%s' to the database", user.Nickname())
+	log.Debugf("Adding user `%s' to the database", user.Nickname)
 
 	query := `
 	INSERT INTO User
@@ -138,8 +138,8 @@ func (d *EntityDatabase) PutUser(user *entity.User) error {
 		user.ID()[:],
 		pkpem,
 		user.Proof,
-		user.Nickname(),
-		user.Info(),
+		user.Nickname,
+		user.Info,
 		user.RegDate,
 		user.Sig.Encode(),
 	)
