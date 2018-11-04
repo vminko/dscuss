@@ -1,11 +1,11 @@
 Title:      Dscuss service architecture
 Summary:    This article describes the architecture of the Dscuss service,
             which implements the Dscuss protocol.
-Copyright:  (c) 2016-2017 Vitaly Minko
+Copyright:  (c) 2016-2018 Vitaly Minko
             Content is available under GNU Free Documentation License 1.3 and
             Creative Commons Attribution-Share Alike 3.0 Unported License
-Date:       03 Jun 2017
-Web:        http://vminko.org/dscuss/peer_state
+Date:       04 Nov 2018
+Web:        http://vminko.org/dscuss/architecture
 
 
 Brief description of the architecture (key design decisions)
@@ -16,8 +16,8 @@ Brief description of the architecture (key design decisions)
   average lifetime of the connection. 
 * It's an __internal service__ - service that receives requests is the same
   service that handles the request.
-* It's a __modular service__ - decomposed into hierarchically related
-  subsystems (`UI backend`, `GlobalDataStorage`, `Peer`, `Connection`).
+* It's a __modular service__ - decomposed into three main subsystems (`Owner`,
+`Storage`, `Peer`).
 * It's a __standing server__ - it continues to run beyond lifetime of any peer
   connection it establishes.
 * It'a a __statically configured__ server - you need to restart the server
