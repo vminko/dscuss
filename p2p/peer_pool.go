@@ -65,13 +65,13 @@ func (pp *PeerPool) Stop() {
 	var wg sync.WaitGroup
 	pp.peersMx.RLock()
 	for _, p := range pp.peers {
-		log.Debugf("PeerPool is closing peer %s", p.Desc())
+		log.Debugf("PeerPool is closing peer %s", p)
 		wg.Add(1)
 		myP := p
 		go func() {
 			myP.Close()
 			wg.Done()
-			log.Debugf("PeerPool closed peer %s", myP.Desc())
+			log.Debugf("PeerPool closed peer %s", myP)
 		}()
 	}
 	pp.peersMx.RUnlock()
@@ -114,24 +114,24 @@ func (pp *PeerPool) removePeer(p *peer.Peer) {
 	log.Debugf("len(pp.peers) became %d", len(pp.peers))
 	pp.peersMx.Unlock()
 	if !isFound {
-		log.Errorf("Failed to remove %s from the PeerPool", p.Desc())
+		log.Errorf("Failed to remove %s from the PeerPool", p)
 	}
 }
 
 func (pp *PeerPool) watchGonePeers() {
 	defer pp.wg.Done()
 	for cpeer := range pp.gonePeerChan {
-		log.Debugf("Removing peer %s from PP", cpeer.Desc())
+		log.Debugf("Removing peer %s from PP", cpeer)
 		pp.removePeer(cpeer)
 		cpeer.Close()
-		log.Debugf("Peer %s is removed from PP", cpeer.Desc())
+		log.Debugf("Peer %s is removed from PP", cpeer)
 	}
 }
 
 func (pp *PeerPool) ValidatePeer(newPeer *peer.Peer) bool {
 	newPid := newPeer.ID()
 	if newPid == nil {
-		log.Fatalf("Handshaked peer %s has no ID", newPeer.Desc())
+		log.Fatalf("Handshaked peer %s has no ID", newPeer)
 	}
 	pp.peersMx.RLock()
 	defer pp.peersMx.RUnlock()

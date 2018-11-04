@@ -57,7 +57,7 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 	}
 	perfUnlessErr(s.finalize)
 	if perfErr != nil {
-		log.Errorf("Failed to handshake with %s %v", s.p.Desc(), perfErr)
+		log.Errorf("Failed to handshake with %s %v", s.p, perfErr)
 		return nil, perfErr
 	}
 	return newStateIdle(s.p), nil
@@ -67,7 +67,7 @@ func (s *StateHandshaking) sendUser() error {
 	pkt := packet.New(packet.TypeUser, &entity.ZeroID, s.p.owner.User, s.p.owner.Signer)
 	err := s.p.conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt, s.p, err)
 		return err
 	}
 	return nil
@@ -76,20 +76,20 @@ func (s *StateHandshaking) sendUser() error {
 func (s *StateHandshaking) readAndProcessUser() error {
 	pkt, err := s.p.conn.Read()
 	if err != nil {
-		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
+		log.Errorf("Error receiving packet from the peer %s: %v", s.p, err)
 		return err
 	}
 
 	// We can't check signature of the packet at this point, because we don't know
 	// the user yet. Signature will be checked below.
 	if pkt.VerifyHeader(packet.TypeUser, &entity.ZeroID) != nil {
-		log.Infof("Peer %s sent packet with invalid header.", s.p.Desc())
+		log.Infof("Peer %s sent packet with invalid header.", s.p)
 		return errors.ProtocolViolation
 	}
 
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
 		return errors.Parsing
 	}
 	u, ok := (i).(*entity.User)
@@ -97,11 +97,11 @@ func (s *StateHandshaking) readAndProcessUser() error {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
 	if !u.IsValid() {
-		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
+		log.Infof("Peer %s sent malformed User entity", s.p)
 		return errors.ProtocolViolation
 	}
 	if !pkt.VerifySig(&u.PubKey) {
-		log.Infof("Peer %s sent Hello packet with invalid signature", s.p.Desc())
+		log.Infof("Peer %s sent Hello packet with invalid signature", s.p)
 		return errors.ProtocolViolation
 	}
 	isBanned, err := s.p.owner.View.IsUserBanned(u.ID())
@@ -121,7 +121,7 @@ func (s *StateHandshaking) sendHello() error {
 	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
 	err := s.p.conn.Write(hPkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", hPkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", hPkt, s.p, err)
 		return err
 	}
 	return nil
@@ -130,21 +130,21 @@ func (s *StateHandshaking) sendHello() error {
 func (s *StateHandshaking) readAndProcessHello() error {
 	pkt, err := s.p.conn.Read()
 	if err != nil {
-		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
+		log.Errorf("Error receiving packet from the peer %s: %v", s.p, err)
 		return err
 	}
 	if !pkt.VerifySig(&s.u.PubKey) {
-		log.Infof("Peer %s sent a packet with invalid signature", s.p.Desc())
+		log.Infof("Peer %s sent a packet with invalid signature", s.p)
 		return errors.ProtocolViolation
 	}
 	if pkt.VerifyHeader(packet.TypeHello, s.p.owner.User.ID()) != nil {
-		log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
+		log.Infof("Peer %s sent packet with invalid header", s.p)
 		return errors.ProtocolViolation
 	}
 
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
 		return errors.Parsing
 	}
 	h, ok := (i).(*packet.PayloadHello)
@@ -152,7 +152,7 @@ func (s *StateHandshaking) readAndProcessHello() error {
 		log.Fatal("BUG: packet type does not match type of successfully decoded payload.")
 	}
 	if !h.IsValid() {
-		log.Infof("Peer %s sent malformed Hello packet", s.p.Desc())
+		log.Infof("Peer %s sent malformed Hello packet", s.p)
 		return errors.ProtocolViolation
 	}
 	s.s = h.Subs

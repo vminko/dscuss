@@ -97,7 +97,7 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 		return err
 	}
 	log.Debugf("Dumping emerged User %s:", nickname)
-	log.Debug(user.String())
+	log.Debug(user.Dump())
 
 	err = s.PutEntity((entity.Entity)(user), nil)
 	if err != nil {
@@ -136,7 +136,7 @@ func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
 		return nil, err
 	}
 	log.Debug("Dumping fetched User:")
-	log.Debug(u.String())
+	log.Debug(u.Dump())
 
 	subsPath := filepath.Join(userDir, subscriptionsFileName)
 	sub, err := subs.ReadFile(subsPath)

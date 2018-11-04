@@ -104,21 +104,21 @@ func New(
 }
 
 func (p *Peer) Close() {
-	log.Debugf("Close requested for peer %s", p.Desc())
+	log.Debugf("Close requested for peer %s", p)
 	p.storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
 	p.wg.Wait()
-	log.Debugf("Peer %s is closed", p.Desc())
+	log.Debugf("Peer %s is closed", p)
 }
 
 func (p *Peer) watchStop() {
 	defer p.wg.Done()
 	select {
 	case <-p.stopChan:
-		log.Debugf("Peer %s is closing its conn", p.Desc())
+		log.Debugf("Peer %s is closing its conn", p)
 		p.conn.Close()
 	}
-	log.Debugf("Peer %s is leaving watchStop", p.Desc())
+	log.Debugf("Peer %s is leaving watchStop", p)
 }
 
 func (p *Peer) run() {
@@ -127,20 +127,20 @@ func (p *Peer) run() {
 		nextState, err := p.State.perform()
 		if err != nil {
 			if err == errors.ClosedConnection {
-				log.Debugf("Connection of peer %s was closed", p.Desc())
+				log.Debugf("Connection of peer %s was closed", p)
 			} else {
 				log.Errorf("Error performing '%s' state: %v", p.State.Name(), err)
 				p.goneChan <- p
 			}
 			break
 		}
-		log.Debugf("Switching peer %s to state %s", p.Desc(), nextState.Name())
+		log.Debugf("Switching peer %s to state %s", p, nextState.Name())
 		p.State = nextState
 	}
-	log.Debugf("Peer %s is leaving run", p.Desc())
+	log.Debugf("Peer %s is leaving run", p)
 }
 
-func (p *Peer) Desc() string {
+func (p *Peer) String() string {
 	if p.State.ID() != StateIDHandshaking {
 		u := p.User
 		return fmt.Sprintf("%s-%s/%s-%s",
@@ -173,7 +173,7 @@ func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
 		r, err := p.storage.GetRoot(m)
 		if err != nil {
 			log.Fatalf("Got an error while fetching root of %s from DB: %v",
-				m.Desc(), err)
+				m, err)
 		}
 		t = r.Topic
 	} else {

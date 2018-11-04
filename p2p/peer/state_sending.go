@@ -35,9 +35,9 @@ func newStateSending(p *Peer, e entity.Entity) *StateSending {
 }
 
 func (s *StateSending) perform() (nextState State, err error) {
-	log.Debugf("Peer %s is performing state %s", s.p.Desc(), s.Name())
+	log.Debugf("Peer %s is performing state %s", s.p, s.Name())
 	if !s.p.isInterestedInEntity(s.outgoingEntity) {
-		log.Debugf("Peer %s is not interested in '%s'", s.p.Desc(), s.outgoingEntity.Desc())
+		log.Debugf("Peer %s is not interested in '%s'", s.p, s.outgoingEntity)
 		return newStateIdle(s.p), nil
 	}
 	err = s.sendAnnounce(s.outgoingEntity.ID())
@@ -50,18 +50,18 @@ func (s *StateSending) perform() (nextState State, err error) {
 	for !acked {
 		pkt, err := s.p.conn.Read()
 		if err != nil {
-			log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
+			log.Errorf("Error receiving packet from the peer %s: %v", s.p, err)
 			return nil, err
 		}
 		if !pkt.VerifySig(&s.p.User.PubKey) {
-			log.Infof("Peer %s sent a packet with invalid signature", s.p.Desc())
+			log.Infof("Peer %s sent a packet with invalid signature", s.p)
 			return nil, errors.ProtocolViolation
 		}
 		verifyType := func(t packet.Type) bool {
 			return t == packet.TypeAck || t == packet.TypeReq || t == packet.TypeAnnounce
 		}
 		if pkt.VerifyHeaderFull(verifyType, s.p.owner.User.ID()) != nil {
-			log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
+			log.Infof("Peer %s sent packet with invalid header", s.p)
 			return nil, errors.ProtocolViolation
 		}
 		switch pkt.Body.Type {
@@ -71,14 +71,14 @@ func (s *StateSending) perform() (nextState State, err error) {
 			return newStateIdle(s.p), nil
 		case packet.TypeAck:
 			if err != nil {
-				log.Errorf("Error processing ack from peer %s: %v", s.p.Desc(), err)
+				log.Errorf("Error processing ack from peer %s: %v", s.p, err)
 				return nil, err
 			}
 			acked = true
 		case packet.TypeReq:
 			err = s.processReq(pkt)
 			if err != nil {
-				log.Errorf("Error processing req from peer %s: %v", s.p.Desc(), err)
+				log.Errorf("Error processing req from peer %s: %v", s.p, err)
 				return nil, err
 			}
 		default:
@@ -93,7 +93,7 @@ func (s *StateSending) sendAnnounce(id *entity.ID) error {
 	pkt := packet.New(packet.TypeAnnounce, s.p.User.ID(), pld, s.p.owner.Signer)
 	err := s.p.conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt, s.p, err)
 		return err
 	}
 	return nil
@@ -102,7 +102,7 @@ func (s *StateSending) sendAnnounce(id *entity.ID) error {
 func (s *StateSending) processReq(pkt *packet.Packet) error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of a req '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of a req '%s': %v", pkt, err)
 		return errors.Parsing
 	}
 	r, ok := (i).(*packet.PayloadReq)
@@ -119,7 +119,7 @@ func (s *StateSending) processReq(pkt *packet.Packet) error {
 	}
 	err = s.sendEntity(e)
 	if err != nil {
-		log.Infof("Failed to send outgoing entity to '%s': %v", s.p.Desc(), err)
+		log.Infof("Failed to send outgoing entity to '%s': %v", s.p, err)
 		return err
 	}
 	return nil
@@ -128,7 +128,7 @@ func (s *StateSending) processReq(pkt *packet.Packet) error {
 func (s *StateSending) processAck(pkt *packet.Packet) error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
 		return errors.Parsing
 	}
 	_, ok := (i).(*packet.PayloadAck)
@@ -155,7 +155,7 @@ func (s *StateSending) sendEntity(e entity.Entity) error {
 	pkt := packet.New(t, s.p.User.ID(), e, s.p.owner.Signer)
 	err := s.p.conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt, s.p, err)
 		return err
 	}
 	return nil

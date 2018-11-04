@@ -309,7 +309,7 @@ func doMakeThread(c *ishell.Context) {
 	if err != nil {
 		c.Println("Error posting new thread: " + err.Error() + ".")
 	} else {
-		c.Println("Thread '" + t.Desc() + "' created successfully.")
+		c.Println("Thread '" + t.String() + "' created successfully.")
 	}
 }
 
@@ -457,7 +457,7 @@ func doMakeReply(c *ishell.Context) {
 	if err != nil {
 		c.Println("Error posting new reply: " + err.Error() + ".")
 	} else {
-		c.Println("Reply '" + r.Desc() + "' created successfully.")
+		c.Println("Reply '" + r.String() + "' created successfully.")
 	}
 }
 

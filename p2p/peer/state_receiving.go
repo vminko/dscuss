@@ -56,7 +56,7 @@ func (s *StateReceiving) banUser(id *entity.ID, comment string) {
 	err = s.p.storage.PutEntity(o, nil)
 	if err != nil {
 		//
-		log.Errorf("Failed to put entity %s in storage: %v", o.Desc(), err)
+		log.Errorf("Failed to put entity %s in storage: %v", o, err)
 	}
 }
 
@@ -98,7 +98,7 @@ func (s *StateReceiving) getPendingMessage(id *entity.ID) *entity.Message {
 }
 
 func (s *StateReceiving) perform() (nextState State, err error) {
-	log.Debugf("Peer %s is performing state %s", s.p.Desc(), s.Name())
+	log.Debugf("Peer %s is performing state %s", s.p, s.Name())
 
 	a, err := s.processAnnounce()
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 				err = s.p.storage.PutEntity(e, s.p.outEntityChan)
 				if err != nil {
 					log.Fatalf("Failed to put entity %s into the DB: %v",
-						e.Desc(), err)
+						e, err)
 				}
 			}
 			allMatched = true
@@ -173,7 +173,7 @@ func (s *StateReceiving) sendReq(id *entity.ID) error {
 	pkt := packet.New(packet.TypeReq, s.p.User.ID(), pld, s.p.owner.Signer)
 	err := s.p.conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt, s.p, err)
 		return err
 	}
 	s.requestedEntity = id
@@ -185,7 +185,7 @@ func (s *StateReceiving) sendAck() error {
 	pkt := packet.New(packet.TypeAck, s.p.User.ID(), pld, s.p.owner.Signer)
 	err := s.p.conn.Write(pkt)
 	if err != nil {
-		log.Errorf("Error sending %s to the peer %s: %v", pkt.Desc(), s.p.Desc(), err)
+		log.Errorf("Error sending %s to the peer %s: %v", pkt, s.p, err)
 		return err
 	}
 	return nil
@@ -194,18 +194,18 @@ func (s *StateReceiving) sendAck() error {
 func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
 	pkt := s.initialPacket
 	if !pkt.VerifySig(&s.p.User.PubKey) {
-		log.Infof("Peer %s sent a packet with invalid signature: %s", s.p.Desc())
+		log.Infof("Peer %s sent a packet with invalid signature: %s", s.p)
 		return nil, errors.ProtocolViolation
 	}
 	err := pkt.VerifyHeader(packet.TypeAnnounce, s.p.owner.User.ID())
 	if err != nil {
-		log.Infof("Peer %s sent packet with invalid header: %v", s.p.Desc(), err)
+		log.Infof("Peer %s sent packet with invalid header: %v", s.p, err)
 		return nil, errors.ProtocolViolation
 	}
 
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of announce '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of announce '%s': %v", pkt, err)
 		return nil, errors.Parsing
 	}
 	a, ok := (i).(*packet.PayloadAnnounce)
@@ -219,11 +219,11 @@ func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
 func (s *StateReceiving) readEntity() (entity.Entity, error) {
 	pkt, err := s.p.conn.Read()
 	if err != nil {
-		log.Errorf("Error receiving packet from the peer %s: %v", s.p.Desc(), err)
+		log.Errorf("Error receiving packet from the peer %s: %v", s.p, err)
 		return nil, err
 	}
 	if !pkt.VerifySig(&s.p.User.PubKey) {
-		log.Infof("Peer %s sent a packet with invalid signature", s.p.Desc())
+		log.Infof("Peer %s sent a packet with invalid signature", s.p)
 		return nil, errors.ProtocolViolation
 	}
 
@@ -232,12 +232,12 @@ func (s *StateReceiving) readEntity() (entity.Entity, error) {
 	}
 
 	if pkt.VerifyHeaderFull(verifyType, s.p.owner.User.ID()) != nil {
-		log.Infof("Peer %s sent packet with invalid header", s.p.Desc())
+		log.Infof("Peer %s sent packet with invalid header", s.p)
 		return nil, errors.ProtocolViolation
 	}
 	i, err := pkt.DecodePayload()
 	if err != nil {
-		log.Infof("Failed to decode payload of packet '%s': %v", pkt.Desc(), err)
+		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
 		return nil, errors.Parsing
 	}
 	e, ok := (i).(entity.Entity)
@@ -245,7 +245,7 @@ func (s *StateReceiving) readEntity() (entity.Entity, error) {
 		log.Fatal("BUG: payload is not entity, when packet type asserts that it is.")
 	}
 	if *e.ID() != *s.requestedEntity {
-		log.Infof("Peer %s sent an entity, which was not requested", s.p.Desc())
+		log.Infof("Peer %s sent an entity, which was not requested", s.p)
 		return nil, errors.ProtocolViolation
 	}
 
@@ -256,7 +256,7 @@ func (s *StateReceiving) checkPendingEntities() error {
 	e := s.pendingEntities[0]
 	_, ok := (e).(*entity.User)
 	if ok {
-		log.Infof("Peer %s advertised a user entity", s.p.Desc())
+		log.Infof("Peer %s advertised a user entity", s.p)
 		return &banSenderError{"peer advertised a user entity " + e.ID().Shorten()}
 	}
 	for _, ent := range s.pendingEntities {
@@ -281,7 +281,7 @@ func (s *StateReceiving) checkPendingEntities() error {
 
 func (s *StateReceiving) checkUser(u *entity.User) error {
 	if !u.IsValid() {
-		log.Infof("Peer %s sent malformed User entity", s.p.Desc())
+		log.Infof("Peer %s sent malformed User entity", s.p)
 		return &banSenderError{"peer sent malformed user " + u.ID().Shorten()}
 	}
 	isBanned, err := s.p.owner.View.IsUserBanned(u.ID())
@@ -296,7 +296,7 @@ func (s *StateReceiving) checkUser(u *entity.User) error {
 
 func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	if !m.IsUnsignedPartValid() {
-		log.Infof("Peer %s sent malformed Message entity", s.p.Desc())
+		log.Infof("Peer %s sent malformed Message entity", s.p)
 		return &banSenderError{"peer sent malformed message " + m.ID().Shorten()}
 	}
 	isBanned, err := s.p.owner.View.IsUserBanned(&m.AuthorID)
@@ -319,14 +319,14 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 		}
 	}
 	if !m.IsSigValid(&u.PubKey) {
-		log.Infof("Peer %s sent Message entity with invalid sig", s.p.Desc())
+		log.Infof("Peer %s sent Message entity with invalid sig", s.p)
 		comment := "peer sent message " + m.ID().Shorten() + " with invalid signature"
 		return &banSenderError{comment}
 	}
 	// TBD: check rate of messages posted by u
 	if m.ParentID == entity.ZeroID {
 		if !s.p.owner.Subs.Covers(m.Topic) {
-			log.Infof("Peer %s sent unsolicited Message entity", s.p.Desc())
+			log.Infof("Peer %s sent unsolicited Message entity", s.p)
 			return &banSenderError{"peer sent unsolicited message " + m.ID().Shorten()}
 		}
 	} else {
@@ -343,7 +343,7 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 
 func (s *StateReceiving) checkOperation(o *entity.Operation) error {
 	if !o.IsUnsignedPartValid() {
-		log.Infof("Peer %s sent malformed Operation entity", s.p.Desc())
+		log.Infof("Peer %s sent malformed Operation entity", s.p)
 		return &banSenderError{"peer sent malformed operation " + o.ID().Shorten()}
 	}
 	isBanned, err := s.p.owner.View.IsUserBanned(&o.AuthorID)
@@ -367,7 +367,7 @@ func (s *StateReceiving) checkOperation(o *entity.Operation) error {
 		}
 	}
 	if !o.IsSigValid(&u.PubKey) {
-		log.Infof("Peer %s sent Operation with invalid sig", s.p.Desc())
+		log.Infof("Peer %s sent Operation with invalid sig", s.p)
 		comment := "peer sent operation " + o.ID().Shorten() + " with invalid signature"
 		return &banSenderError{comment}
 	}

@@ -118,7 +118,7 @@ func (c *Connection) IsIncoming() bool {
 	return c.isIncoming
 }
 
-func (c *Connection) Desc() string {
+func (c *Connection) String() string {
 	return fmt.Sprintf("inc=%t, %s", c.isIncoming, c.RemoteAddr())
 }
 

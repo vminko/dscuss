@@ -44,7 +44,7 @@ type Entity interface {
 	Type() Type
 	ID() *ID
 	ShortID() string
-	Desc() string
+	String() string
 }
 
 type EntityProvider interface {

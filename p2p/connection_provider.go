@@ -243,7 +243,7 @@ func (cp *ConnectionProvider) establishOutgoingConnections() {
 
 func (cp *ConnectionProvider) createCloseConnHandler() func(*connection.Connection) {
 	return func(conn *connection.Connection) {
-		log.Debugf("Executing close handler for connection %s", conn.Desc())
+		log.Debugf("Executing close handler for connection %s", conn)
 		if conn.IsIncoming() {
 			// decrement inConnCount
 			atomic.AddUint32(&cp.inConnCount, ^uint32(0))

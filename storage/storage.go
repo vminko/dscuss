@@ -70,9 +70,9 @@ func (s *Storage) notifyObservers(e entity.Entity, sender chan<- entity.Entity) 
 		log.Debugf("Notifying observer #%d", i)
 		select {
 		case o <- e:
-			log.Debugf("Entity %s passes to observer #%d", e.Desc(), i)
+			log.Debugf("Entity %s passes to observer #%d", e, i)
 		default:
-			log.Debugf("Failed to pass entity %s to observer #%d", e.Desc(), i)
+			log.Debugf("Failed to pass entity %s to observer #%d", e, i)
 		}
 	}
 }

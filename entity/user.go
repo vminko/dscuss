@@ -93,7 +93,7 @@ func NewUser(
 	return &User{UnsignedUser: *uu, Sig: sig}
 }
 
-func (u *User) String() string {
+func (u *User) Dump() string {
 	userStr, err := json.Marshal(u)
 	if err != nil {
 		log.Errorf("Can't marshal the user %s: %v", u.Nickname, err)
@@ -114,7 +114,7 @@ func (u *User) ID() *ID {
 	return &u.UnsignedUser.Descriptor.ID
 }
 
-func (uu *UnsignedUser) Desc() string {
+func (uu *UnsignedUser) String() string {
 	return fmt.Sprintf("(%s)", uu.Nickname)
 }
 
@@ -122,16 +122,16 @@ func (uu *UnsignedUser) isValid() bool {
 	correctID := uu.UserContent.ToID()
 	if uu.Descriptor.ID != *correctID {
 		log.Debugf("User %s has invalid ID. Expected: %s, Actual: %s",
-			uu.Desc(), correctID.String(), uu.Descriptor.ID.String())
+			uu, correctID, &uu.Descriptor.ID)
 		return false
 	}
 	pow := crypto.NewPowFinder(uu.PubKey.EncodeToDER())
 	if !pow.Validate(uu.Proof) {
-		log.Debugf("User %s has invalid Proof-of-Work", uu.Desc())
+		log.Debugf("User %s has invalid Proof-of-Work", uu)
 		return false
 	}
 	if !IsNicknameValid(uu.Nickname) {
-		log.Debugf("Message %s has empty nickname", uu.Desc())
+		log.Debugf("Message %s has empty nickname", uu)
 		return false
 	}
 	return true
@@ -143,7 +143,7 @@ func (u *User) IsValid() bool {
 		log.Fatal("Can't marshal UnsignedUser: " + err.Error())
 	}
 	if !u.PubKey.Verify(juser, u.Sig) {
-		log.Debugf("User %s has invalid signature", u.Desc())
+		log.Debugf("User %s has invalid signature", u)
 		return false
 	}
 	return u.UnsignedUser.isValid()

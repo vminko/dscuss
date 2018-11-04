@@ -138,7 +138,7 @@ func (p *Packet) VerifyHeaderFull(f func(Type) bool, rcv *entity.ID) error {
 	return nil
 }
 
-func (p *Packet) Desc() string {
+func (p *Packet) String() string {
 	return fmt.Sprintf("type  %s", p.Body.Type)
 }
 

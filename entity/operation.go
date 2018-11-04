@@ -141,7 +141,7 @@ func (uo *UnsignedOperation) ID() *ID {
 	return &uo.Descriptor.ID
 }
 
-func (uo *UnsignedOperation) Desc() string {
+func (uo *UnsignedOperation) String() string {
 	return fmt.Sprintf("%s (%s performed oper type %s reason %s on %s)",
 		uo.ShortID(), uo.AuthorID.Shorten(), uo.OperationType().String(),
 		uo.Reason, uo.ObjectID.Shorten())
@@ -150,27 +150,27 @@ func (uo *UnsignedOperation) Desc() string {
 func (uo *UnsignedOperation) isValid() bool {
 	correctID := uo.OperationContent.ToID()
 	if uo.Descriptor.ID != *correctID {
-		log.Debugf("Operation %s has invalid ID", uo.Desc())
+		log.Debugf("Operation %s has invalid ID", uo)
 		return false
 	}
 	t := uo.OperationContent.Type
 	if t != OperationTypeRemoveMessage && t != OperationTypeBanUser {
-		log.Debugf("Operation %s has invalid type %d", uo.Desc(), t)
+		log.Debugf("Operation %s has invalid type %d", uo, t)
 		return false
 	}
 	isReasonOK := uo.Reason == OperationReasonSpam || uo.Reason == OperationReasonOfftopic ||
 		uo.Reason == OperationReasonAbuse || uo.Reason == OperationReasonDuplicate ||
 		uo.Reason == OperationReasonProtocolViolation
 	if !isReasonOK {
-		log.Debugf("Operation %s has invalid reason %d", uo.Desc(), uo.Reason)
+		log.Debugf("Operation %s has invalid reason %d", uo, uo.Reason)
 		return false
 	}
 	if uo.AuthorID == ZeroID {
-		log.Debugf("Operation %s has empty author", uo.Desc(), uo.AuthorID)
+		log.Debugf("Operation %s has empty author", uo, uo.AuthorID)
 		return false
 	}
 	if uo.ObjectID == ZeroID {
-		log.Debugf("Operation %s has empty objectr", uo.Desc(), uo.ObjectID)
+		log.Debugf("Operation %s has empty objectr", uo, uo.ObjectID)
 		return false
 	}
 	return true
@@ -187,7 +187,7 @@ func (o *Operation) IsSigValid(pubKey *crypto.PublicKey) bool {
 	}
 	res := pubKey.Verify(jop, o.Sig)
 	if !res {
-		log.Debugf("Operation %s has invalid signature", o.Desc())
+		log.Debugf("Operation %s has invalid signature", o)
 	}
 	return res
 }

@@ -253,7 +253,7 @@ func PostEntity(e entity.Entity) error {
 	}
 	err := stor.PutEntity(e, nil)
 	if err != nil {
-		log.Errorf("Failed to post entity '%s': %v", e.Desc(), err)
+		log.Errorf("Failed to post entity '%s': %v", e, err)
 		return err
 	}
 	return nil

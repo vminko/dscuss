@@ -112,7 +112,7 @@ func (um *UnsignedMessage) ID() *ID {
 	return &um.Descriptor.ID
 }
 
-func (um *UnsignedMessage) Desc() string {
+func (um *UnsignedMessage) String() string {
 	shortText := strings.Replace(dstrings.Truncate(um.Text, 24), "\n", " ", -1)
 	return fmt.Sprintf("%s (%s)", um.ShortID(), shortText)
 }
@@ -120,19 +120,19 @@ func (um *UnsignedMessage) Desc() string {
 func (um *UnsignedMessage) isValid() bool {
 	correctID := um.MessageContent.ToID()
 	if um.Descriptor.ID != *correctID {
-		log.Debugf("Message %s has invalid ID", um.Desc())
+		log.Debugf("Message %s has invalid ID", um)
 		return false
 	}
 	if um.Subject == "" || um.Text == "" {
-		log.Debugf("Message %s has empty subject or text", um.Desc())
+		log.Debugf("Message %s has empty subject or text", um)
 		return false
 	}
 	if um.Topic == nil && um.ParentID == ZeroID {
-		log.Debugf("Message %s is a thread with nil topic", um.Desc())
+		log.Debugf("Message %s is a thread with nil topic", um)
 		return false
 	}
 	if um.Topic != nil && um.ParentID != ZeroID {
-		log.Debugf("Message %s is a reply with non-nil topic", um.Desc())
+		log.Debugf("Message %s is a reply with non-nil topic", um)
 		return false
 	}
 	return true
@@ -149,7 +149,7 @@ func (m *Message) IsSigValid(pubKey *crypto.PublicKey) bool {
 	}
 	res := pubKey.Verify(jmsg, m.Sig)
 	if !res {
-		log.Debugf("Message %s has invalid signature", m.Desc())
+		log.Debugf("Message %s has invalid signature", m)
 	}
 	return res
 }

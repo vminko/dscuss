@@ -34,30 +34,30 @@ func newStateIdle(p *Peer) *StateIdle {
 
 func (s *StateIdle) perform() (nextState State, err error) {
 	for {
-		log.Debugf("Peer %s is trying to read packets...", s.p.Desc())
+		log.Debugf("Peer %s is trying to read packets...", s.p)
 		pckt, err := s.p.conn.Read()
 		if err != nil {
 			if neterr, ok := err.(net.Error); !(ok && neterr.Timeout()) {
-				log.Debugf("Peer %s failed to read packet: %v", s.p.Desc(), err)
+				log.Debugf("Peer %s failed to read packet: %v", s.p, err)
 				return nil, err
 			}
 		} else {
-			log.Debugf("Peer %s received packet %s", s.p.Desc(), pckt.Desc())
+			log.Debugf("Peer %s received packet %s", s.p, pckt)
 			return newStateReceiving(s.p, pckt), nil
 		}
 
-		log.Debugf("Peer %s is checking for new outEntity...", s.p.Desc())
+		log.Debugf("Peer %s is checking for new outEntity...", s.p)
 		select {
 		case e, ok := <-s.p.outEntityChan:
 			if ok {
-				log.Debugf("Peer %s got new outEntity %s", s.p.Desc(), e.Desc())
+				log.Debugf("Peer %s got new outEntity %s", s.p, e)
 				return newStateSending(s.p, e), nil
 			} else {
-				log.Debugf("Peer %s: outEntityChan was closed", s.p.Desc())
+				log.Debugf("Peer %s: outEntityChan was closed", s.p)
 				return nil, err
 			}
 		default:
-			log.Debugf("Peer %s: no new entities in outEntityChan", s.p.Desc())
+			log.Debugf("Peer %s: no new entities in outEntityChan", s.p)
 		}
 	}
 }

@@ -152,7 +152,7 @@ func (d *EntityDatabase) PutUser(user *entity.User) error {
 }
 
 func (d *EntityDatabase) GetUser(eid *entity.ID) (*entity.User, error) {
-	log.Debugf("Fetching user with id '%s' from the database", eid.String())
+	log.Debugf("Fetching user with id '%s' from the database", eid)
 
 	var nickname string
 	var info string
@@ -205,7 +205,7 @@ func (d *EntityDatabase) GetUser(eid *entity.ID) (*entity.User, error) {
 }
 
 func (d *EntityDatabase) HasUser(eid *entity.ID) (bool, error) {
-	log.Debugf("Checking whether DB contains user with id '%s'", eid.String())
+	log.Debugf("Checking whether DB contains user with id '%s'", eid)
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var nick string
@@ -252,14 +252,14 @@ func (d *EntityDatabase) PutMessage(msg *entity.Message) error {
 		return errors.DBOperFailed
 	}
 	if d.putMesageTopic(msg) != nil {
-		log.Errorf("The DB is corrupted. Message %s is saved without topic", msg.Desc())
+		log.Errorf("The DB is corrupted. Message %s is saved without topic", msg)
 		return errors.DBOperFailed
 	}
 	return nil
 }
 
 func (d *EntityDatabase) GetMessage(eid *entity.ID) (*entity.Message, error) {
-	log.Debugf("Fetching message with id '%s' from the database", eid.String())
+	log.Debugf("Fetching message with id '%s' from the database", eid)
 
 	var subj string
 	var text string
@@ -324,7 +324,7 @@ func (d *EntityDatabase) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	}
 	m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 	if err != nil {
-		log.Errorf("The message '%s' fetched from DB is invalid", m.Desc())
+		log.Errorf("The message '%s' fetched from DB is invalid", m)
 		return nil, errors.InconsistentDB
 	}
 	return m, nil
@@ -369,7 +369,7 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 			log.Error("Can't parse an ID fetched from DB")
 			return nil, errors.Parsing
 		}
-		log.Debugf("Found message id %s", id.String())
+		log.Debugf("Found message id %s", &id)
 
 		topic, err := subs.NewTopic(topicStr)
 		if err != nil {
@@ -378,7 +378,7 @@ func scanMessageRows(rows *sql.Rows) ([]*entity.Message, error) {
 		}
 		m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 		if err != nil {
-			log.Errorf("The message '%s' fetched from DB is invalid", m.Desc())
+			log.Errorf("The message '%s' fetched from DB is invalid", m)
 			return nil, errors.InconsistentDB
 		}
 		res = append(res, m)
@@ -542,7 +542,7 @@ func (d *EntityDatabase) GetThread(eid *entity.ID) (*thread.Node, error) {
 }
 
 func (d *EntityDatabase) HasMessage(eid *entity.ID) (bool, error) {
-	log.Debugf("Checking whether DB contains message with id '%s'", eid.String())
+	log.Debugf("Checking whether DB contains message with id '%s'", eid)
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var subj string
@@ -706,7 +706,7 @@ func (d *EntityDatabase) PutOperation(oper *entity.Operation) error {
 	} else if err != nil {
 		log.Errorf("The DB is corrupted. Operation %s is saved,"+
 			" but association with object %s is not",
-			oper.Desc(), oper.ObjectID.Shorten())
+			oper, oper.ObjectID.Shorten())
 		return errors.DBOperFailed
 	}
 	return nil
@@ -747,7 +747,7 @@ func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, e
 			log.Error("Can't parse an ID fetched from DB")
 			return nil, errors.Parsing
 		}
-		log.Debugf("Found operation id %s", id.String())
+		log.Debugf("Found operation id %s", &id)
 
 		o, err := entity.NewOperation(
 			(entity.OperationType)(typ),
@@ -758,7 +758,7 @@ func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, e
 			perfDate,
 			sig)
 		if err != nil {
-			log.Errorf("The message '%s' fetched from DB is invalid", o.Desc())
+			log.Errorf("The message '%s' fetched from DB is invalid", o)
 			return nil, errors.InconsistentDB
 		}
 		res = append(res, o)
@@ -832,7 +832,7 @@ func (d *EntityDatabase) GetOperationsOnMessage(mid *entity.ID) ([]*entity.Opera
 }
 
 func (d *EntityDatabase) GetOperation(oid *entity.ID) (*entity.Operation, error) {
-	log.Debugf("Fetching operation with id '%s' from the database", oid.String())
+	log.Debugf("Fetching operation with id '%s' from the database", oid)
 
 	var typ int
 	var reason int
@@ -909,14 +909,14 @@ func (d *EntityDatabase) GetOperation(oid *entity.ID) (*entity.Operation, error)
 		perfDate,
 		sig)
 	if err != nil {
-		log.Errorf("The operation '%s' fetched from DB is invalid", o.Desc())
+		log.Errorf("The operation '%s' fetched from DB is invalid", o)
 		return nil, errors.InconsistentDB
 	}
 	return o, nil
 }
 
 func (d *EntityDatabase) HasOperation(eid *entity.ID) (bool, error) {
-	log.Debugf("Checking whether DB contains operation with id '%s'", eid.String())
+	log.Debugf("Checking whether DB contains operation with id '%s'", eid)
 
 	// FIXME: This is definitely not the most efficient implementation.
 	var typ int
