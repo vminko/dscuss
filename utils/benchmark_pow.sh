@@ -3,7 +3,7 @@
 # This file is used for running Proof-of-Work benchmarks, generating
 # histograms and calculating average time to find the proof.
 #
-# (c) 2018 Vitaly Minko <vitaly.minko@gmail.com>
+# Copyright (c) 2018 Vitaly Minko <vitaly.minko@gmail.com>
 
 COUNT=10
 BIT_NUM=16
