@@ -35,20 +35,19 @@ import (
 // Owner represents the owner of the current node in the network.
 type Owner struct {
 	User    *entity.User
-	Subs    subs.Subscriptions
+	Storage *storage.Storage
 	Profile *Profile
 	Signer  *crypto.Signer
 	View    *View
-	storage *storage.Storage
 }
 
 const (
 	privKeyFileName         string = "privkey.pem"
-	subscriptionsFileName   string = "subscriptions.txt"
 	profileDatabaseFileName string = "profile.db"
+	entityDatabaseFileName  string = "entity.db"
 )
 
-func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.Storage) error {
+func Register(dir, nickname, info string, subs subs.Subscriptions) error {
 	log.Debugf("Registering user %s", nickname)
 	// Nickname will be validated via regexp later during EmergeUser
 	if nickname == "" {
@@ -68,13 +67,6 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 		}
 	}
 
-	subsPath := filepath.Join(userDir, subscriptionsFileName)
-	err = ioutil.WriteFile(subsPath, []byte(subs.String()), 0640)
-	if err != nil {
-		log.Errorf("Can't save user subscriptions as file %s: %v", subsPath, err)
-		return errors.Filesystem
-	}
-
 	privKey, err := crypto.NewPrivateKey()
 	if err != nil {
 		log.Errorf("Can't generate new private key: %v", err)
@@ -91,24 +83,54 @@ func Register(dir, nickname, info string, subs subs.Subscriptions, s *storage.St
 	pow := crypto.NewPowFinder(privKey.Public().EncodeToDER())
 	proof := pow.Find()
 
-	user, err := entity.EmergeUser(nickname, info, proof, crypto.NewSigner(privKey))
+	u, err := entity.EmergeUser(nickname, info, proof, crypto.NewSigner(privKey))
 	if err != nil {
 		log.Errorf("Can't create user '%s': %v", nickname, err)
 		return err
 	}
 	log.Debugf("Dumping emerged User %s:", nickname)
-	log.Debug(user.Dump())
+	log.Debug(u.Dump())
 
-	err = s.PutEntity((entity.Entity)(user), nil)
+	entityDatabasePath := filepath.Join(userDir, entityDatabaseFileName)
+	sDB, err := sqlite.OpenEntityDatabase(entityDatabasePath)
 	if err != nil {
-		log.Errorf("Can't add user '%s' to the storage: %v", user.Nickname, err)
+		log.Errorf("Can't open entity database file %s: %v", entityDatabasePath, err)
 		return errors.Database
+	}
+	s := storage.New(sDB)
+	err = s.PutEntity((entity.Entity)(u), nil)
+	if err != nil {
+		log.Errorf("Can't add user '%s' to the storage: %v", u.Nickname, err)
+		return errors.Database
+	}
+
+	profileDatabasePath := filepath.Join(userDir, profileDatabaseFileName)
+	pDB, err := sqlite.OpenProfileDatabase(profileDatabasePath)
+	if err != nil {
+		log.Errorf("Can't open profile database file %s: %v", profileDatabasePath, err)
+		return errors.Database
+	}
+	prf := NewProfile(pDB, u.ID())
+	for _, t := range subs {
+		err := prf.PutSubscription(t)
+		log.Errorf("Failed to put subscription %s into the owner's profile: %v", t, err)
+		return err
+	}
+
+	err = s.Close()
+	if err != nil {
+		log.Errorf("Error closing entity storage: %v", err)
+	}
+
+	err = prf.Close()
+	if err != nil {
+		log.Errorf("Error closing owner's profile: %v", err)
 	}
 
 	return nil
 }
 
-func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
+func New(dir, nickname string) (*Owner, error) {
 	userDir := filepath.Join(dir, nickname)
 	log.Debugf("Owner uses the following user directory: %s", userDir)
 	if _, err := os.Stat(userDir); os.IsNotExist(err) {
@@ -129,8 +151,16 @@ func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
 		return nil, err
 	}
 
+	entityDatabasePath := filepath.Join(userDir, entityDatabaseFileName)
+	sDB, err := sqlite.OpenEntityDatabase(entityDatabasePath)
+	if err != nil {
+		log.Errorf("Can't open entity database file %s: %v", entityDatabasePath, err)
+		return nil, errors.Database
+	}
+	s := storage.New(sDB)
+
 	eid := entity.NewID(privKey.Public().EncodeToDER())
-	u, err := stor.GetUser(&eid)
+	u, err := s.GetUser(&eid)
 	if err != nil {
 		log.Errorf("Can't fetch the user with id '%x' from the storage: %v", eid, err)
 		return nil, err
@@ -138,34 +168,30 @@ func New(dir, nickname string, stor *storage.Storage) (*Owner, error) {
 	log.Debug("Dumping fetched User:")
 	log.Debug(u.Dump())
 
-	subsPath := filepath.Join(userDir, subscriptionsFileName)
-	sub, err := subs.ReadFile(subsPath)
-	if err != nil {
-		log.Errorf("Error reading subscriptions of the user '%s': %v", nickname, err)
-		return nil, err
-	}
-
 	profileDatabasePath := filepath.Join(userDir, profileDatabaseFileName)
-	db, err := sqlite.OpenProfileDatabase(profileDatabasePath)
+	pDB, err := sqlite.OpenProfileDatabase(profileDatabasePath)
 	if err != nil {
 		log.Errorf("Can't open profile database file %s: %v", profileDatabasePath, err)
 		return nil, errors.Database
 	}
+	p := NewProfile(pDB, u.ID())
 
-	prf := NewProfile(db, u.ID())
 	return &Owner{
 		User:    u,
-		Subs:    sub,
-		Profile: prf,
+		Storage: s,
+		Profile: p,
 		Signer:  crypto.NewSigner(privKey),
-		View:    NewView(prf, stor),
-		storage: stor,
+		View:    NewView(p, s),
 	}, nil
 }
 
 func (o *Owner) Close() {
-	err := o.Profile.Close()
+	err := o.Storage.Close()
 	if err != nil {
 		log.Errorf("Error closing entity storage: %v", err)
+	}
+	err = o.Profile.Close()
+	if err != nil {
+		log.Errorf("Error closing owner's profile: %v", err)
 	}
 }

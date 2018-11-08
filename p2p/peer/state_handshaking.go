@@ -117,7 +117,7 @@ func (s *StateHandshaking) readAndProcessUser() error {
 }
 
 func (s *StateHandshaking) sendHello() error {
-	hPld := packet.NewPayloadHello(s.p.owner.Subs)
+	hPld := packet.NewPayloadHello(s.p.owner.Profile.GetSubscriptions())
 	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
 	err := s.p.conn.Write(hPkt)
 	if err != nil {
@@ -163,9 +163,9 @@ func (s *StateHandshaking) finalize() error {
 	// storage.HasUser will be a bit faster in this case, but handshaking
 	// should happen rarely, so GetUser won't cause significant difference
 	// in performance.
-	_, err := s.p.storage.GetUser(s.u.ID())
+	_, err := s.p.owner.Storage.GetUser(s.u.ID())
 	if err == errors.NoSuchEntity {
-		err = s.p.storage.PutEntity((entity.Entity)(s.u), s.p.outEntityChan)
+		err = s.p.owner.Storage.PutEntity((entity.Entity)(s.u), s.p.outEntityChan)
 		if err != nil {
 			log.Fatalf("Failed to put user into the DB: %v", err)
 		}

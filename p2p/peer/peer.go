@@ -25,7 +25,6 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/connection"
-	"vminko.org/dscuss/storage"
 	"vminko.org/dscuss/subs"
 )
 
@@ -38,7 +37,6 @@ var ZeroID ID
 type Peer struct {
 	conn          *connection.Connection
 	owner         *owner.Owner
-	storage       *storage.Storage
 	validator     Validator
 	goneChan      chan *Peer
 	stopChan      chan struct{}
@@ -82,21 +80,19 @@ func (i *ID) String() string {
 func New(
 	conn *connection.Connection,
 	owner *owner.Owner,
-	storage *storage.Storage,
 	validator Validator,
 	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
 		conn:          conn,
 		owner:         owner,
-		storage:       storage,
 		validator:     validator,
 		goneChan:      goneChan,
 		stopChan:      make(chan struct{}),
 		outEntityChan: make(chan entity.Entity, outEntityQueueCapacity),
 	}
 	p.State = newStateHandshaking(p)
-	p.storage.AttachObserver(p.outEntityChan)
+	p.owner.Storage.AttachObserver(p.outEntityChan)
 	p.wg.Add(2)
 	go p.run()
 	go p.watchStop()
@@ -105,7 +101,7 @@ func New(
 
 func (p *Peer) Close() {
 	log.Debugf("Close requested for peer %s", p)
-	p.storage.DetachObserver(p.outEntityChan)
+	p.owner.Storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
 	p.wg.Wait()
 	log.Debugf("Peer %s is closed", p)
@@ -170,7 +166,7 @@ func (p *Peer) ShortID() string {
 func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
 	var t subs.Topic
 	if m.IsReply() {
-		r, err := p.storage.GetRoot(m)
+		r, err := p.owner.Storage.GetRoot(m)
 		if err != nil {
 			log.Fatalf("Got an error while fetching root of %s from DB: %v",
 				m, err)
@@ -190,7 +186,7 @@ func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
 		if e.OperationType() == entity.OperationTypeBanUser {
 			return true
 		}
-		m, err := p.storage.GetMessage(&e.ObjectID)
+		m, err := p.owner.Storage.GetMessage(&e.ObjectID)
 		if err != nil {
 			log.Fatalf("Got an error while fetching msg %s from DB: %v",
 				e.ObjectID.Shorten(), err)

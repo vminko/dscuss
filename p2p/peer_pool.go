@@ -22,7 +22,6 @@ import (
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/peer"
-	"vminko.org/dscuss/storage"
 )
 
 // PeerPool is responsible for managing peers. It creates new peers, accounts
@@ -31,7 +30,6 @@ import (
 type PeerPool struct {
 	cp            *ConnectionProvider
 	owner         *owner.Owner
-	storage       *storage.Storage
 	gonePeerChan  chan *peer.Peer
 	stopPeersChan chan struct{}
 	peers         []*peer.Peer
@@ -39,11 +37,10 @@ type PeerPool struct {
 	wg            sync.WaitGroup
 }
 
-func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner, storage *storage.Storage) *PeerPool {
+func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 	return &PeerPool{
 		cp:            cp,
 		owner:         owner,
-		storage:       storage,
 		gonePeerChan:  make(chan *peer.Peer),
 		stopPeersChan: make(chan struct{}),
 	}
@@ -90,7 +87,6 @@ func (pp *PeerPool) watchNewConnections() {
 		peer := peer.New(
 			conn,
 			pp.owner,
-			pp.storage,
 			pp, // Validator
 			pp.gonePeerChan,
 		)

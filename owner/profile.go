@@ -21,7 +21,9 @@ import (
 	"sync"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
+	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/sqlite"
+	"vminko.org/dscuss/subs"
 )
 
 // Profile is a proxy for the profile database, which implements caching and
@@ -30,6 +32,8 @@ type Profile struct {
 	db         *sqlite.ProfileDatabase
 	moderators []*entity.ID
 	modersMx   sync.Mutex
+	subs       subs.Subscriptions
+	subsMx     sync.Mutex
 	selfID     *entity.ID
 }
 
@@ -65,10 +69,7 @@ func (p *Profile) HasModerator(id *entity.ID) (bool, error) {
 	if *id == *p.selfID {
 		return true, nil
 	}
-	mm, err := p.GetModerators()
-	if err != nil {
-		return false, err
-	}
+	mm := p.GetModerators()
 	for _, m := range mm {
 		if *m == *id {
 			return true, nil
@@ -77,18 +78,47 @@ func (p *Profile) HasModerator(id *entity.ID) (bool, error) {
 	return false, nil
 }
 
-func (p *Profile) GetModerators() ([]*entity.ID, error) {
+func (p *Profile) GetModerators() []*entity.ID {
 	p.modersMx.Lock()
 	defer p.modersMx.Unlock()
 	if p.moderators == nil {
 		var err error
 		p.moderators, err = p.db.GetModerators()
 		if err != nil {
-			return nil, err
+			log.Fatalf("Failed to fetch owner's subscriptions from "+
+				"the profile database: %v", err)
 		}
 		p.moderators = append(p.moderators, p.selfID)
 	}
 	res := make([]*entity.ID, len(p.moderators))
 	copy(res, p.moderators)
-	return res, nil
+	return res
+}
+
+func (p *Profile) PutSubscription(t subs.Topic) error {
+	p.subsMx.Lock()
+	defer p.subsMx.Unlock()
+	p.subs = nil
+	return p.db.PutSubscription(t)
+}
+
+func (p *Profile) RemoveSubscription(t subs.Topic) error {
+	p.subsMx.Lock()
+	defer p.subsMx.Unlock()
+	p.subs = nil
+	return p.db.RemoveSubscription(t)
+}
+
+func (p *Profile) GetSubscriptions() subs.Subscriptions {
+	p.subsMx.Lock()
+	defer p.subsMx.Unlock()
+	if p.subs == nil {
+		var err error
+		p.subs, err = p.db.GetSubscriptions()
+		if err != nil {
+			log.Fatalf("Failed to fetch owner's subscriptions from "+
+				"the profile database: %v", err)
+		}
+	}
+	return p.subs.Copy()
 }

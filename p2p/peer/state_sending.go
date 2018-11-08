@@ -111,7 +111,7 @@ func (s *StateSending) processReq(pkt *packet.Packet) error {
 	}
 	var e entity.Entity = s.outgoingEntity
 	if r.ID != *e.ID() {
-		e, err = s.p.storage.GetEntity(&r.ID)
+		e, err = s.p.owner.Storage.GetEntity(&r.ID)
 		if err != nil {
 			log.Errorf("Failed to get requested entity from the DB: %v", err)
 			return err

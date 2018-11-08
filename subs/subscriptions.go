@@ -20,21 +20,26 @@ package subs
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
-	"os"
 	"strings"
-	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
 )
 
 type Subscriptions []Topic
 
-func (s Subscriptions) AddTopic(t Topic) (Subscriptions, error) {
+func (s Subscriptions) AddTopic(t Topic) Subscriptions {
 	if s.Contains(t) {
 		log.Warningf("Attempt to add duplicated topic: '%s'", t)
-		return s, nil
+		return s
 	}
-	return append(s, t), nil
+	return append(s, t)
+}
+
+func (s Subscriptions) Copy() Subscriptions {
+	var res Subscriptions
+	for _, t := range s {
+		res = res.AddTopic(t.Copy())
+	}
+	return res
 }
 
 func (s Subscriptions) Contains(target Topic) bool {
@@ -81,27 +86,6 @@ func (s Subscriptions) StringSlice() []string {
 		slice = append(slice, t.String())
 	}
 	return slice
-}
-
-func (s Subscriptions) Write(filepath string) error {
-	str := s.String()
-	err := ioutil.WriteFile(filepath, []byte(str), 0644)
-	if err != nil {
-		log.Errorf("Can't write subscriptions to file %s: %v", filepath, err)
-		return errors.Filesystem
-	}
-	return nil
-}
-
-func ReadFile(filepath string) (Subscriptions, error) {
-	log.Debugf("Reading subscriptions from file '%s'.", filepath)
-	file, err := os.Open(filepath)
-	if err != nil {
-		log.Errorf("Can't open file %s: %v", filepath, err)
-		return nil, err
-	}
-	defer file.Close()
-	return Read(file)
 }
 
 func ReadString(s string) (Subscriptions, error) {

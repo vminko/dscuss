@@ -53,7 +53,7 @@ func (s *StateReceiving) banUser(id *entity.ID, comment string) {
 	if err != nil {
 		log.Fatalf("Failed to create a new operation: %v", err)
 	}
-	err = s.p.storage.PutEntity(o, nil)
+	err = s.p.owner.Storage.PutEntity(o, nil)
 	if err != nil {
 		//
 		log.Errorf("Failed to put entity %s in storage: %v", o, err)
@@ -104,7 +104,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 	if err != nil {
 		return nil, err
 	}
-	has, err := s.p.storage.HasEntity(&a.ID)
+	has, err := s.p.owner.Storage.HasEntity(&a.ID)
 	if err != nil {
 		log.Fatalf("Got unexpected error while looking for a message in the DB: %v", err)
 	}
@@ -127,7 +127,7 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 		err = s.checkPendingEntities()
 		if err == nil {
 			for _, e := range s.pendingEntities {
-				err = s.p.storage.PutEntity(e, s.p.outEntityChan)
+				err = s.p.owner.Storage.PutEntity(e, s.p.outEntityChan)
 				if err != nil {
 					log.Fatalf("Failed to put entity %s into the DB: %v",
 						e, err)
@@ -309,7 +309,7 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	u := s.getPendingUser(&m.AuthorID)
 	if u == nil {
 		var err error
-		u, err = s.p.storage.GetUser(&m.AuthorID)
+		u, err = s.p.owner.Storage.GetUser(&m.AuthorID)
 		if err == errors.NoSuchEntity {
 			log.Debugf("Need user ID (%s) - author of the message %s",
 				m.AuthorID.Shorten(), m.ID().Shorten())
@@ -325,12 +325,12 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	}
 	// TBD: check rate of messages posted by u
 	if m.ParentID == entity.ZeroID {
-		if !s.p.owner.Subs.Covers(m.Topic) {
+		if !s.p.owner.Profile.GetSubscriptions().Covers(m.Topic) {
 			log.Infof("Peer %s sent unsolicited Message entity", s.p)
 			return &banSenderError{"peer sent unsolicited message " + m.ID().Shorten()}
 		}
 	} else {
-		has, err := s.p.storage.HasMessage(&m.ParentID)
+		has, err := s.p.owner.Storage.HasMessage(&m.ParentID)
 		if err != nil {
 			log.Fatalf("Unexpected error while looking for a message in the DB: %v", err)
 		}
@@ -356,7 +356,7 @@ func (s *StateReceiving) checkOperation(o *entity.Operation) error {
 	u := s.getPendingUser(&o.AuthorID)
 	if u == nil {
 		var err error
-		u, err = s.p.storage.GetUser(&o.AuthorID)
+		u, err = s.p.owner.Storage.GetUser(&o.AuthorID)
 		if err == errors.NoSuchEntity {
 			log.Debugf("Need user ID (%s) - author of the operation %s",
 				o.AuthorID.Shorten(), o.ID().Shorten())
@@ -373,7 +373,7 @@ func (s *StateReceiving) checkOperation(o *entity.Operation) error {
 	}
 	// TBD: check rate of operations performed by u
 	if s.getPendingEntity(&o.ObjectID) == nil {
-		has, err := s.p.storage.HasEntity(&o.ObjectID)
+		has, err := s.p.owner.Storage.HasEntity(&o.ObjectID)
 		if err != nil {
 			log.Fatalf("Unexpected error occurred while checking for entity %s: %v",
 				o.ObjectID.Shorten(), err)
