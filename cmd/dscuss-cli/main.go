@@ -47,6 +47,8 @@ var (
 	argConfig  = flag.String("config", dscuss.DefaultDir, "Directory with config files to use")
 	argVersion = flag.Bool("version", false, "Display version of the program and exit")
 	argHelp    = flag.Bool("help", false, "Print help message and exit")
+	// Looks like there is no way to pass LoginHandle via ishell.Context.
+	loginHandle *dscuss.LoginHandle
 )
 
 var commandList = []*ishell.Cmd{
@@ -147,16 +149,18 @@ var commandList = []*ishell.Cmd{
 	},
 }
 
-func getLoginHandle(c *ishell.Context) *dscuss.LoginHandle {
-	lhi := c.Get("LoginHandle")
-	if lhi == nil {
-		return nil
+func userSummary(id *entity.ID) string {
+	u, err := loginHandle.GetUser(id)
+	var nick string
+	switch {
+	case err == errors.NoSuchEntity:
+		nick = "[unknown user]"
+	case err != nil:
+		nick = "[error fetching user from db]"
+	default:
+		nick = u.Nickname
 	}
-	lh, ok := (lhi).(*dscuss.LoginHandle)
-	if !ok {
-		log.Fatal("BUG: unexpected type of value stored under LoginHandle key.")
-	}
-	return lh
+	return fmt.Sprintf("%s (%s)", nick, id)
 }
 
 func doRegister(c *ishell.Context) {
@@ -201,8 +205,7 @@ func doRegister(c *ishell.Context) {
 }
 
 func doLogin(c *ishell.Context) {
-	lh := c.Get("LoginHandle")
-	if lh != nil {
+	if loginHandle != nil {
 		c.Println("You are already logged into the network." +
 			" You need to 'logout' before logging in as another user.")
 		return
@@ -212,16 +215,16 @@ func doLogin(c *ishell.Context) {
 		return
 	}
 	nickname := c.Args[0]
-	lh, err := dscuss.Login(nickname)
+	var err error
+	loginHandle, err = dscuss.Login(nickname)
 	if err != nil {
 		c.Printf("Failed to log in as %s: %v\n", nickname, err)
+		return
 	}
-	c.Set("LoginHandle", lh)
 }
 
 func doLogout(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -230,7 +233,8 @@ func doLogout(c *ishell.Context) {
 		return
 	}
 	c.Println("Logging out...")
-	lh.Logout()
+	loginHandle.Logout()
+	loginHandle = nil
 }
 
 func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
@@ -259,8 +263,7 @@ func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
 }
 
 func doListPeers(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -268,14 +271,22 @@ func doListPeers(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	peers := lh.ListPeers()
+	verb := false
+	if len(c.Args) > 0 {
+		if c.Args[0] == "full" {
+			verb = true
+		} else {
+			c.Printf("Unknown parameter '%s'\n", c.Args[0])
+			return
+		}
+	}
+	peers := loginHandle.ListPeers()
 	if len(peers) > 0 {
 		if len(peers) > 1 {
 			c.Printf("There are %d connected peers:\n", len(peers))
 		} else {
 			c.Println("There is one connected peer:")
 		}
-		verb := len(c.Args) > 0 && c.Args[0] == "full"
 		for i, p := range peers {
 			printPeerInfo(c, i, p, verb)
 		}
@@ -298,8 +309,7 @@ func doMakeThread(c *ishell.Context) {
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
 
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -329,12 +339,12 @@ func doMakeThread(c *ishell.Context) {
 		return
 	}
 
-	t, err := lh.NewThread(subj, text, topic)
+	t, err := loginHandle.NewThread(subj, text, topic)
 	if err != nil {
 		c.Println("Error making new thread: " + err.Error() + ".")
 		return
 	}
-	err = lh.PostEntity((entity.Entity)(t))
+	err = loginHandle.PostEntity((entity.Entity)(t))
 	if err != nil {
 		c.Println("Error posting new thread: " + err.Error() + ".")
 	} else {
@@ -343,8 +353,7 @@ func doMakeThread(c *ishell.Context) {
 }
 
 func doListBoard(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -368,9 +377,9 @@ func doListBoard(c *ishell.Context) {
 	const boardSize = 10
 	var messages []*entity.Message
 	if topic != nil {
-		messages, err = lh.ListTopic(topic, 0, boardSize)
+		messages, err = loginHandle.ListTopic(topic, 0, boardSize)
 	} else {
-		messages, err = lh.ListBoard(0, boardSize)
+		messages, err = loginHandle.ListBoard(0, boardSize)
 	}
 	if err != nil {
 		c.Println("Can't list board: " + err.Error() + ".")
@@ -381,7 +390,7 @@ func doListBoard(c *ishell.Context) {
 		if i != 0 {
 			c.Println()
 		}
-		c.Printf("#%d by %s, %s\n", i, msg.AuthorID.String(),
+		c.Printf("#%d by %s, %s\n", i, userSummary(&msg.AuthorID),
 			msg.DateWritten.Format(time.RFC3339))
 		c.Printf("ID: %s\n", msg.ID())
 		if topic == nil {
@@ -414,15 +423,14 @@ func (tp *ThreadPrinter) Handle(n *thread.Node) bool {
 	lines := strings.Split(m.Text, "\n")
 	indentedText := strings.Join(lines, "\n"+tp.composeIndentation(n))
 	tp.c.Printf("%s%s\n", tp.composeIndentation(n), indentedText)
-	tp.c.Printf("%sby %s, %s\n",
-		tp.composeIndentation(n), m.AuthorID.Shorten(), m.DateWritten.Format(time.RFC3339))
+	tp.c.Printf("%sby %s, %s\n", tp.composeIndentation(n), userSummary(&m.AuthorID),
+		m.DateWritten.Format(time.RFC3339))
 	tp.c.Printf("%sID: %s\n", tp.composeIndentation(n), m.ID().String())
 	return true
 }
 
 func doListThread(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -440,7 +448,7 @@ func doListThread(c *ishell.Context) {
 		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
-	t, err := lh.ListThread(&tid)
+	t, err := loginHandle.ListThread(&tid)
 	if err != nil {
 		c.Println("Can't list thread: " + err.Error() + ".")
 		return
@@ -454,8 +462,7 @@ func doMakeReply(c *ishell.Context) {
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
 
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -484,12 +491,12 @@ func doMakeReply(c *ishell.Context) {
 		return
 	}
 
-	r, err := lh.NewReply(subj, text, &pid)
+	r, err := loginHandle.NewReply(subj, text, &pid)
 	if err != nil {
 		c.Println("Error making new reply: " + err.Error() + ".")
 		return
 	}
-	err = lh.PostEntity((entity.Entity)(r))
+	err = loginHandle.PostEntity((entity.Entity)(r))
 	if err != nil {
 		c.Println("Error posting new reply: " + err.Error() + ".")
 	} else {
@@ -498,8 +505,7 @@ func doMakeReply(c *ishell.Context) {
 }
 
 func doSubscribe(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -512,7 +518,7 @@ func doSubscribe(c *ishell.Context) {
 		c.Println("Unacceptable topic: " + err.Error() + ".")
 		return
 	}
-	err = lh.Subscribe(topic)
+	err = loginHandle.Subscribe(topic)
 	if err != nil {
 		c.Printf("Error subscribing to %s: %v\n", topic, err.Error())
 		return
@@ -521,8 +527,7 @@ func doSubscribe(c *ishell.Context) {
 }
 
 func doUnsubscribe(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -535,7 +540,7 @@ func doUnsubscribe(c *ishell.Context) {
 		c.Println("Unacceptable topic: " + err.Error() + ".")
 		return
 	}
-	err = lh.Unsubscribe(topic)
+	err = loginHandle.Unsubscribe(topic)
 	if err != nil {
 		c.Printf("Failed to unsubscribe from %s: %v\n", topic, err.Error())
 		return
@@ -544,8 +549,7 @@ func doUnsubscribe(c *ishell.Context) {
 }
 
 func doListSubscriptions(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -553,13 +557,12 @@ func doListSubscriptions(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	subs := lh.ListSubscriptions()
+	subs := loginHandle.ListSubscriptions()
 	c.Print(subs)
 }
 
 func doMakeModerator(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -574,15 +577,14 @@ func doMakeModerator(c *ishell.Context) {
 		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
-	err = lh.MakeModerator(&id)
+	err = loginHandle.MakeModerator(&id)
 	if err != nil {
 		c.Println("Error making new moderator: " + err.Error() + ".")
 	}
 }
 
 func doRemoveModerator(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -597,15 +599,14 @@ func doRemoveModerator(c *ishell.Context) {
 		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
-	err = lh.RemoveModerator(&id)
+	err = loginHandle.RemoveModerator(&id)
 	if err != nil {
 		c.Println("Error removing moderator: " + err.Error() + ".")
 	}
 }
 
 func doListModerators(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -613,26 +614,14 @@ func doListModerators(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	mm := lh.ListModerators()
+	mm := loginHandle.ListModerators()
 	for i, mdr := range mm {
-		u, err := lh.GetUser(mdr)
-		var nick string
-
-		switch {
-		case err == errors.NoSuchEntity:
-			nick = "[unknown user]"
-		case err != nil:
-			nick = "[error fetching user from db]"
-		default:
-			nick = u.Nickname
-		}
-		c.Printf("#%d %s (%s)\n", i, nick, mdr.String())
+		c.Printf("#%d %s\n", i, userSummary(mdr))
 	}
 }
 
 func makeOperation(c *ishell.Context, typ entity.OperationType) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
 	}
@@ -656,11 +645,11 @@ func makeOperation(c *ishell.Context, typ entity.OperationType) {
 	}
 	c.Print("Enter optional comment: ")
 	comment := c.ReadLine()
-	op, err := lh.NewOperation(typ, reason, comment, &id)
+	op, err := loginHandle.NewOperation(typ, reason, comment, &id)
 	if err != nil {
 		c.Println("Error making new operation: " + err.Error() + ".")
 	}
-	err = lh.PostEntity((entity.Entity)(op))
+	err = loginHandle.PostEntity((entity.Entity)(op))
 	if err != nil {
 		c.Println("Error posting new operation: " + err.Error() + ".")
 	} else {
@@ -677,8 +666,7 @@ func doRemoveMessage(c *ishell.Context) {
 }
 
 func doListOperations(c *ishell.Context) {
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("No user is logged in.")
 		return
 	}
@@ -697,9 +685,9 @@ func doListOperations(c *ishell.Context) {
 	var ops []*entity.Operation
 	switch entType {
 	case "user":
-		ops, err = lh.ListOperationsOnUser(&id)
+		ops, err = loginHandle.ListOperationsOnUser(&id)
 	case "msg":
-		ops, err = lh.ListOperationsOnMessage(&id)
+		ops, err = loginHandle.ListOperationsOnMessage(&id)
 	default:
 		c.Println(idStr + " is not a valid entity type.")
 		c.Println("Expected: 'user' or 'msg'")
@@ -713,7 +701,7 @@ func doListOperations(c *ishell.Context) {
 		if i != 0 {
 			c.Println()
 		}
-		c.Printf("#%d by %s, %s\n", i, op.AuthorID.String(),
+		c.Printf("#%d by %s, %s\n", i, userSummary(&op.AuthorID),
 			op.DatePerformed.Format(time.RFC3339))
 		c.Printf("ID: %s\n", op.ID())
 		c.Printf("Type: %s\n", op.OperationType().String())
@@ -729,12 +717,11 @@ func doWhoAmI(c *ishell.Context) {
 		c.Println(c.Cmd.Help)
 		return
 	}
-	lh := getLoginHandle(c)
-	if lh == nil {
+	if loginHandle == nil {
 		c.Println("No user is logged in.")
 		return
 	}
-	u := lh.GetLoggedUser()
+	u := loginHandle.GetLoggedUser()
 	c.Printf("%s (%s)\n", u.Nickname, u.ID())
 }
 
@@ -764,7 +751,6 @@ func getVersion() string {
 }
 
 func main() {
-
 	sigChan := make(chan os.Signal)
 	go func() {
 		stacktrace := make([]byte, 8192)

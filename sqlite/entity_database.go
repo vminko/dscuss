@@ -407,7 +407,7 @@ func (d *EntityDatabase) GetRootMessages(offset, limit int) ([]*entity.Message, 
 	INNER JOIN Tag on Tag.Id=Message_Tag.Tag_Id
 	WHERE Message.Parent_id=?
 	GROUP BY Message.Id
-	ORDER BY Message.Timestamp DESC
+	ORDER BY Message.Timestamp ASC
 	LIMIT ? OFFSET ?
 	`
 	db := (*sql.DB)(d)
@@ -448,7 +448,7 @@ func (d *EntityDatabase) GetTopicMessages(topic subs.Topic, offset, limit int) (
 		HAVING COUNT(DISTINCT Tag.Name) = %d
 	)
 	GROUP BY Message.Id
-	ORDER BY Message.Timestamp DESC
+	ORDER BY Message.Timestamp ASC
 	LIMIT %d OFFSET %d
 	`
 	var params []interface{}
@@ -489,7 +489,7 @@ func (d *EntityDatabase) GetReplies(eid *entity.ID) ([]*entity.Message, error) {
 	       ''
 	FROM Message
 	WHERE Message.Parent_id=?
-	ORDER BY Message.Timestamp DESC
+	ORDER BY Message.Timestamp ASC
 	`
 	db := (*sql.DB)(d)
 	rows, err := db.Query(query, eid[:])

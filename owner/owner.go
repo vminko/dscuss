@@ -113,8 +113,10 @@ func Register(dir, nickname, info string, subs subs.Subscriptions) error {
 	prf := NewProfile(pDB, u.ID())
 	for _, t := range subs {
 		err := prf.PutSubscription(t)
-		log.Errorf("Failed to put subscription %s into the owner's profile: %v", t, err)
-		return err
+		if err != nil {
+			log.Errorf("Failed to put sub %s into the owner's profile: %v", t, err)
+			return err
+		}
 	}
 
 	err = s.Close()
