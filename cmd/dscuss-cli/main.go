@@ -164,6 +164,10 @@ func userSummary(id *entity.ID) string {
 }
 
 func doRegister(c *ishell.Context) {
+	if loginHandle != nil {
+		c.Println("You need to 'logout' before registering new user.")
+		return
+	}
 	c.ShowPrompt(false)
 	defer c.ShowPrompt(true)
 
