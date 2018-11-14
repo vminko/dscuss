@@ -6,13 +6,16 @@ Copyright:  (c) 2011-2018 Vitaly Minko
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       11 Nov 2018
+Date:       14 Nov 2018
 Priority:   4
 
 
+_<div style="text-align: right">The moderators are dead! Long live the moderators!</div>_
+
+
 **Dscuss** is a free software for public discussions. It builds an unstructured
-pure P2P topic-based publish-subscribe network. Currently it's in early
-development.
+pure P2P topic-based publish-subscribe network. The current version is
+proof-of-work.
 
 
 The idea of the project
@@ -20,7 +23,7 @@ The idea of the project
 
 The purpose of Dscuss is quite similar to the [Internet forums][forum_wiki], but
 there is one fundamental difference -- social equality of all members involved
-(i.e no owners, no moderators, etc).
+(i.e no owners, no moderators, etc). See [Classification][cls] for details.
 
 This leads to the following key features, which will be provided by Dscuss:
 
@@ -42,6 +45,7 @@ achieved using anonymizers like [Tor][tor_home]
 
 [forum_wiki]: http://en.wikipedia.org/wiki/Internet_forum
 [tor_home]: https://www.torproject.org/
+[cls]: /dscuss/classification
 
 
 API
@@ -74,8 +78,7 @@ this version:
 
 * Database synchronization with other peers.
 * Improved connectivity (bootstrapping via DHT).
-* Improved security (premoderation, limit rate of messages/operations, limit
-depth of threads, etc).
+* Improved security (SPAM resistance, flood resistance)
 * Web interface.
 
 
@@ -117,11 +120,11 @@ How to compile
 
 If you want to compile executable binary named `dscuss` (library with CLI), run:
 
-        go build -o dscuss cmd/dscuss-cli/main.go
+    go build -o dscuss cmd/dscuss-cli/main.go
 
 Or use this command if you just want to run Dscuss for one time:
 
-        go run cmd/dscuss-cli/main.go
+    go run cmd/dscuss-cli/main.go
 
 
 Similar projects

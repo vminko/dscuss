@@ -1,0 +1,153 @@
+Title:      Classification of the systems for public discussion.
+Summary:    The systems are classified according to the attributes, which are
+            relevant for Dscuss.
+Copyright:  (c) 2018 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       14 Nov 2018
+Web:        http://vminko.org/dscuss/classification
+
+
+Domain entities
+---------------
+
+The following entities are common for every public discussion system:
+
+* __Content__ - the target information of the system. Distribution of this
+  information is the primary goal of the system.
+* __User__ registered in the system and producing content.
+
+Depending on the type of the system, there may be additional domain entities. For example:
+
+* __Resource__ - the platform, where the content is published. Resources are
+  identified by an addresses.
+* __Moderator__ - a special user, which has extended rights.
+
+
+Classification
+--------------
+
+__By the type of subscription__:
+
+* subscription to the topic of the content
+* subscription to the authors of the content
+* subscription to the address of the resource offering the content
+
+__By the security of the data channels__:
+
+* data channels provide confidentiality, authenticity and integrity of the content
+* data channels provide authenticity and integrity of the content, but not confidentiality
+* data channels do not provide confidentiality, authenticity and integrity of the content
+
+__By privacy__:
+
+* personal data is hidden from all other participants
+* personal data is available only for the owner of the resource and the moderators
+* personal data is freely available to other participants
+
+__By the right to access the content__:
+
+* open (everyone can became a user of the system and receive any content without
+  any third party permission)
+* private (user has to obtain a third party permission to receive the content)
+
+__By management of the right to access the content__:
+
+* none (for open systems by definition)
+* author of the content manages the right to access the content
+* owner of the resource or moderators manage the right to access the content
+
+__By the right to create content__:
+
+* open (any user can create any content) 
+* moderated (in order to be able to create some content, user must obtain
+  permission from the owner of the resource or from the moderators)
+
+__By management of the right to create content__:
+
+* none (for open systems by definition)
+* moderated (owner of the resource or moderators manage the right to create the
+content)
+
+__By the right to manage content__:
+
+* open (any user can manage any content)
+* content is managed by its author
+* content is managed by the owner of the resource or the moderators
+
+__By management of the right to manage content__:
+
+* none (for open systems by definition)
+* the right is managed by the author of the content
+* the right is managed by the owner of the resource if the moderators
+
+_The classification takes into account only the main values of the attributes. Hybrid
+systems are also possible, when the attribute of the system has multiple values
+from the list above at the same time._
+
+
+Dscuss within the classification
+--------------------------------
+
+* __By the type of subscription__:  subscription to the topic of the content
+* __By the security of the data channels__:  data channels provide authenticity
+  and integrity of the content, but not confidentiality
+* __By privacy__: personal data is freely available to other participants
+* __By the right to access the content__: open (everyone can became a user of
+  the system and receive any content without any third party permission)
+* __By management of the right to access the content__: none (for open systems
+  by definition)
+* __By the right to create content__: open (any user can create any content) 
+* __By management of the right to create content__: none (for open systems by
+  definition)
+* __By the right to manage content__: open (any user can manage any content)
+* __By management of the right to manage content__: none (for open systems by
+  definition)
+
+
+A typical forum within the classification
+-----------------------------------------
+
+* __By the type of subscription__: subscription to the address of the resource
+  offering the content
+* __By the security of the data channels__: data channels provide
+  confidentiality, authenticity and integrity of the content
+* __By privacy__: personal data is available only for the owner of the resource
+  and the moderators
+* __By the right to access the content__: open (everyone can became a user of
+  the system and receive any content without any third party permission)
+* __By management of the right to access the content__: none (for open systems
+  by definition)
+* __By the right to create content__:  moderated (in order to be able to create
+  some content, user must obtain permission from the owner of the resource or
+  from the moderators)
+* __By management of the right to create content__: moderated (owner of the
+  resource or moderators manage the right to create the content)
+* __By the right to manage content__: content is managed by the owner of the
+  resource or the moderators
+* __By management of the right to manage content__: the right is managed by the
+  owner of the resource if the moderators
+
+
+A typical social network within the classification
+--------------------------------------------------
+
+* __By the type of subscription__: subscription to the authors of the content
+* __By the security of the data channels__: data channels provide
+  confidentiality, authenticity and integrity of the content
+* __By privacy__: personal data is available only for the owner of the resource
+  and the moderators
+* __By the right to access the content__: private (user has to obtain a third
+  party permission to receive the content)
+* __By management of the right to access the content__: author of the content
+  manages the right to access the content
+* __By the right to create content__: moderated (in order to be able to create
+  some content, user must obtain permission from the owner of the resource or
+  from the moderators)
+* __By management of the right to create content__: moderated (owner of the
+  resource or moderators manage the right to create the content)
+* __By the right to manage content__: content is managed by its author, content
+  is managed by the owner of the resource or the moderators, 
+* __By management of the right to manage content__: the right is managed by the
+  owner of the resource if the moderators
+
