@@ -1,4 +1,4 @@
-Title:      Classification of the systems for public discussion.
+Title:      Classification of the systems for public discussion
 Summary:    The systems are classified according to the attributes, which are
             relevant for Dscuss.
 Copyright:  (c) 2018 Vitaly Minko
