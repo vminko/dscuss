@@ -25,6 +25,10 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
+const (
+	ProtocolVersion int = 1
+)
+
 // StateHandshaking implements the handshaking protocol.
 type StateHandshaking struct {
 	p *Peer
@@ -90,7 +94,7 @@ func (s *StateHandshaking) readAndProcessUser() error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
-		return errors.Parsing
+		return errors.ProtocolViolation
 	}
 	u, ok := (i).(*entity.User)
 	if !ok {
@@ -117,7 +121,7 @@ func (s *StateHandshaking) readAndProcessUser() error {
 }
 
 func (s *StateHandshaking) sendHello() error {
-	hPld := packet.NewPayloadHello(s.p.owner.Profile.GetSubscriptions())
+	hPld := packet.NewPayloadHello(ProtocolVersion, s.p.owner.Profile.GetSubscriptions())
 	hPkt := packet.New(packet.TypeHello, s.u.ID(), hPld, s.p.owner.Signer)
 	err := s.p.conn.Write(hPkt)
 	if err != nil {
@@ -145,7 +149,7 @@ func (s *StateHandshaking) readAndProcessHello() error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
-		return errors.Parsing
+		return errors.ProtocolViolation
 	}
 	h, ok := (i).(*packet.PayloadHello)
 	if !ok {
@@ -154,6 +158,11 @@ func (s *StateHandshaking) readAndProcessHello() error {
 	if !h.IsValid() {
 		log.Infof("Peer %s sent malformed Hello packet", s.p)
 		return errors.ProtocolViolation
+	}
+	if h.Proto != ProtocolVersion {
+		log.Infof("Protocol version of peer %s is unsupported.", s.p)
+		log.Infof("My version is %d, peer's version is %d.", ProtocolVersion, h.Proto)
+		return errors.UnsupportedProtocol
 	}
 	s.s = h.Subs
 	return nil

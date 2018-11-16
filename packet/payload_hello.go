@@ -24,14 +24,14 @@ import (
 // When user A sends this packet to user B, he/she
 // notifies user B about topics of A's interests/
 type PayloadHello struct {
-	// Subscriptions of the author of the payload.
-	Subs subs.Subscriptions
+	Proto int                `json:"proto"` // The version of the protocol this peer supports.
+	Subs  subs.Subscriptions `json:"subs"`  // Subscriptions of the author of the payload.
 }
 
 func (p *PayloadHello) IsValid() bool {
 	return p.Subs.IsValid()
 }
 
-func NewPayloadHello(s subs.Subscriptions) *PayloadHello {
-	return &PayloadHello{s}
+func NewPayloadHello(p int, s subs.Subscriptions) *PayloadHello {
+	return &PayloadHello{Proto: p, Subs: s}
 }

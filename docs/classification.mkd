@@ -147,7 +147,7 @@ A typical social network within the classification
 * __By management of the right to create content__: moderated (owner of the
   resource or moderators manage the right to create the content)
 * __By the right to manage content__: content is managed by its author, content
-  is managed by the owner of the resource or the moderators, 
+  is managed by the owner of the resource or the moderators
 * __By management of the right to manage content__: the right is managed by the
   owner of the resource if the moderators
 

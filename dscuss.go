@@ -46,7 +46,7 @@ type LoginHandle struct {
 
 const (
 	Name                string = "Dscuss"
-	Version             string = "proof-of-concept"
+	Version             string = "0.1.0"
 	DefaultDir          string = "~/.dscuss"
 	logFileName         string = "dscuss.log"
 	cfgFileName         string = "config.json"
@@ -118,7 +118,8 @@ func Uninit() {
 }
 
 func FullVersion() string {
-	return fmt.Sprintf("%s version: %s, built with %s.\n", Name, Version, runtime.Version())
+	return fmt.Sprintf("%s library version: %s, protocol version: %d, built with %s.\n",
+		Name, Version, peer.ProtocolVersion, runtime.Version())
 }
 
 func Dir() string {

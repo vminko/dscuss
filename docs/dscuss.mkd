@@ -78,7 +78,7 @@ this version:
 
 * Database synchronization with other peers.
 * Improved connectivity (bootstrapping via DHT).
-* Improved security (SPAM resistance, flood resistance)
+* Improved security (SPAM resistance, flood resistance).
 * Web interface.
 
 

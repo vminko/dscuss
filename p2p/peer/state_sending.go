@@ -103,7 +103,7 @@ func (s *StateSending) processReq(pkt *packet.Packet) error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of a req '%s': %v", pkt, err)
-		return errors.Parsing
+		return errors.ProtocolViolation
 	}
 	r, ok := (i).(*packet.PayloadReq)
 	if !ok {
@@ -129,7 +129,7 @@ func (s *StateSending) processAck(pkt *packet.Packet) error {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
-		return errors.Parsing
+		return errors.ProtocolViolation
 	}
 	_, ok := (i).(*packet.PayloadAck)
 	if !ok {

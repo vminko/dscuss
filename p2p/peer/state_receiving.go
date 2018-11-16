@@ -206,7 +206,7 @@ func (s *StateReceiving) processAnnounce() (*packet.PayloadAnnounce, error) {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of announce '%s': %v", pkt, err)
-		return nil, errors.Parsing
+		return nil, errors.ProtocolViolation
 	}
 	a, ok := (i).(*packet.PayloadAnnounce)
 	if !ok {
@@ -238,7 +238,7 @@ func (s *StateReceiving) readEntity() (entity.Entity, error) {
 	i, err := pkt.DecodePayload()
 	if err != nil {
 		log.Infof("Failed to decode payload of packet '%s': %v", pkt, err)
-		return nil, errors.Parsing
+		return nil, errors.ProtocolViolation
 	}
 	e, ok := (i).(entity.Entity)
 	if !ok {
