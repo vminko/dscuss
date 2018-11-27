@@ -1,0 +1,46 @@
+#!/usr/bin/expect -f
+#
+# Test assertion: a new user account can be created in the system.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2018  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source testbed.exp
+
+# Start Adam's peer
+spawn ../main -config "$tmp_dir/1"
+set adam_id $spawn_id
+expect -i $adam_id "Welcome to Dscuss.\r\n"
+
+# Register Abel
+send -i $adam_id "reg\r"
+expect -i $adam_id "Nickname: "
+send -i $adam_id "abel\r"
+expect "Enter some additional info: "
+send -i $adam_id "Hello everyone, I'm Abel.\r"
+expect -i $adam_id -re "Enter list of topics you are interested in..*:"
+send -i $adam_id "dscuss,devel\rphotography,astro\rDSC\r"
+expect -i $adam_id "Registering new user."
+expect -i $adam_id -timeout 600 "User registered successfully.\r\n"
+expect -i $adam_id "Edit $tmp_dir/1/addresses.txt in you favorite editor if you want to customize peer addresses.\r\n"
+
+# Login as Abel
+send -i $adam_id "login abel\r"
+send -i $adam_id "whoami\r"
+expect -i $adam_id -re "abel (.*)\r\n"
+
+# Stop Adam's peers
+send -i $adam_id "exit\r"
+expect -i $adam_id eof pass

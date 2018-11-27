@@ -202,7 +202,7 @@ func doRegister(c *ishell.Context) {
 		return
 	}
 
-	c.Println("User registered successfully,")
+	c.Println("User registered successfully.")
 	addrPath := filepath.Join(dscuss.Dir(), dscuss.AddressListFileName)
 	c.Printf("Edit %s in you favorite editor if you want to customize peer addresses.\n",
 		addrPath)

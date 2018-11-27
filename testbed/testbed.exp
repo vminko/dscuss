@@ -1,0 +1,49 @@
+# This file contains common test routines.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2018  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set timeout 5
+set data_dir "data"
+set tmp_dir "/tmp/dscuss.testdata"
+
+proc prepare {} {
+    global data_dir
+    global tmp_dir
+    file copy "$data_dir" "$tmp_dir"
+}
+
+proc cleanup {} {
+    global tmp_dir
+    file delete -force "$tmp_dir"
+}
+
+proc fail {} {
+	puts "\n*** TEST FAILED ***"
+        cleanup
+        exit 1
+}
+
+proc pass {} {
+	puts "\n*** TEST PASSED ***"
+        cleanup
+        exit 0
+}
+
+expect_before {
+    timeout { fail }
+}
+
+prepare

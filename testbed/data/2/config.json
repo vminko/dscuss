@@ -1,0 +1,8 @@
+{
+	"Network": {
+		"HostPort": ":8005",
+		"AddressProvider": "addrlist",
+		"MaxInConnCount": 10,
+		"MaxOutConnCount": 10
+	}
+}
