@@ -1,0 +1,38 @@
+#!/usr/bin/expect -f
+#
+# Test assertion: topic listing contains only root messages related to this topic.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2018  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source testbed.exp
+
+# Start Adam's peer
+spawn ../main -config "$tmp_dir/1"
+set adam_id $spawn_id
+expect -i $adam_id "Welcome to Dscuss.\r\n"
+send -i $adam_id "login adam\r"
+
+# List topic
+send -i $adam_id "lsboard dscuss,devel\r"
+expect {
+    -i $adam_id
+    "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
+    ">" {}
+}
+
+# Stop Adam's peers
+send -i $adam_id "exit\r"
+expect -i $adam_id eof pass
