@@ -1,6 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: thread listing contains the root message and all replies to the root.
+# Test assertion: author of a remove-message operation will no longer see
+# the removed message and all replies to it.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -19,26 +20,32 @@
 
 source testbed.exp
 
-say "Starting Adam's peer"
+say "Starting Adam's"
 spawn ../main -config "$tmp_dir/1"
 expect "Welcome to Dscuss.\r\n"
 send "login adam\r"
+expect "> " 
+send "whoami\r"
+expect -re "adam (.*)\r\n"
 
-say "Listing thread"
+say "Removing the reply"
+send "rmmsg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI= SPAM\r"
+expect "Enter optional comment: "
+send "Testing remove-message operation\r"
+expect "> " 
+
+say "Listing the thread"
 send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
 expect {
     "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
     "ID: JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=\r\n" { exp_continue }
-    "ID: 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r\n" { exp_continue }
-    "ID: feVXBgKXr+p+33sGQDMxU1Bg5Z3WbemSbvN7j9KV7Po=\r\n" { exp_continue }
     "ID: 4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=\r\n" { exp_continue }
     "ID: qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=\r\n" { exp_continue }
     "ID: /NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=\r\n" { exp_continue }
     ">" {}
 }
 
-say "Stopping Adam's peer"
+say "Stopping Adam's peers"
 send "exit\r"
 expect eof
-wait
 pass

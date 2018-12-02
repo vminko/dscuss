@@ -19,10 +19,15 @@ set timeout 5
 set data_dir "data"
 set tmp_dir "/tmp/dscuss.testdata"
 
+proc say {msg} {
+    puts "\r*** $msg ***"
+}
+
 proc prepare {} {
     global data_dir
     global tmp_dir
     file copy "$data_dir" "$tmp_dir"
+    say "Starting test $::argv0"
 }
 
 proc cleanup {} {
@@ -31,18 +36,18 @@ proc cleanup {} {
 }
 
 proc fail {} {
-	puts "\n*** TEST FAILED ***"
-        cleanup
-        exit 1
+    say "TEST FAILED"
+    cleanup
+    exit 1
 }
 
 proc pass {} {
-	puts "\n*** TEST PASSED ***"
-        cleanup
-        exit 0
+    say "TEST PASSED"
+    cleanup
+    exit 0
 }
 
-expect_before {
+expect_after {
     timeout { fail }
 }
 

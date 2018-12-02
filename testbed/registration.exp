@@ -19,28 +19,29 @@
 
 source testbed.exp
 
-# Start Adam's peer
+say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
-set adam_id $spawn_id
-expect -i $adam_id "Welcome to Dscuss.\r\n"
+expect "Welcome to Dscuss.\r\n"
 
-# Register Abel
-send -i $adam_id "reg\r"
-expect -i $adam_id "Nickname: "
-send -i $adam_id "abel\r"
+say "Registering Abel"
+send "reg\r"
+expect "Nickname: "
+send "abel\r"
 expect "Enter some additional info: "
-send -i $adam_id "Hello everyone, I'm Abel.\r"
-expect -i $adam_id -re "Enter list of topics you are interested in..*:"
-send -i $adam_id "dscuss,devel\rphotography,astro\rDSC\r"
-expect -i $adam_id "Registering new user."
-expect -i $adam_id -timeout 600 "User registered successfully.\r\n"
-expect -i $adam_id "Edit $tmp_dir/1/addresses.txt in you favorite editor if you want to customize peer addresses.\r\n"
+send "Hello everyone, I'm Abel.\r"
+expect -re "Enter list of topics you are interested in..*:"
+send "dscuss,devel\rphotography,astro\rDSC\r"
+expect "Registering new user."
+expect -timeout 600 "User registered successfully.\r\n"
+expect "Edit $tmp_dir/1/addresses.txt in your favorite editor if you want to customize peer addresses.\r\n"
 
-# Login as Abel
-send -i $adam_id "login abel\r"
-send -i $adam_id "whoami\r"
-expect -i $adam_id -re "abel (.*)\r\n"
+say "Trying to login as Abel"
+send "login abel\r"
+send "whoami\r"
+expect -re "abel (.*)\r\n"
 
-# Stop Adam's peers
-send -i $adam_id "exit\r"
-expect -i $adam_id eof pass
+say "Stopping peers"
+send "exit\r"
+expect eof
+wait
+pass

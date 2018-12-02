@@ -1,6 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: thread listing contains the root message and all replies to the root.
+# Test assertion: a newly created reply will be delivered to the peers,
+# which are interested in the topic of the thread.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -21,23 +22,54 @@ source testbed.exp
 
 say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
-expect "Welcome to Dscuss.\r\n"
+set adam_id $spawn_id
+expect "> "
 send "login adam\r"
+expect "> "
 
-say "Listing thread"
+say "Starting Eve's peer"
+spawn ../main -config "$tmp_dir/2"
+set eve_id $spawn_id
+expect "> "
+send "login eve\r"
+expect "> "
+
+say "Giving peers some time to perform handshaking"
+sleep $timeout
+
+say "Posting new thread"
+set spawn_id $eve_id
+send "mkreply 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r"
+expect "Enter reply subject: "
+send "This reply was created by autotest.\r"
+expect "Enter message text and end with 'DSC':"
+send "Autotest created this message\ron behalf of Eve.\rDSC\n"
+expect -re "Reply '.*' created successfully.\r\n"
+
+say "Giving the message some time to propagate"
+sleep $timeout
+
+say "Checking whether Adam has received the reply"
+set spawn_id $adam_id
 send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
 expect {
     "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
     "ID: JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=\r\n" { exp_continue }
     "ID: 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r\n" { exp_continue }
     "ID: feVXBgKXr+p+33sGQDMxU1Bg5Z3WbemSbvN7j9KV7Po=\r\n" { exp_continue }
+    "This thread was created by autotest.\r\n"             { exp_continue }
     "ID: 4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=\r\n" { exp_continue }
     "ID: qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=\r\n" { exp_continue }
     "ID: /NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=\r\n" { exp_continue }
     ">" {}
 }
 
-say "Stopping Adam's peer"
+say "Stopping all peers"
+set spawn_id $adam_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $eve_id
 send "exit\r"
 expect eof
 wait

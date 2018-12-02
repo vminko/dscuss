@@ -19,21 +19,21 @@
 
 source testbed.exp
 
-# Start Adam's peer
+say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
-set adam_id $spawn_id
-expect -i $adam_id "Welcome to Dscuss.\r\n"
-send -i $adam_id "login adam\r"
+expect "Welcome to Dscuss.\r\n"
+send "login adam\r"
 
-# List board
-send -i $adam_id "lsboard\r"
+say "Listing board"
+send "lsboard\r"
 expect {
-    -i $adam_id
     "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
     "ID: 5FL6URXZO9+Dlr7VRNJb8iLa/SJQT8nYiycrSbdbfhY=\r\n" { exp_continue }
     ">" {}
 }
 
-# Stop Adam's peers
-send -i $adam_id "exit\r"
-expect -i $adam_id eof pass
+say "Stopping Adam's peer"
+send "exit\r"
+expect eof
+wait
+pass
