@@ -84,6 +84,11 @@ expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
     fail
 }
+expect {
+    -timeout 1
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    timeout {}
+}
 expect ">"
 
 say "Checking whether Cain has applied the operation"
@@ -105,6 +110,11 @@ if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
     fail
+}
+expect {
+    -timeout 1
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    timeout {}
 }
 expect ">"
 

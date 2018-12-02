@@ -67,6 +67,7 @@ say "Make sure that Adam has not received the new message"
 set spawn_id $adam_id
 send "lsboard\r"
 expect {
+    -timeout 1
     "This thread was created by autotest.\r\n" { fail }
     timeout {}
 }

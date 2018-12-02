@@ -36,14 +36,29 @@ expect "> "
 
 say "Listing the thread"
 send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
-expect {
-    "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
-    "ID: JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=\r\n" { exp_continue }
-    "ID: 4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=\r\n" { exp_continue }
-    "ID: qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=\r\n" { exp_continue }
-    "ID: /NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=\r\n" { exp_continue }
-    ">" {}
+expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
+    fail
 }
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
+    fail
+}
+expect {
+    -timeout 1
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    timeout {}
+}
+expect ">"
 
 say "Stopping Adam's peers"
 send "exit\r"

@@ -26,11 +26,20 @@ send "login adam\r"
 
 say "Listing board"
 send "lsboard\r"
-expect {
-    "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
-    "ID: 5FL6URXZO9+Dlr7VRNJb8iLa/SJQT8nYiycrSbdbfhY=\r\n" { exp_continue }
-    ">" {}
+expect -re "ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=" } {
+    fail
 }
+expect -re "ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "5FL6URXZO9+Dlr7VRNJb8iLa/SJQT8nYiycrSbdbfhY=" } {
+    fail
+}
+expect {
+    -timeout 1
+    -re "ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    timeout {}
+}
+expect ">"
 
 say "Stopping Adam's peer"
 send "exit\r"

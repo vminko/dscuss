@@ -49,6 +49,11 @@ expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
     fail
 }
+expect {
+    -timeout 1
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    timeout {}
+}
 expect ">"
 
 say "Stopping Adam's peers"
