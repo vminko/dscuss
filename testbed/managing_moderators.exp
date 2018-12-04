@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: a newly created reply will be delivered to the peers,
-# which are interested in the topic of the thread.
+# Test assertion: changes in the owner's list of moderators get immediately
+# applies to the owner's view.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -24,8 +24,10 @@ say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
 set adam_id $spawn_id
 expect "> "
-send "login adam\r"
+send  "login adam\r"
 expect "> "
+send "whoami\r"
+expect -re "adam (.*)\r\n"
 
 say "Starting Eve's peer"
 spawn ../main -config "$tmp_dir/2"
@@ -33,55 +35,88 @@ set eve_id $spawn_id
 expect "> "
 send "login eve\r"
 expect "> "
+send "whoami\r"
+expect -re "eve (.*)\r\n"
 
 say "Giving peers some time to perform handshaking"
 sleep $timeout
 
-say "Posting new thread"
+say "Banning Cain"
 set spawn_id $eve_id
-send "mkreply 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r"
-expect "Enter reply subject: "
-send "This reply was created by autotest.\r"
-expect "Enter message text and end with 'DSC':"
-send "Autotest created this message\ron behalf of Eve.\rDSC\n"
-expect -re "Reply '.*' created successfully.\r\n"
+send "ban HVT9mbHNYLs6R7PgIeAOa6PQIvufaWOJpyi434670Ts= SPAM\r"
+expect "Enter optional comment: "
+send "Testing ban-user operation\r"
+expect "> "
 
-say "Giving the message some time to propagate"
+say "Giving the operation some time to propagate"
 sleep $timeout
 
-say "Checking whether Adam has received the reply"
+say "Checking initial Adam's list of moderators and his view"
 set spawn_id $adam_id
+send "lsmdr\r"
+expect "#0 adam (cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz+gRo1tM=)\r\n"
+expect {
+    -re "#\\d+ \\w+ \\(.*\\)\r\n" { fail }
+    ">"
+}
+
 send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
 expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
-    say "DebugO"
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=" } {
-    say "Debuga"
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "feVXBgKXr+p+33sGQDMxU1Bg5Z3WbemSbvN7j9KV7Po=" } {
-    say "Debug0"
     fail
 }
-expect -re "\\s+?Subject: This reply was created by autotest.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
-    say "Debug1"
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
-    say "Debug2"
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
 if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
-    say "Debug3"
+    fail
+}
+expect {
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    ">"
+}
+
+say "Making Eve a moderator"
+send "mkmdr rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA=\r"
+expect "> "
+
+say "Checking updates Adam's list of moderators"
+send "lsmdr\r"
+expect "#0 eve (rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA=)\r\n"
+expect "#1 adam (cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz+gRo1tM=)\r\n"
+expect {
+    -re "#\\d+ \\w+ \\(.*\\)\r\n" { fail }
+    ">"
+}
+
+say "Checking whether Adam has applied the Eve's operation"
+send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
+expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
     fail
 }
 expect {

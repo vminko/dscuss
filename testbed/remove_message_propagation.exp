@@ -20,7 +20,7 @@
 
 source testbed.exp
 
-say "Starting Adam's"
+say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
 set adam_id $spawn_id
 expect "> "
@@ -51,7 +51,7 @@ expect -re "cain (.*)\r\n"
 send "mkmdr cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz+gRo1tM=\r"
 expect "> "
 
-say "Give peers some time to perform handshaking"
+say "Giving peers some time to perform handshaking"
 sleep $timeout
 
 say "Removing message 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI"
@@ -61,7 +61,7 @@ expect "Enter optional comment: "
 send "Testing remove-message operation\r"
 expect "> "
 
-say "Give the operation some time to propagate"
+say "Giving the operation some time to propagate"
 sleep $timeout
 
 say "Checking whether Eve has applied the operation"
@@ -85,11 +85,9 @@ if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
     fail
 }
 expect {
-    -timeout 1
     -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
-    timeout {}
+    ">"
 }
-expect ">"
 
 say "Checking whether Cain has applied the operation"
 set spawn_id $cain_id
@@ -112,11 +110,9 @@ if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
     fail
 }
 expect {
-    -timeout 1
     -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
-    timeout {}
+    ">"
 }
-expect ">"
 
 say "Stopping all peers"
 set spawn_id $adam_id

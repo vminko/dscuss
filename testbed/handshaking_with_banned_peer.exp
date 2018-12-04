@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: peers A and B can establish direct connection if peer A has
-# not banned peer B and vice versa.
+# Test assertion: if peer B is banned by peer A, then handshaking between peers A
+# and B will fail.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -23,29 +23,47 @@ source testbed.exp
 say "Starting Adam's peer"
 spawn ../main -config "$tmp_dir/1"
 set adam_id $spawn_id
-expect "Welcome to Dscuss.\r\n"
-send "login adam\r"
+expect "> "
+send  "login adam\r"
+expect "> "
 send "whoami\r"
 expect -re "adam (.*)\r\n"
+
+say "Banning Eve"
+send "ban rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA= SPAM\r"
+expect "Enter optional comment: "
+send "Testing handshaking with banned peers\r"
+expect "> "
 
 say "Starting Eve's peer"
 spawn ../main -config "$tmp_dir/2"
 set eve_id $spawn_id
-expect "Welcome to Dscuss.\r\n"
+expect "> "
 send "login eve\r"
+expect "> "
 send "whoami\r"
 expect -re "eve (.*)\r\n"
 
 say "Giving peers some time to perform handshaking"
 sleep $timeout
 
-say "Checking whether peers see each other"
+say "Checking whether Adam and Eve have handshaked"
 set spawn_id $adam_id
 send "lspeers\r"
-expect -re "eve-.* is Idle\r\n"
+expect {
+    "There are no peers connected" {}
+    -re "There is one connected peer.*is Handshaking.*" {}
+    -re "There are two connected peers.*is Handshaking.*is Handshaking.*" {}
+    -re "eve-.* is Idle\r\n" { fail }
+}
 set spawn_id $eve_id
 send "lspeers\r"
-expect -re "adam-.* is Idle\r\n" 
+expect {
+    "There are no peers connected" {}
+    -re "There is one connected peer.*is Handshaking.*" {}
+    -re "There are two connected peers.*is Handshaking.*is Handshaking.*" {}
+    -re "adam-.* is Idle\r\n" { fail }
+}
 
 say "Stopping all peers"
 set spawn_id $adam_id

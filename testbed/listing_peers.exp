@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: peers A and B can establish direct connection if peer A has
-# not banned peer B and vice versa.
+# Test assertion: full peer listing contains valid information about remote
+# peers.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -41,11 +41,33 @@ sleep $timeout
 
 say "Checking whether peers see each other"
 set spawn_id $adam_id
-send "lspeers\r"
-expect -re "eve-.* is Idle\r\n"
+send "lspeers full\r"
+expect "There is one connected peer:\r\n"
+expect "PEER #0\r\n"
+expect -re "Nickname:\\s+eve\r\n"
+expect -re "ID:\\s+rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA=\r\n"
+expect -re "LocalAddr:\\s+127.0.0.1:\\d+\r\n"
+expect -re "RemoteAddr:\\s+127.0.0.1:\\d+\r\n"
+expect -re "AssociatedAddrs:\\s+127.0.0.1:\\d+,127.0.0.1:\\d+\r\n"
+expect -re "Subscriptions:\\s+dscuss,devel\r\n"
+expect -re "\\s+photography,portrait\r\n"
+expect -re "\\s+vintage,computer\r\n"
+expect -re "State:\\s+Idle\r\n"
+expect ">"
 set spawn_id $eve_id
-send "lspeers\r"
-expect -re "adam-.* is Idle\r\n" 
+send "lspeers full\r"
+expect "There is one connected peer:\r\n"
+expect "PEER #0\r\n"
+expect -re "Nickname:\\s+adam\r\n"
+expect -re "ID:\\s+cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz\\+gRo1tM=\r\n"
+expect -re "LocalAddr:\\s+127.0.0.1:\\d+\r\n"
+expect -re "RemoteAddr:\\s+127.0.0.1:\\d+\r\n"
+expect -re "AssociatedAddrs:\\s+127.0.0.1:\\d+,127.0.0.1:\\d+\r\n"
+expect -re "Subscriptions:\\s+dscuss,devel\r\n"
+expect -re "\\s+photography,landscape\r\n"
+expect -re "\\s+vintage,handheld,computer\r\n"
+expect -re "State:\\s+Idle\r\n"
+expect ">"
 
 say "Stopping all peers"
 set spawn_id $adam_id

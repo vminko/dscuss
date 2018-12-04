@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: author of a remove-message operation will no longer see
-# the removed message and all replies to it.
+# Test assertion: a remove-message operation performed on a message will appear
+# in the listing of operations on this message.
 #
 # This file is part of Dscuss.
 # Copyright (C) 2018  Vitaly Minko
@@ -31,32 +31,16 @@ expect -re "adam (.*)\r\n"
 say "Removing the reply"
 send "rmmsg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI= SPAM\r"
 expect "Enter optional comment: "
-send "Testing remove-message operation\r"
+send "Message was removed to test listing of operations\r"
 expect "> " 
 
 say "Listing the thread"
-send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
-expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
-expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
-    fail
-}
-expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
-    fail
-}
-expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
-    fail
-}
-expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
-    fail
-}
-expect {
-    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
-    ">"
-}
+send "lsop msg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r"
+
+expect "Type: RemoveMessage\r\n"
+expect "Reason: SPAM\r\n"
+expect "Comment: Message was removed to test listing of operations\r\n"
+expect ">"
 
 say "Stopping Adam's peers"
 send "exit\r"

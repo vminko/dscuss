@@ -35,11 +35,9 @@ if { $expect_out(1,string) != "5FL6URXZO9+Dlr7VRNJb8iLa/SJQT8nYiycrSbdbfhY=" } {
     fail
 }
 expect {
-    -timeout 1
     -re "ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
-    timeout {}
+    ">"
 }
-expect ">"
 
 say "Stopping Adam's peer"
 send "exit\r"
