@@ -5,7 +5,7 @@
 #
 # Copyright (c) 2018 Vitaly Minko <vitaly.minko@gmail.com>
 
-EXCLUDED_DIRS="docs utils"
+EXCLUDED_DIRS="docs utils testbed"
 STATIC_DIR="$GOPATH/src/golang.org/x/tools/godoc/static/"
 
 die() {
@@ -38,16 +38,17 @@ generate_htmls() {
     done
 
     # Replace target URI
-    find ${target_dir} -name index.html -exec \
-        sed -i "s|/lib/godoc/|${target_uri}${target_dir}/|" {} \; || \
-        die "failed to replace target URI in a static"
+    find ${target_dir} -name index.html \
+	    -exec sed -i "s|/lib/godoc/|${target_uri}${target_dir}/|g" {} \; \
+	    -exec sed -i "s|/pkg/${package}/|${target_uri}${target_dir}/|g" {} \; || \
+          die "failed to replace target URI in a static"
 }
 
 copy_statics() {
     local target_dir=$1
     local target_uri=$2
     local statics=`grep "${target_uri}${target_dir}" ${target_dir}/index.html | \
-                   sed -n "s|.*${target_uri}${target_dir}\(.*\)\".*|\1|p"`
+                   sed -n "s|.*${target_uri}${target_dir}/\([^#\/]\+\)\".*|\1|p"`
     for static in  ${statics}; do
         cp ${STATIC_DIR}${static} ${target_dir} || die "failed to copy a static"
     done
@@ -57,7 +58,7 @@ if [ $# -ne 3 ]
 then
     cat >&2 << EOF
 Usage:
-    $0 <package> <target_dir> <host_prefix>
+    $0 <package> <target_dir> <target_uri>
 where,
     <package> is the root package to generate documentation for.
     <target_dir> is the directory to put the result in.
