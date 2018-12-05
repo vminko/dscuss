@@ -1,0 +1,46 @@
+Title:      Running autotests
+Summary:    Description of the Dscuss testbed and manual for launching
+            autotests.
+Copyright:  (c) 2018 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       05 Dec 2018
+Web:        http://vminko.org/dscuss/autotesting
+
+
+The testbed
+-----------
+
+Dscuss testbed is located in the `testbed` directory. It contains the autotests
+and the test data. The test data is stored in the `data` directory and contains
+prepared data (config files, entity and profile databases) for three test peers:
+Adam, Eve and Cain.
+
+The autotests are written in Expect (a Tcl-based toolkit for automating
+interactive applications) using the Dscuss CLI. In order to add new test cases
+or modify existing ones, you have to be familiar with the toolkit. The manpage
+of Expect can be found [here][man]. More information on Expect is available
+[here][more]. 
+
+[man]: https://www.tcl.tk/man/expect5.31/expect.1.html
+[more]: https://core.tcl.tk/expect/index
+
+
+How to run the autotests
+------------------------
+
+In order to run one particular test scenario, just run the corresponding expect
+script from the testbed directory. For example:
+
+    cd testbed
+    ./handshaking.exp
+
+The test result will appear at the very end of the output:
+
+    *** TEST PASSED ***
+
+To run all autotests and stop if one of them fails, do the following:
+
+    cd testbed
+    run-parts . --exit-on-error
+
