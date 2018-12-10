@@ -3,7 +3,7 @@ Summary:    This article describes the Dscuss protocol.
 Copyright:  (c) 2015-2018 Vitaly Minko
             Content is available under GNU Free Documentation License 1.3 and
             Creative Commons Attribution-Share Alike 3.0 Unported License
-Date:       01 Oct 2018
+Date:       10 Dec 2018
 Web:        http://vminko.org/dscuss/protocol
 
 
@@ -97,6 +97,10 @@ __Advertising operation__ :
 ![Flowchart][advopr]  
 View in [full][advopr] resolution.
 
+__Peer synchronization__ :  
+![Flowchart][sync]  
+View in [full][sync] resolution.
+
 
 [hnds]: /storage/dscuss/illustrations/handshaking.png
 [pub]: /storage/dscuss/illustrations/publishing.png
@@ -108,3 +112,4 @@ View in [full][advopr] resolution.
 [advusr]: /storage/dscuss/illustrations/advertise_user.png
 [advmsg]: /storage/dscuss/illustrations/advertise_message.png
 [advopr]: /storage/dscuss/illustrations/advertise_oper.png
+[sync]: /storage/dscuss/illustrations/synchronization.png
