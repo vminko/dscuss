@@ -36,7 +36,7 @@ func NewModeratingVisitor(handler ModeratingHandler) *ModeratingVisitor {
 
 func (mv *ModeratingVisitor) Visit(n *Node) (*Node, error) {
 	if n == nil {
-		log.Fatal("Bug: attempt to moderate nil node")
+		log.Fatal("BUG: attempt to moderate nil node")
 	}
 	newMsg, err := mv.handler.Handle(n)
 	if err != nil {

@@ -48,16 +48,16 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 		}
 		perfErr = f()
 	}
-	if s.p.conn.IsIncoming() {
-		perfUnlessErr(s.readAndProcessUser)
+	if s.p.conn.IsActive() {
 		perfUnlessErr(s.sendUser)
-		perfUnlessErr(s.readAndProcessHello)
+		perfUnlessErr(s.readAndProcessUser)
 		perfUnlessErr(s.sendHello)
+		perfUnlessErr(s.readAndProcessHello)
 	} else {
-		perfUnlessErr(s.sendUser)
 		perfUnlessErr(s.readAndProcessUser)
-		perfUnlessErr(s.sendHello)
+		perfUnlessErr(s.sendUser)
 		perfUnlessErr(s.readAndProcessHello)
+		perfUnlessErr(s.sendHello)
 	}
 	perfUnlessErr(s.finalize)
 	if perfErr != nil {
@@ -169,23 +169,25 @@ func (s *StateHandshaking) readAndProcessHello() error {
 }
 
 func (s *StateHandshaking) finalize() error {
-	// storage.HasUser will be a bit faster in this case, but handshaking
-	// should happen rarely, so GetUser won't cause significant difference
-	// in performance.
-	_, err := s.p.owner.Storage.GetUser(s.u.ID())
-	if err == errors.NoSuchEntity {
+	has, err := s.p.owner.Storage.HasUser(s.u.ID())
+	if err != nil {
+		log.Fatalf("Unexpected error occurred while checking for user in the DB: %v", err)
+	}
+	if !has {
 		err = s.p.owner.Storage.PutEntity((entity.Entity)(s.u), s.p.outEntityChan)
 		if err != nil {
 			log.Fatalf("Failed to put user into the DB: %v", err)
 		}
-	} else if err != nil {
-		log.Fatalf("Unexpected error occurred while getting user from the DB: %v", err)
 	}
 	s.p.User = s.u
 	s.p.Subs = s.s
 	if !s.p.validator.ValidatePeer(s.p) {
 		log.Debugf("Peer validation failed")
 		return errors.InvalidPeer
+	}
+	s.p.synced, s.p.prevSubs, err = s.p.owner.Profile.GetUserHistory(s.u.ID())
+	if (err != nil) && (err != errors.NoUserHistory) {
+		log.Fatalf("Unexpected error occurred while checking for user in the DB: %v", err)
 	}
 	return nil
 }

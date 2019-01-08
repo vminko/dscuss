@@ -18,6 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -28,17 +29,20 @@ import (
 type StateSending struct {
 	p              *Peer
 	outgoingEntity entity.Entity
+	stored         time.Time
+	next           State
 }
 
-func newStateSending(p *Peer, e entity.Entity) *StateSending {
-	return &StateSending{p, e}
+func newStateSending(p *Peer, e entity.Entity, t time.Time, next State) *StateSending {
+	return &StateSending{p, e, t, next}
 }
 
 func (s *StateSending) perform() (nextState State, err error) {
 	log.Debugf("Peer %s is performing state %s", s.p, s.Name())
-	if !s.p.isInterestedInEntity(s.outgoingEntity) {
-		log.Debugf("Peer %s is not interested in '%s'", s.p, s.outgoingEntity)
-		return newStateIdle(s.p), nil
+	if !s.p.isInterestedInEntity(s.outgoingEntity, s.stored) {
+		log.Debugf("Peer %s is not interested in '%s' stored at '%s'",
+			s.p, s.outgoingEntity, s.stored.Format(time.RFC3339))
+		return s.next, nil
 	}
 	err = s.sendAnnounce(s.outgoingEntity.ID())
 	if err != nil {
@@ -68,7 +72,7 @@ func (s *StateSending) perform() (nextState State, err error) {
 		case packet.TypeAnnounce:
 			// Collision detected: both peers tried to send announce
 			// simultaneously.
-			return newStateIdle(s.p), nil
+			return s.next, nil
 		case packet.TypeAck:
 			if err != nil {
 				log.Errorf("Error processing ack from peer %s: %v", s.p, err)
@@ -85,7 +89,7 @@ func (s *StateSending) perform() (nextState State, err error) {
 			log.Fatal("BUG: packet type validation failed.")
 		}
 	}
-	return newStateIdle(s.p), nil
+	return s.next, nil
 }
 
 func (s *StateSending) sendAnnounce(id *entity.ID) error {

@@ -47,6 +47,11 @@ type UserContent struct {
 	RegDate  time.Time
 }
 
+type StoredUser struct {
+	U      *User
+	Stored time.Time
+}
+
 const (
 	nicknameRegex string = "^[a-zA-Z0-9_]+$"
 )

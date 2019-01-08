@@ -57,6 +57,8 @@ const (
 	TypeAck Type = "ack"
 	// Request for an entity.
 	TypeReq Type = "req"
+	// Done indicated that a complex process (like syncing) is over.
+	TypeDone Type = "done"
 )
 
 func New(t Type, rcv *entity.ID, pld interface{}, s *crypto.Signer) *Packet {
@@ -95,6 +97,8 @@ func (p *Packet) DecodePayload() (interface{}, error) {
 		pld = new(PayloadReq)
 	case TypeAck:
 		pld = new(PayloadAck)
+	case TypeDone:
+		pld = new(PayloadDone)
 	default:
 		log.Error("Unknown payload type: " + string(p.Body.Type))
 		return nil, errors.WrongPacketType

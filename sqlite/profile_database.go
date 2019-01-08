@@ -20,6 +20,7 @@ package sqlite
 import (
 	"database/sql"
 	"github.com/mattn/go-sqlite3"
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -51,11 +52,17 @@ func OpenProfileDatabase(fileName string) (*ProfileDatabase, error) {
 	exec("PRAGMA locking_mode=EXCLUSIVE")
 	exec("PRAGMA page_size=4092")
 	//exec("PRAGMA journal_mode=WAL")
-	exec("CREATE TABLE IF NOT EXISTS Moderator (" +
-		"  User_id         BLOB PRIMARY KEY)")
-	exec("CREATE TABLE IF NOT EXISTS Subscription (" +
-		"  Id              INTEGER PRIMARY KEY AUTOINCREMENT," +
-		"  Topic           TEXT NOT NULL UNIQUE)")
+	exec("CREATE TABLE IF NOT EXISTS Moderators (" +
+		"  User_id          BLOB PRIMARY KEY)")
+	exec("CREATE TABLE IF NOT EXISTS Subscriptions (" +
+		"  Id               INTEGER PRIMARY KEY AUTOINCREMENT," +
+		"  Topic            TEXT NOT NULL UNIQUE)")
+	exec("CREATE TABLE IF NOT EXISTS User_Histories (" +
+		"  Id               BLOB PRIMARY KEY," +
+		"  TimeDisconnected TIMESTAMP NOT NULL)")
+	exec("CREATE TABLE IF NOT EXISTS User_Subscriptions (" +
+		"  Peer_id          BLOB NOT NULL REFERENCES User_Histories ON UPDATE CASCADE," +
+		"  Topic            TEXT NOT NULL)")
 	// TBD: create indexes?
 	if execErr != nil {
 		log.Errorf("Unable to initialize the profile database: %s", execErr.Error())
@@ -65,8 +72,8 @@ func OpenProfileDatabase(fileName string) (*ProfileDatabase, error) {
 	return (*ProfileDatabase)(db), nil
 }
 
-func (s *ProfileDatabase) Close() error {
-	db := (*sql.DB)(s)
+func (pd *ProfileDatabase) Close() error {
+	db := (*sql.DB)(pd)
 	err := db.Close()
 	if err != nil {
 		log.Errorf("Unable to close the profile database: %v", err)
@@ -75,10 +82,10 @@ func (s *ProfileDatabase) Close() error {
 	return nil
 }
 
-func (s *ProfileDatabase) PutModerator(id *entity.ID) error {
+func (pd *ProfileDatabase) PutModerator(id *entity.ID) error {
 	log.Debugf("Adding moderator `%s' to the profile database", id.Shorten())
-	query := `INSERT INTO Moderator ( User_id ) VALUES (?)`
-	db := (*sql.DB)(s)
+	query := `INSERT INTO Moderators ( User_id ) VALUES (?)`
+	db := (*sql.DB)(pd)
 	_, err := db.Exec(query, id[:])
 	if err != nil {
 		sqliteErr, ok := err.(sqlite3.Error)
@@ -92,10 +99,10 @@ func (s *ProfileDatabase) PutModerator(id *entity.ID) error {
 	return nil
 }
 
-func (s *ProfileDatabase) RemoveModerator(id *entity.ID) error {
+func (pd *ProfileDatabase) RemoveModerator(id *entity.ID) error {
 	log.Debugf("Removing moderator `%s' from the profile database", id.Shorten())
-	query := `DELETE FROM Moderator WHERE User_ID=?`
-	db := (*sql.DB)(s)
+	query := `DELETE FROM Moderators WHERE User_ID=?`
+	db := (*sql.DB)(pd)
 	res, err := db.Exec(query, id[:])
 	if err != nil {
 		log.Errorf("Can't execute 'RemoveModerator' statement: %s", err.Error())
@@ -114,10 +121,10 @@ func (s *ProfileDatabase) RemoveModerator(id *entity.ID) error {
 	return nil
 }
 
-func (s *ProfileDatabase) GetModerators() ([]*entity.ID, error) {
+func (pd *ProfileDatabase) GetModerators() ([]*entity.ID, error) {
 	log.Debugf("Fetching moderators from the profile database")
-	query := `SELECT User_id FROM Moderator`
-	db := (*sql.DB)(s)
+	query := `SELECT User_id FROM Moderators`
+	db := (*sql.DB)(pd)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Errorf("Error fetching moderators from the profile database: %v", err)
@@ -135,7 +142,7 @@ func (s *ProfileDatabase) GetModerators() ([]*entity.ID, error) {
 
 		var id entity.ID
 		if id.ParseSlice(rawID) != nil {
-			log.Error("Can't parse an ID fetched from DB")
+			log.Error("Can't parse an ID fetched from the profile DB")
 			return nil, errors.Parsing
 		}
 		log.Debugf("Found moderator id %s", id.String())
@@ -149,10 +156,10 @@ func (s *ProfileDatabase) GetModerators() ([]*entity.ID, error) {
 	return res, nil
 }
 
-func (s *ProfileDatabase) PutSubscription(t subs.Topic) error {
+func (pd *ProfileDatabase) PutSubscription(t subs.Topic) error {
 	log.Debugf("Adding subscription `%s' to the profile database", t)
-	query := `INSERT INTO Subscription ( Topic ) VALUES (?)`
-	db := (*sql.DB)(s)
+	query := `INSERT INTO Subscriptions ( Topic ) VALUES (?)`
+	db := (*sql.DB)(pd)
 	_, err := db.Exec(query, t.String())
 	if err != nil {
 		sqliteErr, ok := err.(sqlite3.Error)
@@ -166,10 +173,10 @@ func (s *ProfileDatabase) PutSubscription(t subs.Topic) error {
 	return nil
 }
 
-func (s *ProfileDatabase) RemoveSubscription(t subs.Topic) error {
+func (pd *ProfileDatabase) RemoveSubscription(t subs.Topic) error {
 	log.Debugf("Removing subscription `%s' from the profile database", t)
-	query := `DELETE FROM Subscription WHERE Topic=?`
-	db := (*sql.DB)(s)
+	query := `DELETE FROM Subscriptions WHERE Topic=?`
+	db := (*sql.DB)(pd)
 	res, err := db.Exec(query, t.String())
 	if err != nil {
 		log.Errorf("Can't execute 'RemoveSubscription' statement: %s", err.Error())
@@ -188,10 +195,10 @@ func (s *ProfileDatabase) RemoveSubscription(t subs.Topic) error {
 	return nil
 }
 
-func (s *ProfileDatabase) GetSubscriptions() (subs.Subscriptions, error) {
+func (pd *ProfileDatabase) GetSubscriptions() (subs.Subscriptions, error) {
 	log.Debugf("Fetching subscriptions from the profile database")
-	query := `SELECT Topic FROM Subscription`
-	db := (*sql.DB)(s)
+	query := `SELECT Topic FROM Subscriptions`
+	db := (*sql.DB)(pd)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Errorf("Error fetching subscriptions from the profile database: %v", err)
@@ -209,7 +216,7 @@ func (s *ProfileDatabase) GetSubscriptions() (subs.Subscriptions, error) {
 
 		t, err := subs.NewTopic(tStr)
 		if err != nil {
-			log.Errorf("Can't parse a topic fetched from DB: %v", err)
+			log.Errorf("Can't parse a topic fetched from the profile DB: %v", err)
 			return nil, errors.Parsing
 		}
 		log.Debugf("Found subscription %s", tStr)
@@ -221,4 +228,98 @@ func (s *ProfileDatabase) GetSubscriptions() (subs.Subscriptions, error) {
 		return nil, errors.DBOperFailed
 	}
 	return res, nil
+}
+
+func (pd *ProfileDatabase) PutUserHistory(
+	id *entity.ID,
+	discon time.Time,
+	sub subs.Subscriptions,
+) error {
+	log.Debugf("Adding history of user `%s' to the profile database", id.Shorten())
+	query := `INSERT INTO User_Histories ( Id, TimeDisconnected ) VALUES (?)`
+	db := (*sql.DB)(pd)
+	_, err := db.Exec(query, id[:], discon)
+	if err != nil {
+		sqliteErr, ok := err.(sqlite3.Error)
+		if ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			log.Warningf("Attempt to duplicate a user history record: %s", err.Error())
+			return errors.DuplicationAttempt
+		}
+		log.Errorf("Can't execute 'PutUserHistory' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	for _, t := range sub {
+		err := pd.putUserSubscription(id, t)
+		if err != nil {
+			log.Errorf("The DB is corrupted. History for user %s is saved without topic %s",
+				id.Shorten(), t)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (pd *ProfileDatabase) putUserSubscription(id *entity.ID, t subs.Topic) error {
+	log.Debugf("Adding user subscription `%s' to the profile database", t)
+	query := `INSERT INTO User_Subscriptions (User_id, Topic) VALUES (? ,?)`
+	db := (*sql.DB)(pd)
+	_, err := db.Exec(query, id[:], t.String())
+	if err != nil {
+		sqliteErr, ok := err.(sqlite3.Error)
+		if ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			log.Warningf("Attempt to duplicate a subscription: %s", err.Error())
+			return errors.DuplicationAttempt
+		}
+		log.Errorf("Can't execute 'putUserSubscription' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	return nil
+}
+
+func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscriptions, error) {
+	log.Debugf("Fetching history of user '%s' from the profile database", id)
+
+	var timeDisc time.Time
+	var subsStr string
+	query := `
+	SELECT User_Histories.TimeDisconnected,
+	       GROUP_CONCAT(User_Subscriptions.Topic)
+	FROM User_Histories
+	LEFT JOIN User_Subscriptions on User_Histories.Id=User_Subscriptions.User_id
+	WHERE User_Histories.Id=?
+	GROUP BY User_Histories.Id
+	`
+	db := (*sql.DB)(pd)
+	err := db.QueryRow(query, id[:]).Scan(&timeDisc, &subsStr)
+	switch {
+	case err == sql.ErrNoRows:
+		log.Debug("No history for that user.")
+		return time.Time{}, nil, errors.NoUserHistory
+	case err != nil:
+		log.Errorf("Error fetching user history from the peer database: %v", err)
+		return time.Time{}, nil, errors.DBOperFailed
+	default:
+		log.Debug("User history found successfully")
+	}
+
+	s, err := subs.ReadString(subsStr)
+	if err != nil {
+		log.Errorf("The subscriptions '%s' fetched from DB are invalid", subsStr)
+		return time.Time{}, nil, errors.InconsistentDB
+	}
+
+	return timeDisc, s, nil
+}
+
+func (pd *ProfileDatabase) RemoveUserHistory(id *entity.ID) error {
+	log.Debugf("Removing history for `%s' from the peer database", id.Shorten())
+	query := `DELETE FROM User_Histories WHERE Id=?`
+	db := (*sql.DB)(pd)
+	_, err := db.Exec(query, id[:])
+	if err != nil {
+		log.Errorf("Can't execute 'RemoveUserHistory' statement: %s", err.Error())
+		return errors.DBOperFailed
+	}
+	return nil
 }

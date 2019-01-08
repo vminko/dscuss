@@ -50,6 +50,11 @@ type MessageContent struct {
 	Topic       subs.Topic
 }
 
+type StoredMessage struct {
+	M      *Message
+	Stored time.Time
+}
+
 // EmergeMessage creates a new message. It should be called when owner wants to
 // post a new message. Signature will be created using the provided signer.
 func EmergeMessage(
@@ -127,11 +132,11 @@ func (um *UnsignedMessage) isValid() bool {
 		log.Debugf("Message %s has empty subject or text", um)
 		return false
 	}
-	if um.Topic == nil && um.ParentID == ZeroID {
+	if um.Topic == nil && um.ParentID.IsZero() {
 		log.Debugf("Message %s is a thread with nil topic", um)
 		return false
 	}
-	if um.Topic != nil && um.ParentID != ZeroID {
+	if um.Topic != nil && !um.ParentID.IsZero() {
 		log.Debugf("Message %s is a reply with non-nil topic", um)
 		return false
 	}
@@ -159,7 +164,7 @@ func (m *Message) IsValid(pubKey *crypto.PublicKey) bool {
 }
 
 func (m *Message) IsReply() bool {
-	return m.ParentID != ZeroID
+	return !m.ParentID.IsZero()
 }
 
 func newMessageContent(

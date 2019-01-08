@@ -35,66 +35,11 @@ type StateReceiving struct {
 	initialPacket   *packet.Packet
 	pendingEntities []entity.Entity
 	requestedEntity *entity.ID
+	next            State
 }
 
-func newStateReceiving(p *Peer, pckt *packet.Packet) *StateReceiving {
-	return &StateReceiving{p, pckt, nil, nil}
-}
-
-func (s *StateReceiving) banUser(id *entity.ID, comment string) {
-	o, err := entity.EmergeOperation(
-		entity.OperationTypeBanUser,
-		entity.OperationReasonProtocolViolation,
-		comment,
-		s.p.owner.User.ID(),
-		id,
-		s.p.owner.Signer,
-	)
-	if err != nil {
-		log.Fatalf("Failed to create a new operation: %v", err)
-	}
-	err = s.p.owner.Storage.PutEntity(o, nil)
-	if err != nil {
-		//
-		log.Errorf("Failed to put entity %s in storage: %v", o, err)
-	}
-}
-
-func (s *StateReceiving) getPendingEntity(id *entity.ID) entity.Entity {
-	for _, e := range s.pendingEntities {
-		if *e.ID() == *id {
-			return e
-		}
-	}
-	return nil
-}
-
-func (s *StateReceiving) getPendingUser(id *entity.ID) *entity.User {
-	e := s.getPendingEntity(id)
-	if e == nil {
-		return nil
-	}
-	u, ok := (e).(*entity.User)
-	if !ok {
-		log.Warningf("Found entity with requested ID %s, but it's not a user (%T)",
-			id.Shorten(), e)
-		return nil
-	}
-	return u
-}
-
-func (s *StateReceiving) getPendingMessage(id *entity.ID) *entity.Message {
-	e := s.getPendingEntity(id)
-	if e == nil {
-		return nil
-	}
-	m, ok := (e).(*entity.Message)
-	if !ok {
-		log.Warningf("Found entity with requested ID %s, but it's not a message (%T)",
-			id.Shorten(), e)
-		return nil
-	}
-	return m
+func newStateReceiving(p *Peer, pckt *packet.Packet, next State) *StateReceiving {
+	return &StateReceiving{p, pckt, nil, nil, next}
 }
 
 func (s *StateReceiving) perform() (nextState State, err error) {
@@ -165,7 +110,63 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 		log.Errorf("Failed to send ack for %s: %v", a.ID.Shorten(), err)
 		return nil, err
 	}
-	return newStateIdle(s.p), nil
+	return s.next, nil
+}
+
+func (s *StateReceiving) banUser(id *entity.ID, comment string) {
+	o, err := entity.EmergeOperation(
+		entity.OperationTypeBanUser,
+		entity.OperationReasonProtocolViolation,
+		comment,
+		s.p.owner.User.ID(),
+		id,
+		s.p.owner.Signer,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create a new operation: %v", err)
+	}
+	err = s.p.owner.Storage.PutEntity(o, nil)
+	if err != nil {
+		//
+		log.Errorf("Failed to put entity %s into the storage: %v", o, err)
+	}
+}
+
+func (s *StateReceiving) getPendingEntity(id *entity.ID) entity.Entity {
+	for _, e := range s.pendingEntities {
+		if *e.ID() == *id {
+			return e
+		}
+	}
+	return nil
+}
+
+func (s *StateReceiving) getPendingUser(id *entity.ID) *entity.User {
+	e := s.getPendingEntity(id)
+	if e == nil {
+		return nil
+	}
+	u, ok := (e).(*entity.User)
+	if !ok {
+		log.Warningf("Found entity with requested ID %s, but it's not a user (%T)",
+			id.Shorten(), e)
+		return nil
+	}
+	return u
+}
+
+func (s *StateReceiving) getPendingMessage(id *entity.ID) *entity.Message {
+	e := s.getPendingEntity(id)
+	if e == nil {
+		return nil
+	}
+	m, ok := (e).(*entity.Message)
+	if !ok {
+		log.Warningf("Found entity with requested ID %s, but it's not a message (%T)",
+			id.Shorten(), e)
+		return nil
+	}
+	return m
 }
 
 func (s *StateReceiving) sendReq(id *entity.ID) error {
@@ -324,7 +325,7 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 		return &banSenderError{comment}
 	}
 	// TBD: check rate of messages posted by u
-	if m.ParentID == entity.ZeroID {
+	if m.ParentID.IsZero() {
 		if !s.p.owner.Profile.GetSubscriptions().Covers(m.Topic) {
 			log.Infof("Peer %s sent unsolicited Message entity", s.p)
 			return &banSenderError{"peer sent unsolicited message " + m.ID().Shorten()}

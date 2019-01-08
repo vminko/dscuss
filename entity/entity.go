@@ -95,3 +95,7 @@ func (i *ID) Shorten() string {
 	idStr := i.String()
 	return dstrings.Truncate(idStr, 8)
 }
+
+func (i *ID) IsZero() bool {
+	return *i == ZeroID
+}

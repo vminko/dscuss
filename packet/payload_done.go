@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2018  Vitaly Minko
+Copyright (C) 2019  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -14,23 +14,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+package packet
 
-package peer
+// PayloadAck is used as an acknowledgment for an announcement.
+type PayloadDone struct {
+}
 
-type StateID int
-
-const (
-	StateIDHandshaking StateID = iota
-	StateIDIdle
-	StateIDSending
-	StateIDReceiving
-	StateIDActiveSyncing
-	StateIDPassiveSyncing
-)
-
-// State isolates peer from implementation of particular state protocol.
-type State interface {
-	perform() (nextState State, err error)
-	ID() StateID
-	Name() string
+func NewPayloadDone() *PayloadDone {
+	return &PayloadDone{}
 }

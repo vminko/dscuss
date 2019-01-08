@@ -124,7 +124,7 @@ type ThreadModerator struct {
 func (tm *ThreadModerator) Handle(n *thread.Node) (*entity.Message, error) {
 	m := n.Msg
 	if m == nil {
-		log.Fatal("Bug: thread node with nil message")
+		log.Fatal("BUG: thread node with nil message")
 	}
 	mm, err := tm.v.ModerateMessage(m)
 	if err != nil {

@@ -38,6 +38,8 @@ var (
 	NoSuchUser          = errors.New("can't find specified user")
 	NoSuchModerator     = errors.New("can't find specified moderator")
 	AlreadyModerator    = errors.New("specified user is already a moderator")
+	DuplicationAttempt  = errors.New("attempt to duplicate data in the database")
+	NoUserHistory       = errors.New("can't find history record for specified user")
 	WrongPacketType     = errors.New("wrong packet type")
 	MalformedPayload    = errors.New("payload of the packet is malformed")
 	ProtocolViolation   = errors.New("protocol violation detected")

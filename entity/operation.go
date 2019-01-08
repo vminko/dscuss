@@ -79,6 +79,11 @@ type OperationContent struct {
 	DatePerformed time.Time
 }
 
+type StoredOperation struct {
+	O      *Operation
+	Stored time.Time
+}
+
 func (ot OperationType) String() string {
 	switch ot {
 	case OperationTypeRemoveMessage:
@@ -165,11 +170,11 @@ func (uo *UnsignedOperation) isValid() bool {
 		log.Debugf("Operation %s has invalid reason %d", uo, uo.Reason)
 		return false
 	}
-	if uo.AuthorID == ZeroID {
+	if uo.AuthorID.IsZero() {
 		log.Debugf("Operation %s has empty author", uo, uo.AuthorID)
 		return false
 	}
-	if uo.ObjectID == ZeroID {
+	if uo.ObjectID.IsZero() {
 		log.Debugf("Operation %s has empty objectr", uo, uo.ObjectID)
 		return false
 	}

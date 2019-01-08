@@ -60,6 +60,16 @@ func (s Subscriptions) Covers(target Topic) bool {
 	return false
 }
 
+func (s Subscriptions) Diff(a Subscriptions) Subscriptions {
+	var res Subscriptions
+	for _, t := range s {
+		if !a.Covers(t) {
+			res = res.AddTopic(t.Copy())
+		}
+	}
+	return res
+}
+
 func (s Subscriptions) IsValid() bool {
 	if s == nil || len(s) == 0 {
 		return false

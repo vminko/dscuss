@@ -1,6 +1,6 @@
 /*
 This file is part of Dscuss.
-Copyright (C) 2018  Vitaly Minko
+Copyright (C) 2018-2019  Vitaly Minko
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ package storage
 
 import (
 	"sync"
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -173,15 +174,23 @@ func (s *Storage) GetEntity(eid *entity.ID) (entity.Entity, error) {
 	return nil, err
 }
 
+func (s *Storage) GetMessagesStoredAfter(ts time.Time, limit int) ([]*entity.StoredMessage, error) {
+	return s.db.GetMessagesStoredAfter(ts, limit)
+}
+
+func (s *Storage) GetOperationsStoredAfter(ts time.Time, limit int) ([]*entity.StoredOperation, error) {
+	return s.db.GetOperationsStoredAfter(ts, limit)
+}
+
 func (s *Storage) PutEntity(ent entity.Entity, sender chan<- entity.Entity) error {
 	var err error
 	switch e := ent.(type) {
 	case *entity.User:
-		err = s.db.PutUser(e)
+		err = s.db.PutUser(e, time.Now())
 	case *entity.Message:
-		err = s.db.PutMessage(e)
+		err = s.db.PutMessage(e, time.Now())
 	case *entity.Operation:
-		err = s.db.PutOperation(e)
+		err = s.db.PutOperation(e, time.Now())
 	default:
 		log.Fatalf("BUG: unknown entity type %T.", ent)
 	}

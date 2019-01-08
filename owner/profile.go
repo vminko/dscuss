@@ -19,6 +19,7 @@ package owner
 
 import (
 	"sync"
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -121,4 +122,20 @@ func (p *Profile) GetSubscriptions() subs.Subscriptions {
 		}
 	}
 	return p.subs.Copy()
+}
+
+func (p *Profile) PutUserHistory(id *entity.ID, discon time.Time, sub subs.Subscriptions) error {
+	err := p.db.RemoveUserHistory(id)
+	if err != nil {
+		return err
+	}
+	return p.db.PutUserHistory(id, discon, sub)
+}
+
+func (p *Profile) GetUserHistory(id *entity.ID) (time.Time, subs.Subscriptions, error) {
+	return p.db.GetUserHistory(id)
+}
+
+func (p *Profile) RemoveUserHistory(id *entity.ID) error {
+	return p.db.RemoveUserHistory(id)
 }

@@ -20,6 +20,7 @@ package peer
 import (
 	"fmt"
 	"sync"
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -45,6 +46,8 @@ type Peer struct {
 	State         State
 	User          *entity.User
 	Subs          subs.Subscriptions
+	prevSubs      subs.Subscriptions
+	synced        time.Time
 }
 
 // Info is a static Peer description for UI.
@@ -101,6 +104,8 @@ func New(
 
 func (p *Peer) Close() {
 	log.Debugf("Close requested for peer %s", p)
+	// TBD if IsSynchronized
+	p.owner.Profile.PutUserHistory(p.User.ID(), time.Now(), p.Subs)
 	p.owner.Storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
 	p.wg.Wait()
@@ -123,6 +128,7 @@ func (p *Peer) run() {
 		nextState, err := p.State.perform()
 		if err != nil {
 			if err == errors.ClosedConnection {
+				// Peer was deliberately stopped by PeerPool
 				log.Debugf("Connection of peer %s was closed", p)
 			} else {
 				log.Errorf("Error performing '%s' state: %v", p.State.Name(), err)
@@ -163,7 +169,7 @@ func (p *Peer) ShortID() string {
 	return shortID
 }
 
-func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
+func (p *Peer) isInterestedInMessage(s subs.Subscriptions, m *entity.Message) bool {
 	var t subs.Topic
 	if m.IsReply() {
 		r, err := p.owner.Storage.GetRoot(m)
@@ -175,13 +181,20 @@ func (p *Peer) isInterestedInMessage(m *entity.Message) bool {
 	} else {
 		t = m.Topic
 	}
-	return p.Subs.Covers(t)
+	return s.Covers(t)
 }
 
-func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
+func (p *Peer) isInterestedInEntity(ent entity.Entity, stored time.Time) bool {
+	subs := p.Subs
+	if stored.Before(p.synced) {
+		subs = p.Subs.Diff(p.prevSubs)
+	}
+	if subs == nil {
+		return false
+	}
 	switch e := ent.(type) {
 	case *entity.Message:
-		return p.isInterestedInMessage(e)
+		return p.isInterestedInMessage(subs, e)
 	case *entity.Operation:
 		if e.OperationType() == entity.OperationTypeBanUser {
 			return true
@@ -191,11 +204,11 @@ func (p *Peer) isInterestedInEntity(ent entity.Entity) bool {
 			log.Fatalf("Got an error while fetching msg %s from DB: %v",
 				e.ObjectID.Shorten(), err)
 		}
-		return p.isInterestedInMessage(m)
+		return p.isInterestedInMessage(subs, m)
 	case *entity.User:
 		return false
 	default:
-		log.Fatal("BUG: unknown entity type")
+		log.Fatalf("BUG: unknown entity type: %T", ent)
 	}
 	return false
 }

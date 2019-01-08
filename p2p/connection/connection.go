@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	Timeout time.Duration = 1 * time.Second
+	DefaultTimeout time.Duration = 1 * time.Second
 )
 
 // Connection is responsible for transferring packets via the network.
@@ -59,8 +59,8 @@ func fixErrClosedConnection(err error) error {
 	return err
 }
 
-func (c *Connection) Read() (*packet.Packet, error) {
-	c.conn.SetDeadline(time.Now().Add(Timeout))
+func (c *Connection) ReadFull(timeout time.Duration) (*packet.Packet, error) {
+	c.conn.SetDeadline(time.Now().Add(timeout))
 	d := json.NewDecoder(c.conn)
 	var p packet.Packet
 	err := d.Decode(&p)
@@ -71,11 +71,19 @@ func (c *Connection) Read() (*packet.Packet, error) {
 	return &p, nil
 }
 
-func (c *Connection) Write(p *packet.Packet) error {
+func (c *Connection) Read() (*packet.Packet, error) {
+	return c.ReadFull(DefaultTimeout)
+}
+
+func (c *Connection) WriteFull(p *packet.Packet, timeout time.Duration) error {
 	log.Debugf("Sending this packet to %s: %s", c.RemoteAddr(), p.Dump())
-	c.conn.SetDeadline(time.Now().Add(Timeout))
+	c.conn.SetDeadline(time.Now().Add(timeout))
 	e := json.NewEncoder(c.conn)
 	return fixErrClosedConnection(e.Encode(p))
+}
+
+func (c *Connection) Write(p *packet.Packet) error {
+	return c.WriteFull(p, DefaultTimeout)
 }
 
 func (c *Connection) RemoteAddr() string {
@@ -116,6 +124,10 @@ func (c *Connection) RegisterCloseHandler(f func(*Connection)) {
 
 func (c *Connection) IsIncoming() bool {
 	return c.isIncoming
+}
+
+func (c *Connection) IsActive() bool {
+	return !c.isIncoming
 }
 
 func (c *Connection) String() string {
