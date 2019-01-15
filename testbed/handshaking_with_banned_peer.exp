@@ -30,7 +30,7 @@ send "whoami\r"
 expect -re "adam (.*)\r\n"
 
 say "Banning Eve"
-send "ban rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA= SPAM\r"
+send "ban jNhpT2bYG/YQR3Dejo69mREhcXVWt0jnx1fE8r1ql7E= SPAM\r"
 expect "Enter optional comment: "
 send "Testing handshaking with banned peers\r"
 expect "> "

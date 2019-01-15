@@ -29,13 +29,13 @@ send "whoami\r"
 expect -re "adam (.*)\r\n"
 
 say "Removing the reply"
-send "rmmsg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI= SPAM\r"
+send "rmmsg KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A= SPAM\r"
 expect "Enter optional comment: "
 send "Message was removed to test listing of operations\r"
 expect "> " 
 
 say "Listing the thread"
-send "lsop msg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI=\r"
+send "lsop msg KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A=\r"
 
 expect "Type: RemoveMessage\r\n"
 expect "Reason: SPAM\r\n"

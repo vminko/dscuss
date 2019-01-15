@@ -58,10 +58,10 @@ func OpenProfileDatabase(fileName string) (*ProfileDatabase, error) {
 		"  Id               INTEGER PRIMARY KEY AUTOINCREMENT," +
 		"  Topic            TEXT NOT NULL UNIQUE)")
 	exec("CREATE TABLE IF NOT EXISTS User_Histories (" +
-		"  Id               BLOB PRIMARY KEY," +
+		"  User_id          BLOB PRIMARY KEY," +
 		"  TimeDisconnected TIMESTAMP NOT NULL)")
 	exec("CREATE TABLE IF NOT EXISTS User_Subscriptions (" +
-		"  Peer_id          BLOB NOT NULL REFERENCES User_Histories ON UPDATE CASCADE," +
+		"  User_id          BLOB NOT NULL REFERENCES User_Histories ON UPDATE CASCADE," +
 		"  Topic            TEXT NOT NULL)")
 	// TBD: create indexes?
 	if execErr != nil {
@@ -236,7 +236,7 @@ func (pd *ProfileDatabase) PutUserHistory(
 	sub subs.Subscriptions,
 ) error {
 	log.Debugf("Adding history of user `%s' to the profile database", id.Shorten())
-	query := `INSERT INTO User_Histories ( Id, TimeDisconnected ) VALUES (?)`
+	query := `INSERT INTO User_Histories ( User_id, TimeDisconnected ) VALUES (?)`
 	db := (*sql.DB)(pd)
 	_, err := db.Exec(query, id[:], discon)
 	if err != nil {
@@ -286,9 +286,9 @@ func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscr
 	SELECT User_Histories.TimeDisconnected,
 	       GROUP_CONCAT(User_Subscriptions.Topic)
 	FROM User_Histories
-	LEFT JOIN User_Subscriptions on User_Histories.Id=User_Subscriptions.User_id
-	WHERE User_Histories.Id=?
-	GROUP BY User_Histories.Id
+	LEFT JOIN User_Subscriptions on User_Histories.User_id=User_Subscriptions.User_id
+	WHERE User_Histories.User_id=?
+	GROUP BY User_Histories.User_id
 	`
 	db := (*sql.DB)(pd)
 	err := db.QueryRow(query, id[:]).Scan(&timeDisc, &subsStr)
@@ -314,7 +314,7 @@ func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscr
 
 func (pd *ProfileDatabase) RemoveUserHistory(id *entity.ID) error {
 	log.Debugf("Removing history for `%s' from the peer database", id.Shorten())
-	query := `DELETE FROM User_Histories WHERE Id=?`
+	query := `DELETE FROM User_Histories WHERE User_id=?`
 	db := (*sql.DB)(pd)
 	_, err := db.Exec(query, id[:])
 	if err != nil {

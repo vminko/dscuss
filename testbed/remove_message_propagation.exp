@@ -37,7 +37,7 @@ send "login eve\r"
 expect "> "
 send "whoami\r"
 expect -re "eve (.*)\r\n"
-send "mkmdr cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz+gRo1tM=\r"
+send "mkmdr 8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r"
 expect "> "
 
 say "Starting Cain's peer"
@@ -48,15 +48,15 @@ send "login cain\r"
 expect "> "
 send "whoami\r"
 expect -re "cain (.*)\r\n"
-send "mkmdr cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz+gRo1tM=\r"
+send "mkmdr 8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r"
 expect "> "
 
 say "Giving peers some time to perform handshaking"
 sleep $timeout
 
-say "Removing message 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI"
+say "Removing message KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A="
 set spawn_id $adam_id
-send "rmmsg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI= SPAM\r"
+send "rmmsg KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A= SPAM\r"
 expect "Enter optional comment: "
 send "Testing remove-message operation\r"
 expect "> "
@@ -66,22 +66,22 @@ sleep $timeout
 
 say "Checking whether Eve has applied the operation"
 set spawn_id $eve_id
-send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
-expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
+send "lsthread 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r"
+expect -re "Topic:.*?ID: 9ErpRDUJMUBd5NirpnLWeDRefi\\+tr4VuN\\+5BwA7HQRs=\r\n"
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
+if { $expect_out(1,string) != "B5j6JtxfI5j3/P0BBqZ4BEZiRKalHW8FHJSZ1CZJoJ0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
+if { $expect_out(1,string) != "6rMa+H3M+RKGfsjb0m/pUkG9sUYi/nlaqw9pTfEjMOk=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
+if { $expect_out(1,string) != "w3u/8l/S1PbTJ1TYR+mKjnr1obIXJzUDkIIgrKgmkS0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
+if { $expect_out(1,string) != "4IRs5MOl/eyfaEoEoRO5kE/9zHJRRuf3Pvk8lil/VpU=" } {
     fail
 }
 expect {
@@ -91,22 +91,22 @@ expect {
 
 say "Checking whether Cain has applied the operation"
 set spawn_id $cain_id
-send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
-expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
+send "lsthread 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r"
+expect -re "Topic:.*?ID: 9ErpRDUJMUBd5NirpnLWeDRefi\\+tr4VuN\\+5BwA7HQRs=\r\n"
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
+if { $expect_out(1,string) != "B5j6JtxfI5j3/P0BBqZ4BEZiRKalHW8FHJSZ1CZJoJ0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
+if { $expect_out(1,string) != "6rMa+H3M+RKGfsjb0m/pUkG9sUYi/nlaqw9pTfEjMOk=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
+if { $expect_out(1,string) != "w3u/8l/S1PbTJ1TYR+mKjnr1obIXJzUDkIIgrKgmkS0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
+if { $expect_out(1,string) != "4IRs5MOl/eyfaEoEoRO5kE/9zHJRRuf3Pvk8lil/VpU=" } {
     fail
 }
 expect {

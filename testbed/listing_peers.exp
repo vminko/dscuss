@@ -37,7 +37,9 @@ send "whoami\r"
 expect -re "eve (.*)\r\n"
 
 say "Giving peers some time to perform handshaking"
-sleep $timeout
+# Default timeout may be not enough for discovering both
+# associated addresses
+sleep 10
 
 say "Checking whether peers see each other"
 set spawn_id $adam_id
@@ -45,7 +47,7 @@ send "lspeers full\r"
 expect "There is one connected peer:\r\n"
 expect "PEER #0\r\n"
 expect -re "Nickname:\\s+eve\r\n"
-expect -re "ID:\\s+rG6O7Y/FSCfQzf/CKvOUBqJkw1uwiRSYc2j9lD75YTA=\r\n"
+expect -re "ID:\\s+jNhpT2bYG/YQR3Dejo69mREhcXVWt0jnx1fE8r1ql7E=\r\n"
 expect -re "LocalAddr:\\s+127.0.0.1:\\d+\r\n"
 expect -re "RemoteAddr:\\s+127.0.0.1:\\d+\r\n"
 expect -re "AssociatedAddrs:\\s+127.0.0.1:\\d+,127.0.0.1:\\d+\r\n"
@@ -59,7 +61,7 @@ send "lspeers full\r"
 expect "There is one connected peer:\r\n"
 expect "PEER #0\r\n"
 expect -re "Nickname:\\s+adam\r\n"
-expect -re "ID:\\s+cJxXZriKfhiBw9Kt9kUkifeqtTJLyOEuuWWz\\+gRo1tM=\r\n"
+expect -re "ID:\\s+8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r\n"
 expect -re "LocalAddr:\\s+127.0.0.1:\\d+\r\n"
 expect -re "RemoteAddr:\\s+127.0.0.1:\\d+\r\n"
 expect -re "AssociatedAddrs:\\s+127.0.0.1:\\d+,127.0.0.1:\\d+\r\n"

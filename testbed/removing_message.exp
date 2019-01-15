@@ -29,28 +29,28 @@ send "whoami\r"
 expect -re "adam (.*)\r\n"
 
 say "Removing the reply"
-send "rmmsg 7CsFKS671B1E4BAjiCesdzm8HEHs6evdQpLrKcmqwNI= SPAM\r"
+send "rmmsg KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A= SPAM\r"
 expect "Enter optional comment: "
 send "Testing remove-message operation\r"
 expect "> " 
 
 say "Listing the thread"
-send "lsthread mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r"
-expect -re "Topic:.*?ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n"
+send "lsthread 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r"
+expect -re "Topic:.*?ID: 9ErpRDUJMUBd5NirpnLWeDRefi\\+tr4VuN\\+5BwA7HQRs=\\r\n"
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "JNTrZIayt9Za/BmLAPb59XOiM5NC0Samh8bli+RLNUg=" } {
+if { $expect_out(1,string) != "B5j6JtxfI5j3/P0BBqZ4BEZiRKalHW8FHJSZ1CZJoJ0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "4UVYFVcJ/h/AM4uYnaXPk3Uwa++K6PGJG3jVG7nhMsg=" } {
+if { $expect_out(1,string) != "6rMa+H3M+RKGfsjb0m/pUkG9sUYi/nlaqw9pTfEjMOk=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "qIhZK8UBxK2St5pilUEl1BpaXSKNNOVaIPpcWrco8WI=" } {
+if { $expect_out(1,string) != "w3u/8l/S1PbTJ1TYR+mKjnr1obIXJzUDkIIgrKgmkS0=" } {
     fail
 }
 expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "/NbN4E/NPTmKvqVQC11x9N5mQ2uG/2X1+aaqFY3uw0s=" } {
+if { $expect_out(1,string) != "4IRs5MOl/eyfaEoEoRO5kE/9zHJRRuf3Pvk8lil/VpU=" } {
     fail
 }
 expect {

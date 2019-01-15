@@ -27,11 +27,11 @@ send "login adam\r"
 say "Listing topic"
 send "lsboard dscuss,devel\r"
 expect {
-    "ID: mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=\r\n" { exp_continue }
+    "ID: 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r\n" { exp_continue }
     ">" {}
 }
 expect -re "ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
-if { $expect_out(1,string) != "mHiJSeCGY1U6vK5boGZU5Sj7wCuixQuGTbXDbVDqTTQ=" } {
+if { $expect_out(1,string) != "9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=" } {
     fail
 }
 expect {

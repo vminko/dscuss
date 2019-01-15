@@ -104,8 +104,11 @@ func New(
 
 func (p *Peer) Close() {
 	log.Debugf("Close requested for peer %s", p)
-	// TBD if IsSynchronized
-	p.owner.Profile.PutUserHistory(p.User.ID(), time.Now(), p.Subs)
+	isSynced := p.State.ID() != StateIDHandshaking && p.State.ID() != StateIDActiveSyncing &&
+		p.State.ID() != StateIDPassiveSyncing
+	if isSynced {
+		p.owner.Profile.PutUserHistory(p.User.ID(), time.Now(), p.Subs)
+	}
 	p.owner.Storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
 	p.wg.Wait()

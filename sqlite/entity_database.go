@@ -67,7 +67,7 @@ func OpenEntityDatabase(fileName string) (*EntityDatabase, error) {
 		"  Subject         TEXT," +
 		"  Content         TEXT," +
 		"  Timestamp       TIMESTAMP NOT NULL," +
-		"  Author_id       BLOB NOT NULL REFERENCES User," +
+		"  Author_id       BLOB NOT NULL REFERENCES Users," +
 		"  Parent_id       BLOB NOT NULL," +
 		"  Signature       BLOB NOT NULL," +
 		"  TimeStored      TIMESTAMP NOT NULL)")
@@ -76,22 +76,22 @@ func OpenEntityDatabase(fileName string) (*EntityDatabase, error) {
 		"  Type            INTEGER NOT NULL," +
 		"  Reason          INTEGER NOT NULL," +
 		"  Comment         TEXT," +
-		"  Author_id       BLOB NOT NULL REFERENCES User," +
+		"  Author_id       BLOB NOT NULL REFERENCES Users," +
 		"  Timestamp       TIMESTAMP NOT NULL," +
 		"  Signature       BLOB NOT NULL," +
 		"  TimeStored      TIMESTAMP NOT NULL)")
 	exec("CREATE TABLE IF NOT EXISTS  Operations_on_Users (" +
-		"  Operation_id    BLOB NOT NULL REFERENCES Operation," +
-		"  User_id         BLOB NOT NULL REFERENCES User)")
+		"  Operation_id    BLOB NOT NULL REFERENCES Operations," +
+		"  User_id         BLOB NOT NULL REFERENCES Users)")
 	exec("CREATE TABLE IF NOT EXISTS  Operations_on_Messages (" +
-		"  Operation_id    BLOB NOT NULL REFERENCES Operation," +
-		"  Message_id      BLOB NOT NULL REFERENCES Message)")
+		"  Operation_id    BLOB NOT NULL REFERENCES Operations," +
+		"  Message_id      BLOB NOT NULL REFERENCES Messages)")
 	exec("CREATE TABLE IF NOT EXISTS  Tags (" +
 		"  Id              INTEGER PRIMARY KEY AUTOINCREMENT," +
 		"  Name            TEXT NOT NULL UNIQUE ON CONFLICT IGNORE)")
 	exec("CREATE TABLE IF NOT EXISTS  Message_Tags (" +
-		"  Tag_id          INTEGER NOT NULL REFERENCES Tag," +
-		"  Message_id      BLOB NOT NULL REFERENCES Message," +
+		"  Tag_id          INTEGER NOT NULL REFERENCES Tags," +
+		"  Message_id      BLOB NOT NULL REFERENCES Messages," +
 		"  UNIQUE (Tag_id, Message_id))")
 	// TBD: create indexes?
 	if execErr != nil {
@@ -268,16 +268,16 @@ func (d *EntityDatabase) GetMessage(eid *entity.ID) (*entity.Message, error) {
 	var rawParID []byte
 	var topicStr sql.NullString
 	query := `
-	SELECT Message.Subject,
-	       Message.Content,
-	       Message.Timestamp,
-	       Message.Author_id,
-	       Message.Parent_id,
-	       Message.Signature,
-	       GROUP_CONCAT(Tag.Name)
+	SELECT Messages.Subject,
+	       Messages.Content,
+	       Messages.Timestamp,
+	       Messages.Author_id,
+	       Messages.Parent_id,
+	       Messages.Signature,
+	       GROUP_CONCAT(Tags.Name)
 	FROM Messages
 	LEFT JOIN Message_Tags on Messages.Id=Message_Tags.Message_id
-	LEFT JOIN Tag on Tag.Id=Message_Tags.Tag_id
+	LEFT JOIN Tags on Tags.Id=Message_Tags.Tag_id
 	WHERE Messages.Id=?
 	GROUP BY Messages.Id
 	`
@@ -666,7 +666,7 @@ func (d *EntityDatabase) putMessageOperation(operID, msgID *entity.ID) error {
 	log.Debugf("Adding association between operation '%s' and message '%s' to the database",
 		operID.Shorten(), msgID.Shorten())
 	query := `
-	INSERT INTO Operation_on_Messages
+	INSERT INTO Operations_on_Messages
         ( Operation_id, Message_id )
         VALUES (?, ?)
 	`
@@ -683,7 +683,7 @@ func (d *EntityDatabase) putUserOperation(operID, userID *entity.ID) error {
 	log.Debugf("Adding association between operation '%s' and user '%s' to the database",
 		operID.Shorten(), userID.Shorten())
 	query := `
-	INSERT INTO Operation_on_Users
+	INSERT INTO Operations_on_Users
         ( Operation_id, User_id )
         VALUES (?, ?)
 	`
@@ -791,7 +791,7 @@ func scanStoredOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Stored
 func scanOperationRows(rows *sql.Rows, objID *entity.ID) ([]*entity.Operation, error) {
 	var res []*entity.Operation
 	for rows.Next() {
-		o, _, err := scanSingleOperationRow(rows, objID, true)
+		o, _, err := scanSingleOperationRow(rows, objID, false)
 		if err != nil {
 			log.Errorf("Error scanning single operation row: %v", err)
 			return nil, err
@@ -963,7 +963,7 @@ func (d *EntityDatabase) GetOperation(oid *entity.ID) (*entity.Operation, error)
 	       Operations_on_Users.User_id
 	FROM Operations
 	LEFT JOIN Operations_on_Messages on Operations.Id=Operations_on_Messages.Operation_id
-	LEFT JOIN Operations_on_Users on Operations.Id=Operations_on_User.Operation_id
+	LEFT JOIN Operations_on_Users on Operations.Id=Operations_on_Users.Operation_id
 	WHERE Operations.Id=?
 	GROUP BY Operations.Id
 	`
@@ -1005,7 +1005,7 @@ func (d *EntityDatabase) GetOperationsStoredAfter(ts time.Time, limit int) ([]*e
 	       Operations.TimeStored
 	FROM Operations
 	LEFT JOIN Operations_on_Messages on Operations.Id=Operations_on_Messages.Operation_id
-	LEFT JOIN Operations_on_Users on Operations.Id=Operations_on_User.Operation_id
+	LEFT JOIN Operations_on_Users on Operations.Id=Operations_on_Users.Operation_id
 	WHERE Operations.TimeStored>=?
 	GROUP BY Operations.Id
 	LIMIT ?

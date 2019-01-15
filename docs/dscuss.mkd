@@ -15,7 +15,7 @@ _<div style="text-align: right">The moderators are dead! Long live the moderator
 
 **Dscuss** is a free software for public discussions. It builds an unstructured
 pure P2P topic-based publish-subscribe network. The current version is
-proof-of-work.
+proof-of-concept.
 
 
 The idea of the project
