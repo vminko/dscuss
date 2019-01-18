@@ -309,3 +309,7 @@ func (lh *LoginHandle) RemoveModerator(id *entity.ID) error {
 func (lh *LoginHandle) ListModerators() []*entity.ID {
 	return lh.owner.Profile.GetModerators()
 }
+
+func (lh *LoginHandle) ListUserHistory() []*entity.UserHistory {
+	return lh.owner.Profile.GetFullHistory()
+}

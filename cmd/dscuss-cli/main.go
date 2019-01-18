@@ -73,6 +73,11 @@ var commandList = []*ishell.Cmd{
 		Func: doListPeers,
 	},
 	{
+		Name: "lshist",
+		Help: "list history of users",
+		Func: doListHistory,
+	},
+	{
 		Name: "mkthread",
 		Help: "start a new thread",
 		Func: doMakeThread,
@@ -297,7 +302,42 @@ func doListPeers(c *ishell.Context) {
 	} else {
 		c.Printf("There are no peers connected\n")
 	}
+}
 
+func printHistoryRecord(c *ishell.Context, i int, hr *entity.UserHistory) {
+	if i != 0 {
+		c.Println("")
+	}
+	c.Printf("PEER #%d\n", i)
+	c.Printf("ID:			%s\n", hr.ID)
+	c.Printf("Disconnected:		%s\n", hr.Disconnected.Format(time.RFC3339))
+	c.Print("Subscriptions:		")
+	for j, t := range hr.Subs {
+		if j == 0 {
+			c.Printf("%s\n", t)
+		} else {
+			c.Printf("			%s\n", t)
+		}
+	}
+}
+
+func doListHistory(c *ishell.Context) {
+	if loginHandle == nil {
+		c.Println("You are not logged in.")
+		return
+	}
+	if len(c.Args) != 0 {
+		c.Println(c.Cmd.Help)
+		return
+	}
+	h := loginHandle.ListUserHistory()
+	if len(h) > 0 {
+		for i, hr := range h {
+			printHistoryRecord(c, i, hr)
+		}
+	} else {
+		c.Printf("History is empty\n")
+	}
 }
 
 func readMultiLines(c *ishell.Context, prompt string) string {

@@ -25,6 +25,7 @@ import (
 	"vminko.org/dscuss/crypto"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/subs"
 )
 
 // User identifies and describes a user. It's suitable for sending to the network.
@@ -50,6 +51,12 @@ type UserContent struct {
 type StoredUser struct {
 	U      *User
 	Stored time.Time
+}
+
+type UserHistory struct {
+	ID           *ID
+	Disconnected time.Time
+	Subs         subs.Subscriptions
 }
 
 const (

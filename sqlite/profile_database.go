@@ -51,6 +51,7 @@ func OpenProfileDatabase(fileName string) (*ProfileDatabase, error) {
 	exec("PRAGMA synchronous=FULL")
 	exec("PRAGMA locking_mode=EXCLUSIVE")
 	exec("PRAGMA page_size=4092")
+	exec("PRAGMA foreign_keys=ON")
 	//exec("PRAGMA journal_mode=WAL")
 	exec("CREATE TABLE IF NOT EXISTS Moderators (" +
 		"  User_id          BLOB PRIMARY KEY)")
@@ -61,7 +62,7 @@ func OpenProfileDatabase(fileName string) (*ProfileDatabase, error) {
 		"  User_id          BLOB PRIMARY KEY," +
 		"  TimeDisconnected TIMESTAMP NOT NULL)")
 	exec("CREATE TABLE IF NOT EXISTS User_Subscriptions (" +
-		"  User_id          BLOB NOT NULL REFERENCES User_Histories ON UPDATE CASCADE," +
+		"  User_id          BLOB NOT NULL REFERENCES User_Histories ON DELETE CASCADE," +
 		"  Topic            TEXT NOT NULL)")
 	// TBD: create indexes?
 	if execErr != nil {
@@ -230,15 +231,11 @@ func (pd *ProfileDatabase) GetSubscriptions() (subs.Subscriptions, error) {
 	return res, nil
 }
 
-func (pd *ProfileDatabase) PutUserHistory(
-	id *entity.ID,
-	discon time.Time,
-	sub subs.Subscriptions,
-) error {
-	log.Debugf("Adding history of user `%s' to the profile database", id.Shorten())
-	query := `INSERT INTO User_Histories ( User_id, TimeDisconnected ) VALUES (?)`
+func (pd *ProfileDatabase) PutUserHistory(h *entity.UserHistory) error {
+	log.Debugf("Adding history of user `%s' to the profile database", h.ID.Shorten())
+	query := `INSERT OR REPLACE INTO User_Histories ( User_id, TimeDisconnected ) VALUES (?,?)`
 	db := (*sql.DB)(pd)
-	_, err := db.Exec(query, id[:], discon)
+	_, err := db.Exec(query, h.ID[:], h.Disconnected)
 	if err != nil {
 		sqliteErr, ok := err.(sqlite3.Error)
 		if ok && sqliteErr.Code == sqlite3.ErrConstraint {
@@ -248,11 +245,11 @@ func (pd *ProfileDatabase) PutUserHistory(
 		log.Errorf("Can't execute 'PutUserHistory' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
-	for _, t := range sub {
-		err := pd.putUserSubscription(id, t)
+	for _, t := range h.Subs {
+		err := pd.putUserSubscription(h.ID, t)
 		if err != nil {
 			log.Errorf("The DB is corrupted. History for user %s is saved without topic %s",
-				id.Shorten(), t)
+				h.ID.Shorten(), t)
 			return err
 		}
 	}
@@ -277,14 +274,14 @@ func (pd *ProfileDatabase) putUserSubscription(id *entity.ID, t subs.Topic) erro
 	return nil
 }
 
-func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscriptions, error) {
+func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (*entity.UserHistory, error) {
 	log.Debugf("Fetching history of user '%s' from the profile database", id)
 
 	var timeDisc time.Time
 	var subsStr string
 	query := `
 	SELECT User_Histories.TimeDisconnected,
-	       GROUP_CONCAT(User_Subscriptions.Topic)
+	       GROUP_CONCAT(User_Subscriptions.Topic, "\n")
 	FROM User_Histories
 	LEFT JOIN User_Subscriptions on User_Histories.User_id=User_Subscriptions.User_id
 	WHERE User_Histories.User_id=?
@@ -295,10 +292,10 @@ func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscr
 	switch {
 	case err == sql.ErrNoRows:
 		log.Debug("No history for that user.")
-		return time.Time{}, nil, errors.NoUserHistory
+		return nil, errors.NoUserHistory
 	case err != nil:
 		log.Errorf("Error fetching user history from the peer database: %v", err)
-		return time.Time{}, nil, errors.DBOperFailed
+		return nil, errors.DBOperFailed
 	default:
 		log.Debug("User history found successfully")
 	}
@@ -306,20 +303,65 @@ func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (time.Time, subs.Subscr
 	s, err := subs.ReadString(subsStr)
 	if err != nil {
 		log.Errorf("The subscriptions '%s' fetched from DB are invalid", subsStr)
-		return time.Time{}, nil, errors.InconsistentDB
+		return nil, errors.InconsistentDB
 	}
 
-	return timeDisc, s, nil
+	return &entity.UserHistory{id, timeDisc, s}, nil
 }
 
-func (pd *ProfileDatabase) RemoveUserHistory(id *entity.ID) error {
-	log.Debugf("Removing history for `%s' from the peer database", id.Shorten())
-	query := `DELETE FROM User_Histories WHERE User_id=?`
-	db := (*sql.DB)(pd)
-	_, err := db.Exec(query, id[:])
-	if err != nil {
-		log.Errorf("Can't execute 'RemoveUserHistory' statement: %s", err.Error())
-		return errors.DBOperFailed
+func scanHistoryRows(rows *sql.Rows) ([]*entity.UserHistory, error) {
+	var res []*entity.UserHistory
+	for rows.Next() {
+		var rawID []byte
+		var timeDisc time.Time
+		var subsStr string
+		err := rows.Scan(
+			&rawID,
+			&timeDisc,
+			&subsStr)
+		if err != nil {
+			log.Errorf("Error scanning history row: %v", err)
+			return nil, errors.DBOperFailed
+		}
+
+		var id entity.ID
+		if id.ParseSlice(rawID) != nil {
+			log.Error("Can't parse an ID fetched from DB")
+			return nil, errors.Parsing
+		}
+		log.Debugf("Found history record for %s", &id)
+
+		s, err := subs.ReadString(subsStr)
+		if err != nil {
+			log.Errorf("The subscriptions '%s' fetched from DB are invalid", subsStr)
+			return nil, errors.InconsistentDB
+		}
+		res = append(res, &entity.UserHistory{&id, timeDisc, s})
 	}
-	return nil
+	err := rows.Err()
+	if err != nil {
+		log.Errorf("Error getting next history row: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	return res, nil
+}
+
+func (pd *ProfileDatabase) GetFullHistory() ([]*entity.UserHistory, error) {
+	log.Debug("Fetching full history of users from the profile database")
+	query := `
+	SELECT User_Histories.User_id,
+	       User_Histories.TimeDisconnected,
+	       GROUP_CONCAT(User_Subscriptions.Topic, char(10))
+	FROM User_Histories
+	LEFT JOIN User_Subscriptions on User_Histories.User_id=User_Subscriptions.User_id
+	GROUP BY User_Histories.User_id
+	`
+	db := (*sql.DB)(pd)
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Errorf("Error fetching history of users from the database: %v", err)
+		return nil, errors.DBOperFailed
+	}
+	defer rows.Close()
+	return scanHistoryRows(rows)
 }

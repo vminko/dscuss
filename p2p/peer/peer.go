@@ -46,8 +46,7 @@ type Peer struct {
 	State         State
 	User          *entity.User
 	Subs          subs.Subscriptions
-	prevSubs      subs.Subscriptions
-	synced        time.Time
+	hist          *entity.UserHistory
 }
 
 // Info is a static Peer description for UI.
@@ -107,7 +106,9 @@ func (p *Peer) Close() {
 	isSynced := p.State.ID() != StateIDHandshaking && p.State.ID() != StateIDActiveSyncing &&
 		p.State.ID() != StateIDPassiveSyncing
 	if isSynced {
-		p.owner.Profile.PutUserHistory(p.User.ID(), time.Now(), p.Subs)
+		log.Debugf("Saving history for peer %s", p)
+		h := &entity.UserHistory{p.User.ID(), time.Now(), p.Subs}
+		p.owner.Profile.PutUserHistory(h)
 	}
 	p.owner.Storage.DetachObserver(p.outEntityChan)
 	close(p.stopChan)
@@ -189,8 +190,8 @@ func (p *Peer) isInterestedInMessage(s subs.Subscriptions, m *entity.Message) bo
 
 func (p *Peer) isInterestedInEntity(ent entity.Entity, stored time.Time) bool {
 	subs := p.Subs
-	if stored.Before(p.synced) {
-		subs = p.Subs.Diff(p.prevSubs)
+	if p.hist != nil && stored.Before(p.hist.Disconnected) {
+		subs = p.Subs.Diff(p.hist.Subs)
 	}
 	if subs == nil {
 		return false

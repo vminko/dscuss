@@ -185,7 +185,7 @@ func (s *StateHandshaking) finalize() error {
 		log.Debugf("Peer validation failed")
 		return errors.InvalidPeer
 	}
-	s.p.synced, s.p.prevSubs, err = s.p.owner.Profile.GetUserHistory(s.u.ID())
+	s.p.hist, err = s.p.owner.Profile.GetUserHistory(s.u.ID())
 	if (err != nil) && (err != errors.NoUserHistory) {
 		log.Fatalf("Unexpected error occurred while checking for user in the DB: %v", err)
 	}
