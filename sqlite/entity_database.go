@@ -528,7 +528,7 @@ func (d *EntityDatabase) GetMessagesStoredAfter(ts time.Time, limit int) ([]*ent
 	LIMIT ?
 	`
 	db := (*sql.DB)(d)
-	rows, err := db.Query(query, entity.ZeroID[:], ts, limit)
+	rows, err := db.Query(query, ts, limit)
 	if err != nil {
 		log.Errorf("Error fetching message from the database: %v", err)
 		return nil, errors.DBOperFailed
@@ -993,7 +993,7 @@ func (d *EntityDatabase) GetOperation(oid *entity.ID) (*entity.Operation, error)
 func (d *EntityDatabase) GetOperationsStoredAfter(ts time.Time, limit int) ([]*entity.StoredOperation, error) {
 	log.Debugf("Fetching operations since %s from the database", ts.Format(time.RFC3339))
 	query := `
-	SELECT Operations.ID,
+	SELECT Operations.Id,
 	       Operations.Type,
 	       Operations.Reason,
 	       Operations.Comment,

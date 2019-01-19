@@ -63,12 +63,12 @@ func (s *StateActiveSyncing) perform() (nextState State, err error) {
 	if !operSynced {
 		return s.syncOperation()
 	}
+	err = s.sendDone()
+	if err != nil {
+		log.Errorf("Failed to send done to the peer %s: %v", s.p, err)
+		return nil, err
+	}
 	if s.p.conn.IsActive() {
-		err = s.sendDone()
-		if err != nil {
-			log.Errorf("Failed to send done to the peer %s: %v", s.p, err)
-			return nil, err
-		}
 		return newStatePassiveSyncing(s.p), nil
 	}
 	return newStateIdle(s.p), nil
@@ -79,7 +79,7 @@ func (s *StateActiveSyncing) getStartTime() time.Time {
 	if s.p.hist == nil {
 		res = time.Now().Add(-MaxSyncDuration)
 	} else {
-		res := s.p.hist.Disconnected
+		res = s.p.hist.Disconnected
 		if s.p.Subs.Diff(s.p.hist.Subs) != nil {
 			res = res.Add(-MaxSyncDuration)
 		}

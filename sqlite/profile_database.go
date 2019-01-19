@@ -281,7 +281,7 @@ func (pd *ProfileDatabase) GetUserHistory(id *entity.ID) (*entity.UserHistory, e
 	var subsStr string
 	query := `
 	SELECT User_Histories.TimeDisconnected,
-	       GROUP_CONCAT(User_Subscriptions.Topic, "\n")
+	       GROUP_CONCAT(User_Subscriptions.Topic, char(10))
 	FROM User_Histories
 	LEFT JOIN User_Subscriptions on User_Histories.User_id=User_Subscriptions.User_id
 	WHERE User_Histories.User_id=?

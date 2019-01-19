@@ -1,0 +1,84 @@
+#!/usr/bin/expect -f
+#
+# Test assertion: a newly created thread will be delivered only to the peers,
+# which are interested in the topic of the thread.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2018  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source testbed.exp
+
+say "Starting Eve's peer"
+spawn ../main -config "$tmp_dir/2"
+set eve_id $spawn_id
+expect "> "
+send "login eve\r"
+expect "> "
+
+say "Posting new thread"
+send "mkthread\r"
+expect "Enter thread topic: "
+send "photography,portrait\r"
+expect "Enter thread subject: "
+send "This thread was created by autotest.\r"
+expect "Enter message text and end with 'DSC':"
+send "Autotest created this message\ron behalf of Eve.\rDSC\n"
+expect -re "Thread '.*' created successfully.\r\n"
+
+say "Starting Adam's peer"
+spawn ../main -config "$tmp_dir/1"
+set adam_id $spawn_id
+expect "> "
+send "login adam\r"
+expect "> "
+
+say "Starting Cain's peer"
+spawn ../main -config "$tmp_dir/3"
+set cain_id $spawn_id
+expect "> "
+send "login cain\r"
+expect "> "
+
+say "Giving peers some time to perform handshaking and syncing"
+sleep 10
+
+say "Checking whether Cain has received the new message"
+set spawn_id $cain_id
+send "lsboard\r"
+expect "This thread was created by autotest.\r\n"
+
+say "Make sure that Adam has not received the new message"
+set spawn_id $adam_id
+send "lsboard\r"
+expect {
+    -timeout 1
+    "This thread was created by autotest.\r\n" { fail }
+    timeout {}
+}
+
+say "Stopping all peers"
+set spawn_id $adam_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $eve_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $cain_id
+send "exit\r"
+expect eof
+wait
+pass

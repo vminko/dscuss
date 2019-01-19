@@ -105,7 +105,7 @@ func Init(initDir string) error {
 		return err
 	}
 
-	log.Error("Dscuss successfully initialized.")
+	log.Info("Dscuss successfully initialized.")
 	return nil
 }
 

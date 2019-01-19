@@ -64,7 +64,12 @@ func (s *StateHandshaking) perform() (nextState State, err error) {
 		log.Errorf("Failed to handshake with %s %v", s.p, perfErr)
 		return nil, perfErr
 	}
-	return newStateIdle(s.p), nil
+
+	if s.p.conn.IsActive() {
+		return newStateActiveSyncing(s.p), nil
+	} else {
+		return newStatePassiveSyncing(s.p), nil
+	}
 }
 
 func (s *StateHandshaking) sendUser() error {

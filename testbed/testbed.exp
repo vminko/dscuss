@@ -24,6 +24,7 @@ proc say {msg} {
 }
 
 proc prepare {} {
+    cleanup
     global data_dir
     global tmp_dir
     file copy "$data_dir" "$tmp_dir"
@@ -37,7 +38,6 @@ proc cleanup {} {
 
 proc fail {} {
     say "TEST FAILED"
-    cleanup
     exit 1
 }
 
