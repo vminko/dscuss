@@ -23,10 +23,12 @@ package dscuss
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -159,18 +161,20 @@ func Login(nickname string) (*LoginHandle, error) {
 			AddressListFileName,
 		)
 		ap = p2p.NewAddressList(addrFilePath)
-	/* TBD:
 	case "dht":
-	case "dns":
-	*/
+		ap = p2p.NewDHTCrawler(
+			cfg.Network.Address,
+			cfg.Network.DHTPort,
+			"localhost:9117",
+			cfg.Network.Port,
+			ownr.Profile.GetSubscriptions(),
+		)
 	default:
 		log.Fatal("Unknown address provider is configured: " + cfg.Network.AddressProvider)
 	}
 
-	cp := p2p.NewConnectionProvider(
-		ap, cfg.Network.HostPort,
-		cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount,
-	)
+	hp := net.JoinHostPort(cfg.Network.Address, strconv.Itoa(cfg.Network.Port))
+	cp := p2p.NewConnectionProvider(ap, hp, cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount)
 
 	pp := p2p.NewPeerPool(cp, ownr)
 	pp.Start()

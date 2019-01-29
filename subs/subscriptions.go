@@ -70,6 +70,28 @@ func (s Subscriptions) Diff(a Subscriptions) Subscriptions {
 	return res
 }
 
+func (s Subscriptions) ToCombinations() Subscriptions {
+	var res Subscriptions
+	for _, topic := range s {
+		res = res.addCombinations(topic)
+	}
+	return res
+}
+
+func (s Subscriptions) addCombinations(t Topic) Subscriptions {
+	res := s.AddTopic(t)
+	for _, tag := range t {
+		supTopic, err := t.Remove(tag)
+		if err != nil {
+			log.Fatalf("BUG: can't remote tag %s: %v", tag, err)
+		}
+		if len(supTopic) > 0 {
+			res = res.addCombinations(supTopic)
+		}
+	}
+	return res
+}
+
 func (s Subscriptions) IsValid() bool {
 	if s == nil || len(s) == 0 {
 		return false

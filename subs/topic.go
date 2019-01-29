@@ -99,3 +99,15 @@ func (t Topic) Copy() Topic {
 	copy(res, t)
 	return res
 }
+
+func (t Topic) Remove(target string) (Topic, error) {
+	res := t.Copy()
+	for i, tag := range res {
+		if tag == target {
+			res[len(res)-1], res[i] = res[i], res[len(res)-1]
+			res = res[:len(res)-1]
+			return res, nil
+		}
+	}
+	return nil, errors.NoSuchTag
+}

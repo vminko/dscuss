@@ -51,6 +51,7 @@ var (
 	NotSubscribed       = errors.New("you are not subscribed to the specified topic")
 	ForbiddenOperation  = errors.New("forbidden operation")
 	UserBanned          = errors.New("user is banned")
+	NoSuchTag           = errors.New("can't find requested tag")
 )
 
 // TBD: consider https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
