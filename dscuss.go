@@ -46,6 +46,14 @@ type LoginHandle struct {
 	pp    *p2p.PeerPool
 }
 
+// ByNickname implements sort.Interface for []*peer.Info based on
+// the Nickname field.
+type ByNickname []*peer.Info
+
+func (a ByNickname) Len() int           { return len(a) }
+func (a ByNickname) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByNickname) Less(i, j int) bool { return a[i].Nickname < a[j].Nickname }
+
 const (
 	Name                string = "Dscuss"
 	Version             string = "0.1.0"
@@ -98,7 +106,9 @@ func Init(initDir string) error {
 		return errors.Filesystem
 	}
 	log.SetOutput(logFile)
-	log.SetDebug(debug)
+	if debug {
+		log.EnableDebug()
+	}
 
 	var cfgPath string = filepath.Join(dir, cfgFileName)
 	cfg, err = newConfig(cfgPath)
@@ -165,7 +175,7 @@ func Login(nickname string) (*LoginHandle, error) {
 		ap = p2p.NewDHTCrawler(
 			cfg.Network.Address,
 			cfg.Network.DHTPort,
-			"localhost:9117",
+			cfg.Network.DHTBootstrap,
 			cfg.Network.Port,
 			ownr.Profile.GetSubscriptions(),
 		)

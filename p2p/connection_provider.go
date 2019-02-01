@@ -29,7 +29,7 @@ import (
 
 const (
 	ConnectionProviderLatency time.Duration = 1 // in seconds
-	DefaultBootstrapAddress   string        = "vminko.org:8004"
+	DefaultBootstrapAddress   string        = "dscuss.org:8004"
 )
 
 type addressMap struct {

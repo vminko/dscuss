@@ -26,7 +26,7 @@ import (
 	"strings"
 )
 
-var debug bool
+var debug bool = false
 
 // caller returns the name of the third function in the current stack.
 func caller() string {
@@ -38,8 +38,12 @@ func caller() string {
 	return fmt.Sprintf("[%s]", trimmedName)
 }
 
-func SetDebug(d bool) {
-	debug = d
+func EnableDebug() {
+	debug = true
+}
+
+func IsDebugEnabled() bool {
+	return debug
 }
 
 func SetOutput(w io.Writer) {

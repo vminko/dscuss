@@ -1,0 +1,82 @@
+#!/usr/bin/expect -f
+#
+# Test assertion: peers A can use DHT to find address of other peers sharing common
+# interests.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2019  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source testbed.exp
+
+say "Starting Adam's peer"
+spawn ../main -config "$tmp_dir/dht1"
+set adam_id $spawn_id
+expect "Welcome to Dscuss.\r\n"
+send "login adam\r"
+send "whoami\r"
+expect -re "adam (.*)\r\n"
+
+say "Starting Eve's peer"
+spawn ../main -config "$tmp_dir/dht2"
+set eve_id $spawn_id
+expect "Welcome to Dscuss.\r\n"
+send "login eve\r"
+send "whoami\r"
+expect -re "eve (.*)\r\n"
+
+say "Starting Cain's peer"
+spawn ../main -config "$tmp_dir/dht3"
+set cain_id $spawn_id
+expect "Welcome to Dscuss.\r\n"
+send "login cain\r"
+send "whoami\r"
+expect -re "cain (.*)\r\n"
+
+say "Giving peers some time to perform handshaking"
+sleep 20
+
+say "Checking whether peers see each other"
+set spawn_id $adam_id
+send "lspeers\r"
+expect "There are 2 connected peers:\r\n"
+expect -re "cain-.*? is Idle\r\n"
+expect -re "eve-.*? is Idle\r\n"
+
+set spawn_id $eve_id
+send "lspeers\r"
+expect "There are 2 connected peers:\r\n"
+expect -re "adam-.*? is Idle\r\n" 
+expect -re "cain-.*? is Idle\r\n" 
+
+set spawn_id $cain_id
+send "lspeers\r"
+expect "There are 2 connected peers:\r\n"
+expect -re "adam-.*? is Idle\r\n" 
+expect -re "eve-.*? is Idle\r\n" 
+
+say "Stopping all peers"
+set spawn_id $adam_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $eve_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $cain_id
+send "exit\r"
+expect eof
+wait
+pass

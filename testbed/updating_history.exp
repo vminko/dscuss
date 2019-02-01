@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 #
-# Test assertion: when a synced user disconnects, owner will update user history
+# Test assertion: when a synced user disconnects, owner will update user's history
 # with the last user's subscriptions and the disconnection time.
 #
 # This file is part of Dscuss.

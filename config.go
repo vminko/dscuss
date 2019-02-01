@@ -33,6 +33,7 @@ type NetworkConfig struct {
 	Port            int
 	AddressProvider string
 	DHTPort         int
+	DHTBootstrap    string
 	MaxInConnCount  uint32
 	MaxOutConnCount uint32
 }
@@ -44,7 +45,9 @@ type config struct {
 var defaultConfig = config{
 	Network: NetworkConfig{
 		Port:            8004,
-		AddressProvider: "addrlist",
+		AddressProvider: "dht",
+		DHTPort:         0,
+		DHTBootstrap:    "dscuss.org:6881",
 		MaxInConnCount:  10,
 		MaxOutConnCount: 10,
 	},

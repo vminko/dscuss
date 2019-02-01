@@ -1,0 +1,127 @@
+#!/usr/bin/expect -f
+#
+# Test assertion: when a known user reconnects, he/she will receive missed
+# operations.
+#
+# This file is part of Dscuss.
+# Copyright (C) 2019  Vitaly Minko
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+source testbed.exp
+
+say "Starting Adam's peer"
+spawn ../main -config "$tmp_dir/1"
+set adam_id $spawn_id
+expect "> "
+send  "login adam\r"
+expect "> "
+send "whoami\r"
+expect -re "adam (.*)\r\n"
+
+say "Removing message KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A="
+set spawn_id $adam_id
+send "rmmsg KBOAel96xEa77/emOI0omi4KxXkpzDJ5o8+HCG9Dw9A= SPAM\r"
+expect "Enter optional comment: "
+send "Testing remove-message operation\r"
+expect "> "
+
+say "Starting Eve's peer"
+spawn ../main -config "$tmp_dir/2"
+set eve_id $spawn_id
+expect "> "
+send "login eve\r"
+expect "> "
+send "whoami\r"
+expect -re "eve (.*)\r\n"
+send "mkmdr 8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r"
+expect "> "
+
+say "Starting Cain's peer"
+spawn ../main -config "$tmp_dir/3"
+set cain_id $spawn_id
+expect "> "
+send "login cain\r"
+expect "> "
+send "whoami\r"
+expect -re "cain (.*)\r\n"
+send "mkmdr 8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r"
+expect "> "
+
+say "Giving peers some time to perform handshaking and syncing"
+sleep 10
+
+say "Checking whether Eve has applied the operation"
+set spawn_id $eve_id
+send "lsthread 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r"
+expect -re "Topic:.*?ID: 9ErpRDUJMUBd5NirpnLWeDRefi\\+tr4VuN\\+5BwA7HQRs=\r\n"
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "B5j6JtxfI5j3/P0BBqZ4BEZiRKalHW8FHJSZ1CZJoJ0=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "6rMa+H3M+RKGfsjb0m/pUkG9sUYi/nlaqw9pTfEjMOk=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "w3u/8l/S1PbTJ1TYR+mKjnr1obIXJzUDkIIgrKgmkS0=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "4IRs5MOl/eyfaEoEoRO5kE/9zHJRRuf3Pvk8lil/VpU=" } {
+    fail
+}
+expect {
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    ">"
+}
+
+say "Checking whether Cain has applied the operation"
+set spawn_id $cain_id
+send "lsthread 9ErpRDUJMUBd5NirpnLWeDRefi+tr4VuN+5BwA7HQRs=\r"
+expect -re "Topic:.*?ID: 9ErpRDUJMUBd5NirpnLWeDRefi\\+tr4VuN\\+5BwA7HQRs=\r\n"
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "B5j6JtxfI5j3/P0BBqZ4BEZiRKalHW8FHJSZ1CZJoJ0=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "6rMa+H3M+RKGfsjb0m/pUkG9sUYi/nlaqw9pTfEjMOk=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "w3u/8l/S1PbTJ1TYR+mKjnr1obIXJzUDkIIgrKgmkS0=" } {
+    fail
+}
+expect -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n"
+if { $expect_out(1,string) != "4IRs5MOl/eyfaEoEoRO5kE/9zHJRRuf3Pvk8lil/VpU=" } {
+    fail
+}
+expect {
+    -re "\\s+?Subject:.*?ID: (\[a-zA-Z0-9/=\\+\]+)\r\n" { fail }
+    ">"
+}
+
+say "Stopping all peers"
+set spawn_id $adam_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $eve_id
+send "exit\r"
+expect eof
+wait
+set spawn_id $cain_id
+send "exit\r"
+expect eof
+wait
+pass

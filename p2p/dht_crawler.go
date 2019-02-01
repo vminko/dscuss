@@ -41,6 +41,7 @@ type DHTCrawler struct {
 	ac        AddressConsumer
 	stopChan  chan struct{}
 	wg        sync.WaitGroup
+	processed map[string]struct{}
 }
 
 const (
@@ -61,6 +62,7 @@ func NewDHTCrawler(
 		advPort:   advPort,
 		subs:      s.ToCombinations(),
 		stopChan:  make(chan struct{}),
+		processed: make(map[string]struct{}),
 	}
 }
 
@@ -87,8 +89,10 @@ func (dc *DHTCrawler) Start() {
 	if err != nil {
 		log.Fatalf("Failed to create a DHT node: %v", err)
 	}
-	dl := &dhtLogger{}
-	dc.dht.DebugLogger = dl
+	if log.IsDebugEnabled() {
+		dl := &dhtLogger{}
+		dc.dht.DebugLogger = dl
+	}
 	err = dc.dht.Start()
 	if err != nil {
 		log.Fatalf("Failed to start DHT node: %v", err)
@@ -147,9 +151,12 @@ func (dc *DHTCrawler) drainAddresses() {
 
 func (dc *DHTCrawler) handleNewAddress(a string) {
 	log.Debugf("Found new address: %s", a)
-	// TBD: remove duplicates
 	if !address.IsValid(a) {
 		log.Warningf("DHT is poisoned, found malformed address %s", a)
+		return
+	}
+	if _, ok := dc.processed[a]; ok {
+		log.Debugf("Address '%s' has already been processed, skipping it", a)
 		return
 	}
 	if !isAddressLocal(a, dc.advPort) {
@@ -157,6 +164,7 @@ func (dc *DHTCrawler) handleNewAddress(a string) {
 	} else {
 		log.Debugf("Skipping local address %s", a)
 	}
+	dc.processed[a] = struct{}{}
 }
 
 func localIPs() []string {

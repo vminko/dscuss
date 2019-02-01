@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -291,6 +292,7 @@ func doListPeers(c *ishell.Context) {
 	}
 	peers := loginHandle.ListPeers()
 	if len(peers) > 0 {
+		sort.Sort(dscuss.ByNickname(peers))
 		if len(peers) > 1 {
 			c.Printf("There are %d connected peers:\n", len(peers))
 		} else {
