@@ -94,6 +94,8 @@ Dscuss is written in Go and currently has the following dependencies:
 * [github.com/mattn/go-sqlite3][gosql] - [SQLite][sql_home] driver.
 * [golang.org/x/crypto/scrypt][scrpt] - Library implementing "Stronger Key
   Derivation via Sequential Memory-Hard Functions".
+* [github.com/nictuku/dht][dht] - Kademlia/Bittorrent DHT library that
+  implements BEP 5.
 
 Initially Dscuss was supposed to be built on top of the [GNUnet][gn_home]
 framework, but later it was considered not suitable for the purposes of Dscuss.
@@ -102,6 +104,7 @@ framework, but later it was considered not suitable for the purposes of Dscuss.
 [sql_home]: http://www.sqlite.org/
 [gosql]: https://github.com/mattn/go-sqlite3
 [scrpt]: https://godoc.org/golang.org/x/crypto/scrypt
+[dht]: https://github.com/nictuku/dht
 [gn_home]: http://gnunet.org/
 
 

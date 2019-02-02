@@ -16,7 +16,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 package packet
 
-// PayloadAck is used as an acknowledgment for an announcement.
+// PayloadDone indicates the end of active synchronization process.
 type PayloadDone struct {
 }
 
