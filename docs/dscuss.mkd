@@ -6,7 +6,7 @@ Copyright:  (c) 2011-2019 Vitaly Minko
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       19 Jan 2019
+Date:       02 Feb 2019
 Priority:   4
 
 
@@ -77,11 +77,11 @@ The version 0.1 is under development. The following features are already
 implemented:
 
 * Database synchronization with other peers.
+* Improved connectivity (bootstrapping via DHT).
 
 The following additional features are planned for version 0.1:
 
 * Web interface.
-* Improved connectivity (bootstrapping via DHT).
 * Improved security (SPAM resistance, flood resistance).
 
 
