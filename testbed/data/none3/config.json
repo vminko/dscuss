@@ -1,6 +1,7 @@
 {
 	"Network": {
                 "Port": 8006,
+                "DHTPort": 9117,
 		"AddressProvider": "addrlist",
 		"MaxInConnCount": 10,
 		"MaxOutConnCount": 10

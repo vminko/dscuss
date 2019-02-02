@@ -85,7 +85,7 @@ type ConnectionProvider struct {
 	wg              sync.WaitGroup
 	stopChan        chan struct{}
 	outChan         chan *connection.Connection
-	ap              AddressProvider
+	aps             []AddressProvider
 	outAddrs        *addressMap
 	maxInConnCount  uint32
 	maxOutConnCount uint32
@@ -94,13 +94,13 @@ type ConnectionProvider struct {
 }
 
 func NewConnectionProvider(
-	ap AddressProvider,
+	aps []AddressProvider,
 	hostport string,
 	maxInConnCount uint32,
 	maxOutConnCount uint32,
 ) *ConnectionProvider {
 	cp := &ConnectionProvider{
-		ap:              ap,
+		aps:             aps,
 		maxInConnCount:  maxInConnCount,
 		maxOutConnCount: maxOutConnCount,
 		hostport:        hostport,
@@ -120,16 +120,20 @@ func setDefaultBootstrapAddresses(outAddrs *addressMap) {
 
 func (cp *ConnectionProvider) Start() {
 	log.Debugf("Starting ConnectionProvider")
-	cp.ap.RegisterAddressConsumer(cp)
 	cp.wg.Add(2)
 	go cp.listenIncomingConnections()
 	go cp.establishOutgoingConnections()
-	cp.ap.Start()
+	for _, ap := range cp.aps {
+		ap.RegisterAddressConsumer(cp)
+		ap.Start()
+	}
 }
 
 func (cp *ConnectionProvider) Stop() {
 	log.Debugf("Stopping ConnectionProvider")
-	cp.ap.Stop()
+	for _, ap := range cp.aps {
+		ap.Stop()
+	}
 	close(cp.stopChan)
 	if cp.listener != nil {
 		cp.listener.Close()

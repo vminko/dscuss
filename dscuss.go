@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -163,28 +164,35 @@ func Login(nickname string) (*LoginHandle, error) {
 	}
 	log.Debugf("Trying to login as peer %s", ownr.User.ID().String())
 
-	var ap p2p.AddressProvider
-	switch cfg.Network.AddressProvider {
-	case "addrlist":
-		addrFilePath := filepath.Join(
-			dir,
-			AddressListFileName,
-		)
-		ap = p2p.NewAddressList(addrFilePath)
-	case "dht":
-		ap = p2p.NewDHTCrawler(
-			cfg.Network.Address,
-			cfg.Network.DHTPort,
-			cfg.Network.DHTBootstrap,
-			cfg.Network.Port,
-			ownr.Profile.GetSubscriptions(),
-		)
-	default:
-		log.Fatal("Unknown address provider is configured: " + cfg.Network.AddressProvider)
+	var aps []p2p.AddressProvider
+	for _, name := range strings.Split(cfg.Network.AddressProvider, ",") {
+		switch name {
+		case "addrlist":
+			addrFilePath := filepath.Join(
+				dir,
+				AddressListFileName,
+			)
+			ap := p2p.NewAddressList(addrFilePath)
+			aps = append(aps, ap)
+		case "dht":
+			ap := p2p.NewDHTCrawler(
+				cfg.Network.Address,
+				cfg.Network.DHTPort,
+				cfg.Network.DHTBootstrap,
+				cfg.Network.Port,
+				ownr.Profile.GetSubscriptions(),
+			)
+			aps = append(aps, ap)
+		default:
+			log.Error("Unknown address provider is configured: " + name)
+		}
+	}
+	if len(aps) == 0 {
+		log.Fatal("Could not found any valid address provider in " + cfg.Network.AddressProvider)
 	}
 
 	hp := net.JoinHostPort(cfg.Network.Address, strconv.Itoa(cfg.Network.Port))
-	cp := p2p.NewConnectionProvider(ap, hp, cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount)
+	cp := p2p.NewConnectionProvider(aps, hp, cfg.Network.MaxInConnCount, cfg.Network.MaxOutConnCount)
 
 	pp := p2p.NewPeerPool(cp, ownr)
 	pp.Start()
