@@ -111,14 +111,19 @@ framework, but later it was considered not suitable for the purposes of Dscuss.
 How to get the source code
 --------------------------
 
-The source code is available under GPL3.  To fetch the latest source code from
-the git repository, run the following command:
+The source code is available under GPL3.
+
+To fetch the latest source code from the git repository, run the following command:
 
     git clone git://vminko.org/dscuss
 
 If you want to get the proof-of-concept version (which is more or less stable):
 
     git reset --hard proof-of-concept
+
+You can use the [web interface][cgit] to browse the source code online.
+
+[cgit]: http://dscuss.org/cgit/dscuss/
 
 
 How to compile
