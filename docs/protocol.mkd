@@ -24,8 +24,8 @@ Brief description of the protocol
   sequenced and non-duplicated. In order to achieve that, TCP is used as a
   transport protocol. Peers handshake before sending entities, peers send
   an acknowledgment after successful delivery.
-* It's __binary__, which means that packets contain binary data structures
-  rather than text strings.
+* It's __text-oriented__, which means that packets contain text strings (in JSON
+  format)  rather than binary data.
 * Protocol __connections are multiplexed__ - all communication between two peers
   is performed through one TCP connection.
 * __Packet exchange is synchronous__ - a peer sends one packet and waits for
