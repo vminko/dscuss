@@ -1,6 +1,13 @@
-Title:      Dscuss - P2P network for public discussions.
+Title:      Dscuss - P2P network for public discussions
 Name:       Dscuss
-Summary:    Project of developing a decentralized network for public discussion.
+Summary:    Traditional systems for public discussion (like Internet forums) do
+            not provide equal rights to all users. Owners of the resource and
+            moderators always possess extended rights. Sometimes these rights
+            can be abused, which eventually can split the community of the
+            resource and lead to its degeneration. As a solution to this problem
+            we present Dscuss. It’s a peer-to-peer network for public
+            discussions, which provides equal rights to all members of the
+            community.
 Copyright:  (c) 2011-2019 Vitaly Minko
             Content is available under GNU Free Documentation License 1.3 and
             Creative Commons Attribution-Share Alike 3.0 Unported License
