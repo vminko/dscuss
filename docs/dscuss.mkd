@@ -1,4 +1,4 @@
-Title:      Dscuss
+Title:      Dscuss - P2P network for public discussions.
 Name:       Dscuss
 Summary:    Project of developing a decentralized network for public discussion.
 Copyright:  (c) 2011-2019 Vitaly Minko
