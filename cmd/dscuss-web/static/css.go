@@ -143,10 +143,10 @@ a:visited {
 #navright {
 	float: right;
 }
-.muted {
+.dimmed {
 	color: darkgrey;
 }
-.muted a, .muted a:link, .muted a:hover, .muted a:visited, .muted a:active {
+.dimmed a, .dimmed a:link, .dimmed a:hover, .dimmed a:visited, .dimmed a:active {
 	color: grey;
 }
 .row {
@@ -204,26 +204,23 @@ textarea {
 #subtitle {
 	margin-top: 0px;
 }
-.comment p:first-child {
+.message p:first-child {
 	margin-top: 10px;
 }
-.comment-row {
+.message-row, .thread-row {
 	margin-bottom: 30px;
 }
-.comment-title {
-	font-size: 90%;
-}
-.topic-row {
-
+.underline, .topic {
+	font-size: 75%;
 }
 .alert {
 	color: red;
 }
-a, .muted, h3, .comment p {
+a, .dimmed, h3, .message p {
 	word-wrap: break-word;
 }
 
-.muted .link-button {
+.dimmed .link-button {
 	border: none;
   	outline: none;
   	background: none;
@@ -234,10 +231,10 @@ a, .muted, h3, .comment p {
   	font-family: inherit;
   	font-size: inherit;
 }
-.muted .link-button:focus {
+.dimmed .link-button:focus {
 	outline: none;
 }
-.muted .link-button:active {
+.dimmed .link-button:active {
 	color: grey;
 }
 `

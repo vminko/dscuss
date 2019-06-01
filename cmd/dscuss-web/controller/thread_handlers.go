@@ -83,13 +83,13 @@ func (tc *ThreadComposer) Handle(n *thread.Node) bool {
 }
 
 func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/thread(id=[a-zA-Z0-9/+=]{32})?$")
+	var validURI = regexp.MustCompile("^/thread(id=[a-zA-Z0-9\\/+=]{32})?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		http.NotFound(w, r)
 		return
 	}
-	idStr := r.FormValue("id")
+	idStr := r.URL.Query().Get("id")
 	var tid entity.ID
 	err := tid.ParseString(idStr)
 	if err != nil {

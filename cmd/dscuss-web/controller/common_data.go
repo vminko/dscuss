@@ -20,6 +20,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"strings"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/config"
 )
@@ -28,9 +29,11 @@ type CommonData struct {
 	CSRF               string
 	OwnerName          string
 	OwnerID            string
+	OwnerShortID       string
 	NodeName           string
 	PageTitle          string
 	CurrentURL         template.URL
+	ShowLogin          bool
 	IsWritingPermitted bool
 }
 
@@ -39,13 +42,15 @@ func readCommonData(r *http.Request, s *Session, l *dscuss.LoginHandle) *CommonD
 	res := CommonData{
 		CSRF:               s.CSRFToken,
 		NodeName:           cfg.NodeName,
-		IsWritingPermitted: false,
 		CurrentURL:         "/",
+		IsWritingPermitted: false,
+		ShowLogin:          true,
 	}
 	if s.IsAuthenticated {
 		u := l.GetLoggedUser()
 		res.OwnerName = u.Nickname
 		res.OwnerID = u.ID().String()
+		res.OwnerShortID = u.ID().Shorten()
 		res.IsWritingPermitted = true
 	}
 	if r.URL.Path != "" {
@@ -54,6 +59,7 @@ func readCommonData(r *http.Request, s *Session, l *dscuss.LoginHandle) *CommonD
 			currentURL = currentURL + "?" + r.URL.RawQuery
 		}
 		res.CurrentURL = template.URL(url.QueryEscape(currentURL))
+		res.ShowLogin = !strings.HasPrefix(currentURL, "/login")
 	}
 	return &res
 }

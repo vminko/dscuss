@@ -42,9 +42,11 @@ const baseHTML = `
 		</div>
 		<div id="navright">
 			{{ if .Common.OwnerName }}
-			{{ .Common.OwnerName }} ({{ .Common.OwnerID }}) <a href="/logout">Logout</a>
+				{{ .Common.OwnerName }}-{{ .Common.OwnerShortID }} <a href="/logout">Logout</a>
 			{{ else }}
-			<a href="/login?next={{ .Common.CurrentURL }}">Login</a>
+				{{ if .Common.ShowLogin }}
+					<a href="/login?next={{ .Common.CurrentURL }}">Login</a>
+				{{ end }}
 			{{ end }}
 		</div>
 	</div>
@@ -58,3 +60,5 @@ const baseHTML = `
 </body>
 </html>
 `
+
+/* vim: set filetype=html: */

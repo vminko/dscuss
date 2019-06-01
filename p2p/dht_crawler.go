@@ -76,7 +76,7 @@ func (dc *DHTCrawler) Start() {
 		log.Fatal("Attempt to start providing addresses when AddressConsumer is not set")
 	}
 	cfg := dht.NewConfig()
-	//cfg.Address = dc.addr
+	cfg.Address = dc.addr
 	cfg.Port = dc.port
 	cfg.RateLimit = -1
 	cfg.ClientPerMinuteLimit = 10000

@@ -36,8 +36,9 @@ var templates templateMap = make(map[string]*template.Template)
 
 func init() {
 	base := template.Must(template.New("base").Parse(baseHTML))
-	templates.Add(base, "board", boardHTML)
 	templates.Add(base, "login", loginHTML)
+	templates.Add(base, "board", boardHTML)
+	templates.Add(base, "thread", threadHTML)
 }
 
 func Render(w http.ResponseWriter, tmplName string, data interface{}) {

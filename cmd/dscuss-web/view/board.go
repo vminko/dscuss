@@ -30,25 +30,27 @@ all topics
 
 {{ if .Threads }}
 {{ range .Threads }}
+<hr class="sep">
 <div class="thread-row" id="thread-{{ .ID }}">
-	<div><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></div>
-	<div class="muted">
-		ID: {{ .ID }}
+	<div>
+		<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
+		{{ if not $.Topic }}
+			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
+		{{ end }}
 	</div>
-	<div class="muted">
-		Topic: <a href="/board?topic={{ .Topic }}">{{ .Topic }}</a>
-	</div>
-	<div class="muted">
-		by {{ .AuthorName }}" ( {{ .AuthorID }} ) at {{ .DateWritten }}
+	<div class="message">{{ .Text }}</div>
+	<div class="dimmed underline">
+		by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
 	</div>
 </div>
-<hr class="sep">
 {{ end }}
 {{ else }}
 <div class="row">
-	<div class="muted">No threads to show.</div>
+	<div class="dimmed">No threads to show.</div>
 </div>
 {{ end }}
 
 {{ end }}
 `
+
+/* vim: set filetype=html: */

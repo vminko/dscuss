@@ -31,13 +31,18 @@ const (
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/login(next=[a-z,\\/]*)?$")
+	var validURI = regexp.MustCompile("^/login(next=[a-zA-Z0-9\\/+=]+)?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		http.NotFound(w, r)
 		return
 	}
-	redirectURL, err := url.QueryUnescape(r.FormValue("next"))
+	var err error
+	redirectURL := r.FormValue("next")
+	// FormValue() returns URL-decoded value for GET methods
+	if r.Method == "POST" {
+		redirectURL, err = url.QueryUnescape(r.FormValue("next"))
+	}
 	if err != nil || redirectURL == "" || redirectURL[0] != '/' {
 		redirectURL = "/"
 	}

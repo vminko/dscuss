@@ -37,3 +37,5 @@ const loginHTML = `
 </form>
 
 {{ end }}`
+
+/* vim: set filetype=html: */

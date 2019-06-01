@@ -29,12 +29,14 @@ import (
 
 func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	type Thread struct {
-		ID          string
-		Topic       string
-		Subject     string
-		DateWritten string
-		AuthorName  string
-		AuthorID    string
+		ID            string
+		Topic         string
+		Subject       string
+		Text          string
+		DateWritten   string
+		AuthorName    string
+		AuthorID      string
+		AuthorShortID string
 	}
 	var validURI = regexp.MustCompile("^/board(topic=[a-z,]*)?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
@@ -42,7 +44,7 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		http.NotFound(w, r)
 		return
 	}
-	topicStr := r.FormValue("topic")
+	topicStr := r.URL.Query().Get("topic")
 	var err error
 	var topic subs.Topic
 	if topicStr != "" {
@@ -71,8 +73,10 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		t.ID = msg.ID().String()
 		t.Topic = msg.Topic.String()
 		t.Subject = msg.Subject
+		t.Text = msg.Text
 		t.DateWritten = msg.DateWritten.Format(time.RFC3339)
 		t.AuthorID = msg.AuthorID.String()
+		t.AuthorShortID = msg.AuthorID.Shorten()
 		t.AuthorName = userName(l, &msg.AuthorID)
 	}
 
