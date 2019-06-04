@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"runtime/debug"
+	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/static"
 	"vminko.org/dscuss/entity"
@@ -31,13 +32,8 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
-	if r := recover(); r != nil {
-		log.Errorf("[INFO] Recovered from panic: %s\n[INFO] Debug stack: %s\n",
-			r, debug.Stack())
-		http.Error(w, "Internal server error. This event has been logged.",
-			http.StatusInternalServerError)
-	}
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	http.NotFound(w, r)
 }
 
 func BadRequestHandler(w http.ResponseWriter, r *http.Request, msg string) {
@@ -47,6 +43,15 @@ func BadRequestHandler(w http.ResponseWriter, r *http.Request, msg string) {
 
 func ForbiddenHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "403 Forbidden", http.StatusForbidden)
+}
+
+func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
+	if r := recover(); r != nil {
+		log.Errorf("[INFO] Recovered from panic: %s\n[INFO] Debug stack: %s\n",
+			r, debug.Stack())
+		http.Error(w, "Internal server error. This event has been logged.",
+			http.StatusInternalServerError)
+	}
 }
 
 func CSSHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,4 +104,50 @@ func userName(l *dscuss.LoginHandle, id *entity.ID) string {
 	default:
 		return u.Nickname
 	}
+}
+
+type Message struct {
+	ID            string
+	Subject       string
+	Text          string
+	DateWritten   string
+	AuthorName    string
+	AuthorID      string
+	AuthorShortID string
+}
+
+func (m *Message) Assign(em *entity.Message, l *dscuss.LoginHandle) {
+	m.ID = em.ID().String()
+	m.Subject = em.Subject
+	m.Text = em.Text
+	m.DateWritten = em.DateWritten.Format(time.RFC3339)
+	m.AuthorID = em.AuthorID.String()
+	m.AuthorShortID = em.AuthorID.Shorten()
+	m.AuthorName = userName(l, &em.AuthorID)
+}
+
+type RootMessage struct {
+	Message
+	Topic string
+}
+
+func (rm *RootMessage) Assign(em *entity.Message, l *dscuss.LoginHandle) {
+	rm.Message.Assign(em, l)
+	rm.Topic = em.Topic.String()
+}
+
+type Thread struct {
+	RootMessage
+	Replies []Message
+}
+
+type ComposedReply struct {
+	Subject string
+	Text    string
+}
+
+type ComposedRootMessage struct {
+	Topic   string
+	Subject string
+	Text    string
 }

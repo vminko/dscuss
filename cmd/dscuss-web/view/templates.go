@@ -39,6 +39,7 @@ func init() {
 	templates.Add(base, "login", loginHTML)
 	templates.Add(base, "board", boardHTML)
 	templates.Add(base, "thread", threadHTML)
+	templates.Add(base, "reply", replyHTML)
 }
 
 func Render(w http.ResponseWriter, tmplName string, data interface{}) {

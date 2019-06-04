@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
@@ -33,29 +32,10 @@ const (
 	maxTextLength    = 1024
 )
 
-type Thread1 struct {
-	ID      string
-	Topic   string
-	Subject string
-}
-type ParentMessage1 struct {
-	ID            string
-	Subject       string
-	Text          string
-	DateWritten   string
-	AuthorName    string
-	AuthorID      string
-	AuthorShortID string
-}
-type Reply1 struct {
-	Subject string
-	Text    string
-}
-
 func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	var validURI = regexp.MustCompile("^/reply(\\?id=[a-zA-Z0-9\\/+=]+)?$")
 	if validURI.FindStringSubmatch(r.URL.Path) == nil {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 		return
 	}
 	if !s.IsAuthenticated {
@@ -80,32 +60,24 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 
 	var msg string
 	var showSubj bool
-	var t Thread1
-	var pm ParentMessage1
-	var rpl Reply1
+	var rm RootMessage
+	var pm Message
+	var rpl ComposedReply
 	m, err := l.GetMessage(&pid)
 	if err == errors.NoSuchEntity {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 	} else if err != nil {
 		log.Fatalf("Got an error while fetching msg %s from DB: %v",
 			pid.Shorten(), err)
 	}
-	pm.ID = m.ID().String()
-	pm.Subject = m.Subject
-	pm.Text = m.Text
-	pm.DateWritten = m.DateWritten.Format(time.RFC3339)
-	pm.AuthorID = m.AuthorID.String()
-	pm.AuthorShortID = m.AuthorID.Shorten()
-	pm.AuthorName = userName(l, &m.AuthorID)
+	pm.Assign(m, l)
 
 	root, err := l.GetRootMessage(m)
 	if err != nil {
 		log.Fatalf("Got an error while fetching root for msg %s from DB: %v",
 			pid.Shorten(), err)
 	}
-	t.ID = root.ID().String()
-	t.Topic = root.Topic.String()
-	t.Subject = root.Subject
+	rm.Assign(root, l)
 
 	if r.Method == "POST" {
 		rpl.Subject = r.PostFormValue("subject")
@@ -128,7 +100,7 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 render:
 	view.Render(w, "reply.html", map[string]interface{}{
 		"Common":            readCommonData(r, s, l),
-		"Thread":            t,
+		"Thread":            rm,
 		"Parent":            pm,
 		"Reply":             rpl,
 		"ShowParentSubject": showSubj,

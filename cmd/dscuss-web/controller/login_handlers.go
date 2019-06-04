@@ -31,17 +31,17 @@ const (
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/login(next=[a-zA-Z0-9\\/+=]+)?$")
+	var validURI = regexp.MustCompile("^/login(\\?next=[a-zA-Z0-9\\/+=]+)?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
 	if m == nil {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 		return
 	}
 	var err error
 	redirectURL := r.FormValue("next")
-	// FormValue() returns URL-decoded value for GET methods
 	if r.Method == "POST" {
-		redirectURL, err = url.QueryUnescape(r.FormValue("next"))
+		// FormValue() returns URL-decoded value for GET methods
+		redirectURL, err = url.QueryUnescape(redirectURL)
 	}
 	if err != nil || redirectURL == "" || redirectURL[0] != '/' {
 		redirectURL = "/"
@@ -76,7 +76,7 @@ func MakeLoginHandler(l *dscuss.LoginHandle) http.HandlerFunc {
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/logout" {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 		return
 	}
 	defer InternalServerErrorHandler(w, r)

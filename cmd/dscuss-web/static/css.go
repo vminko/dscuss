@@ -204,8 +204,10 @@ textarea {
 #subtitle {
 	margin-top: 0px;
 }
-.message p:first-child {
+.message-text {
 	margin-top: 10px;
+	white-space: pre-wrap;
+	font-family: monospace;
 }
 .message-row, .thread-row {
 	margin-bottom: 30px;

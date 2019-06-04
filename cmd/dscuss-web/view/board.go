@@ -38,7 +38,7 @@ all topics
 			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
 		{{ end }}
 	</div>
-	<div class="message">{{ .Text }}</div>
+	<div class="message-text">{{ .Text }}</div>
 	<div class="dimmed underline">
 		by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
 	</div>

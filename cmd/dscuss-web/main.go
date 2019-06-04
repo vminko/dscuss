@@ -123,6 +123,7 @@ func main() {
 	http.HandleFunc("/login", controller.MakeLoginHandler(loginHandle))
 	http.HandleFunc("/logout", controller.LogoutHandler)
 	http.HandleFunc("/thread", controller.MakeThreadHandler(loginHandle))
+	http.HandleFunc("/reply", controller.MakeReplyHandler(loginHandle))
 	http.HandleFunc("/", controller.MakeRootHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)

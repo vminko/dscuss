@@ -41,7 +41,7 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	var validURI = regexp.MustCompile("^/board(topic=[a-z,]*)?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
 	if m == nil {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 		return
 	}
 	topicStr := r.URL.Query().Get("topic")

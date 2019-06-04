@@ -257,6 +257,14 @@ func (lh *LoginHandle) GetUser(id *entity.ID) (*entity.User, error) {
 	return lh.owner.Storage.GetUser(id)
 }
 
+func (lh *LoginHandle) GetMessage(id *entity.ID) (*entity.Message, error) {
+	return lh.owner.Storage.GetMessage(id)
+}
+
+func (lh *LoginHandle) GetRootMessage(m *entity.Message) (*entity.Message, error) {
+	return lh.owner.Storage.GetRoot(m)
+}
+
 func (lh *LoginHandle) ListOperationsOnUser(id *entity.ID) ([]*entity.Operation, error) {
 	return lh.owner.Storage.GetOperationsOnUser(id)
 }

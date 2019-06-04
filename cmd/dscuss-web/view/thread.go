@@ -29,7 +29,7 @@ const threadHTML = `
 <h2 id="title"><a href="/thread?id={{ .ThreadID }}">{{ .Subject }}</a></h2>
 <span class="topic">in <a href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
 <div class="message-row">
-	<div class="message">{{ .Text }}</div>
+	<div class="message-text">{{ .Text }}</div>
 	<div class="dimmed underline">
 		by <a href="/user?u={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a> {{ .DateWritten }}
 		{{ if .Common.IsWritingPermitted }}
@@ -45,7 +45,7 @@ const threadHTML = `
 <hr class="sep">
 <div class="message-row" id="message-{{ .ID }}">
 	<b>{{ .Subject }}</b>
-	<div class="message">{{ .Text }}</div>
+	<div class="message-text">{{ .Text }}</div>
 	<div class="dimmed underline">
 		by <a href="/user?u={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
 		<a href="/lsop?id={{ .ID }}">{{ .DateWritten }}</a>

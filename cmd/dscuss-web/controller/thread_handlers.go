@@ -19,35 +19,12 @@ package controller
 import (
 	"net/http"
 	"regexp"
-	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/thread"
 )
-
-type Thread struct {
-	ID            string
-	Topic         string
-	Subject       string
-	Text          string
-	DateWritten   string
-	AuthorName    string
-	AuthorID      string
-	AuthorShortID string
-	Replies       []Reply
-}
-
-type Reply struct {
-	ID            string
-	Subject       string
-	Text          string
-	DateWritten   string
-	AuthorName    string
-	AuthorID      string
-	AuthorShortID string
-}
 
 type ThreadComposer struct {
 	t *Thread
@@ -60,24 +37,11 @@ func (tc *ThreadComposer) Handle(n *thread.Node) bool {
 		return true
 	}
 	if n.IsRoot() {
-		tc.t.ID = m.ID().String()
-		tc.t.Topic = m.Topic.String()
-		tc.t.Subject = m.Subject
-		tc.t.Text = m.Text
-		tc.t.DateWritten = m.DateWritten.Format(time.RFC3339)
-		tc.t.AuthorID = m.AuthorID.String()
-		tc.t.AuthorShortID = m.AuthorID.Shorten()
-		tc.t.AuthorName = userName(tc.l, &m.AuthorID)
+		tc.t.RootMessage.Assign(m, tc.l)
 	} else {
-		tc.t.Replies = append(tc.t.Replies, Reply{})
+		tc.t.Replies = append(tc.t.Replies, Message{})
 		r := &tc.t.Replies[len(tc.t.Replies)-1]
-		r.ID = m.ID().String()
-		r.Subject = m.Subject
-		r.Text = m.Text
-		r.DateWritten = m.DateWritten.Format(time.RFC3339)
-		r.AuthorID = m.AuthorID.String()
-		r.AuthorShortID = m.AuthorID.Shorten()
-		r.AuthorName = userName(tc.l, &m.AuthorID)
+		r.Assign(m, tc.l)
 	}
 	return true
 }
@@ -86,7 +50,7 @@ func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 	var validURI = regexp.MustCompile("^/thread(id=[a-zA-Z0-9\\/+=]{32})?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
 	if m == nil {
-		http.NotFound(w, r)
+		NotFoundHandler(w, r)
 		return
 	}
 	idStr := r.URL.Query().Get("id")

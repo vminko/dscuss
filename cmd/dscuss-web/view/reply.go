@@ -34,7 +34,7 @@ const replyHTML = `
 	<form action="/reply" method="POST" enctype="multipart/form-data">
 	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 	<input type="hidden" name="id" value="{{ .Parent.ID }}">
-	<input type="text" name="subject" value="{{ .Reply.Subject }}">
+	Subject: <input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}">
 	<textarea name="text" rows="12">{{ .Reply.Text }}</textarea>
 	{{ if .Message }}
 		<span class="alert">{{ .Message }}</span>
