@@ -55,6 +55,11 @@ type StoredMessage struct {
 	Stored time.Time
 }
 
+const (
+	MaxSubjectLen = 128
+	MaxTextLen    = 1024
+)
+
 // EmergeMessage creates a new message. It should be called when owner wants to
 // post a new message. Signature will be created using the provided signer.
 func EmergeMessage(
@@ -126,6 +131,14 @@ func (um *UnsignedMessage) isValid() bool {
 	correctID := um.MessageContent.ToID()
 	if um.Descriptor.ID != *correctID {
 		log.Debugf("Message %s has invalid ID", um)
+		return false
+	}
+	if len(um.Subject) > MaxSubjectLen {
+		log.Debugf("Message %s has too long subject (%d)", um, len(um.Subject))
+		return false
+	}
+	if len(um.Text) > MaxTextLen {
+		log.Debugf("Message %s has too long text (%d)", um, len(um.Text))
 		return false
 	}
 	if um.Subject == "" || um.Text == "" {

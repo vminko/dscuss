@@ -28,15 +28,9 @@ import (
 )
 
 func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	type Thread struct {
-		ID            string
-		Topic         string
-		Subject       string
-		Text          string
-		DateWritten   string
-		AuthorName    string
-		AuthorID      string
-		AuthorShortID string
+	if len(r.URL.Query()) > 1 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
+		return
 	}
 	var validURI = regexp.MustCompile("^/board(topic=[a-z,]*)?$")
 	m := validURI.FindStringSubmatch(r.URL.Path)
@@ -66,9 +60,9 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		log.Fatal("Can't list board: " + err.Error() + ".")
 	}
 
-	var threads []Thread
+	var threads []RootMessage
 	for _, msg := range messages {
-		threads = append(threads, Thread{})
+		threads = append(threads, RootMessage{})
 		t := &threads[len(threads)-1]
 		t.ID = msg.ID().String()
 		t.Topic = msg.Topic.String()

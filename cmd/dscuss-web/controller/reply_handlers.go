@@ -17,9 +17,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
@@ -27,15 +27,9 @@ import (
 	"vminko.org/dscuss/log"
 )
 
-const (
-	maxSubjectLength = 128
-	maxTextLength    = 1024
-)
-
 func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/reply(\\?id=[a-zA-Z0-9\\/+=]+)?$")
-	if validURI.FindStringSubmatch(r.URL.Path) == nil {
-		NotFoundHandler(w, r)
+	if len(r.URL.Query()) != 1 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
 	}
 	if !s.IsAuthenticated {
@@ -54,7 +48,7 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	var pid entity.ID
 	err := pid.ParseString(pidStr)
 	if err != nil {
-		BadRequestHandler(w, r, pidStr+" is not a valid entity ID.")
+		BadRequestHandler(w, r, "'"+pidStr+"' is not a valid entity ID.")
 		return
 	}
 
@@ -82,8 +76,12 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	if r.Method == "POST" {
 		rpl.Subject = r.PostFormValue("subject")
 		rpl.Text = r.PostFormValue("text")
-		if len(rpl.Subject) > maxSubjectLength || len(rpl.Text) > maxTextLength {
-			msg = "Specified subject or text is too long."
+		if (rpl.Subject == "") || (len(rpl.Subject) > entity.MaxSubjectLen) {
+			msg = "Specified subject is unacceptable: empty or too long."
+			goto render
+		}
+		if (rpl.Text == "") || (len(rpl.Text) > entity.MaxTextLen) {
+			msg = "Specified message text is unacceptable: empty or too long."
 			goto render
 		}
 		rplMsg, err := l.NewReply(rpl.Subject, rpl.Text, &pid)
@@ -96,6 +94,8 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 			msg = "Error posting new reply: " + err.Error() + "."
 			goto render
 		}
+		http.Redirect(w, r, "/thread?id="+url.QueryEscape(rm.ID), http.StatusSeeOther)
+		return
 	}
 render:
 	view.Render(w, "reply.html", map[string]interface{}{

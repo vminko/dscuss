@@ -18,7 +18,6 @@ package controller
 
 import (
 	"net/http"
-	"regexp"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
@@ -47,10 +46,8 @@ func (tc *ThreadComposer) Handle(n *thread.Node) bool {
 }
 
 func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/thread(id=[a-zA-Z0-9\\/+=]{32})?$")
-	m := validURI.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		NotFoundHandler(w, r)
+	if len(r.URL.Query()) != 1 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
 	}
 	idStr := r.URL.Query().Get("id")

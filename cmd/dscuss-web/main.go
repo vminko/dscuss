@@ -103,6 +103,11 @@ func main() {
 		fmt.Println("You have to specify a custom password.")
 		return
 	}
+	if len(*argPassword) > controller.MaxPasswordLen {
+		fmt.Print("The specified password is too long. ")
+		fmt.Printf("Max password length = %d.\n", controller.MaxPasswordLen)
+		return
+	}
 	controller.SetPassword(*argPassword)
 
 	fmt.Println("Starting Dscuss...")

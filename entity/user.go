@@ -60,12 +60,13 @@ type UserHistory struct {
 }
 
 const (
-	nicknameRegex string = "^[a-zA-Z0-9_]+$"
+	MaxUsernameLen        = 64
+	nicknameRegex  string = "^[a-zA-Z0-9_]+$"
 )
 
 func IsNicknameValid(nickname string) bool {
 	var nickRe = regexp.MustCompile(nicknameRegex)
-	return nickRe.MatchString(nickname)
+	return (len(nickname) <= MaxUsernameLen) && nickRe.MatchString(nickname)
 }
 
 // EmergeUser creates a new user entity. It should only be called when

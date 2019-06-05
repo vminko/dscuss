@@ -52,7 +52,7 @@ const threadHTML = `
 		{{ if $.Common.IsWritingPermitted }}
 		| <a href="/ban?id={{ .AuthorID }}">ban</a>
 		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/reply?id={{ $.ID }}">reply</a>
+		| <a href="/reply?id={{ .ID }}">reply</a>
 		{{ end }}
 	</div>
 </div>

@@ -20,7 +20,7 @@ package view
 const replyHTML = `
 {{ define "content" }}
 
-<h2>Reply to <a href="/topic?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
+<h2 id="title">Reply to <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
 <span class="topic">in <a href="/board?topic={{ .Thread.Topic }}">{{ .Thread.Topic }}</a></span>
 {{ if .ShowParentSubject }}
 <b>{{ .Parent.Subject }}</b>
@@ -37,7 +37,7 @@ const replyHTML = `
 	Subject: <input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}">
 	<textarea name="text" rows="12">{{ .Reply.Text }}</textarea>
 	{{ if .Message }}
-		<span class="alert">{{ .Message }}</span>
+		<span class="alert">{{ .Message }}</span><br>
 	{{ end }}
 	<input type="submit" name="action" class="no-double-post" value="Submit reply">
 	</form>

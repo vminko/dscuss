@@ -20,21 +20,18 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"regexp"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
+	"vminko.org/dscuss/entity"
 )
 
 const (
-	maxUsernameLength = 64
-	maxPasswordLength = 64
+	MaxPasswordLen = 64
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	var validURI = regexp.MustCompile("^/login(\\?next=[a-zA-Z0-9\\/+=]+)?$")
-	m := validURI.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		NotFoundHandler(w, r)
+	if len(r.URL.Query()) > 1 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
 	}
 	var err error
@@ -54,7 +51,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	if r.Method == "POST" {
 		user := r.PostFormValue("username")
 		pass := r.PostFormValue("password")
-		if len(user) > maxUsernameLength || len(pass) > maxPasswordLength {
+		if len(user) > entity.MaxUsernameLen || len(pass) > MaxPasswordLen {
 			msg = "Specified username or password is too long."
 		} else if err = s.Authenticate(l, user, pass); err != nil {
 			msg = err.Error()

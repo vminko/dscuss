@@ -77,6 +77,10 @@ func (i *ID) String() string {
 }
 
 func (i *ID) ParseString(s string) error {
+	if len(s) != len(i.String()) {
+		log.Warningf("Failed to parse ID string - wrong length (%d)", len(s))
+		return errors.Parsing
+	}
 	res, err := base64.StdEncoding.DecodeString(s)
 	copy(i[:], res[:])
 	return err
