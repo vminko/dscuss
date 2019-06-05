@@ -17,7 +17,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"vminko.org/dscuss"

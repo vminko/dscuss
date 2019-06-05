@@ -22,11 +22,11 @@ const threadHTML = `
 
 {{ if .Common.IsWritingPermitted }}
 <div class="btn-row">
-	<a class="link-btn" href="/reply?id={{ .ThreadID }}">Reply</a>
+	<a class="link-btn" href="/reply?id={{ .ID }}">Reply</a>
 </div>
 {{end}}
 
-<h2 id="title"><a href="/thread?id={{ .ThreadID }}">{{ .Subject }}</a></h2>
+<h2 id="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h2>
 <span class="topic">in <a href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
 <div class="message-row">
 	<div class="message-text">{{ .Text }}</div>
@@ -35,7 +35,7 @@ const threadHTML = `
 		{{ if .Common.IsWritingPermitted }}
 		| <a href="/ban?id={{ .AuthorID }}">ban</a>
 		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/reply?id={{ $.ID }}">reply</a>
+		| <a href="/reply?id={{ .ID }}">reply</a>
 		{{ end }}
 	</div>
 </div>
@@ -63,17 +63,6 @@ const threadHTML = `
 </div>
 {{ end }}
 <div id="comment-last"></div>
-
-{{ if .Common.IsWritingPermitted }}
-<div style="margin-top: 40px;">
-<form action="/reply" method="POST" enctype="multipart/form-data">
-	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-	<input type="hidden" name="id" value="{{ .ThreadID }}">
-	<textarea name="content" rows="12" placeholder="Your reply..."></textarea>
-	<input type="submit" name="action" class="no-double-post" value="Post reply">
-</form>
-</div>
-{{ end }}
 
 {{ end }}`
 
