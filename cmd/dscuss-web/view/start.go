@@ -17,29 +17,20 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const replyHTML = `
+const startHTML = `
 {{ define "content" }}
 
-<h2 id="title">Reply to <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
-<span class="topic">in <a href="/board?topic={{ .Thread.Topic }}">{{ .Thread.Topic }}</a></span>
-{{ if .ShowParentSubject }}
-<b>{{ .Parent.Subject }}</b>
-{{ end }}
-<div class="message-text">{{ .Parent.Text }}</div>
-<div class="dimmed underline">
-	by <a href="/user?u={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
-	{{ .Parent.DateWritten }}
-</div>
+<h2 id="title">Start new dscussion</h2>
 <div class="row">
-	<form action="/reply" method="POST" enctype="multipart/form-data">
+	<form action="/start" method="POST" enctype="multipart/form-data">
 		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-		<input type="hidden" name="id" value="{{ .Parent.ID }}">
-		Subject: <input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}">
-		<textarea name="text" rows="12">{{ .Reply.Text }}</textarea>
+		Topic: <input type="text" name="topic" value="{{ .Topic }}"><br>
+		Subject: <input type="text" name="subject" value="{{ .Subject }}">
+		<textarea name="text" rows="12">{{ .Text }}</textarea>
 		{{ if .Message }}
 			<span class="alert">{{ .Message }}</span><br>
 		{{ end }}
-		<input type="submit" name="action" class="no-double-post" value="Submit reply">
+		<input type="submit" name="action" class="no-double-post" value="Start dscussion">
 	</form>
 </div>
 

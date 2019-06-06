@@ -20,6 +20,12 @@ package view
 const boardHTML = `
 {{ define "content" }}
 
+{{ if .Common.IsWritingPermitted }}
+<div class="btn-row">
+	<a class="link-btn" href="/start{{ if $.Topic }}?topic={{ $.Topic }}{{ end }}">Start</a>
+</div>
+{{end}}
+
 <h1> Dscussions in
 {{ if .Topic }}
 topic {{ .Topic }}

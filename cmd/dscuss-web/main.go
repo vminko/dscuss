@@ -129,6 +129,7 @@ func main() {
 	http.HandleFunc("/logout", controller.LogoutHandler)
 	http.HandleFunc("/thread", controller.MakeThreadHandler(loginHandle))
 	http.HandleFunc("/reply", controller.MakeReplyHandler(loginHandle))
+	http.HandleFunc("/start", controller.MakeStartHandler(loginHandle))
 	http.HandleFunc("/", controller.MakeRootHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)
