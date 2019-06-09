@@ -97,8 +97,11 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		return
 	}
 render:
+	cd := readCommonData(r, s, l)
+	cd.PageTitle = "Reply to " + rm.Subject
+	cd.Topic = rm.Topic
 	view.Render(w, "reply.html", map[string]interface{}{
-		"Common":            readCommonData(r, s, l),
+		"Common":            cd,
 		"Thread":            rm,
 		"Parent":            pm,
 		"Reply":             rpl,

@@ -20,19 +20,33 @@ package view
 const startHTML = `
 {{ define "content" }}
 
-<h2 id="title">Start new dscussion</h2>
-<div class="row">
-	<form action="/start" method="POST" enctype="multipart/form-data">
-		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-		Topic: <input type="text" name="topic" value="{{ .Topic }}"><br>
-		Subject: <input type="text" name="subject" value="{{ .Subject }}">
-		<textarea name="text" rows="12">{{ .Text }}</textarea>
-		{{ if .Message }}
-			<span class="alert">{{ .Message }}</span><br>
-		{{ end }}
-		<input type="submit" name="action" class="no-double-post" value="Start dscussion">
-	</form>
-</div>
+<h2 class="title">Start new dscussion</h2>
+<form action="/start" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
+<table class="form">
+	<tr>
+		<th>Topic:</th>
+		<td><input type="text" name="topic" value="{{ .Common.Topic }}"></td>
+	</tr>
+	<tr>
+		<th>Subject:</th>
+		<td><input type="text" name="subject" value="{{ .Subject }}"></td>
+	</tr>
+	<tr>
+		<th>Text:</th>
+		<td><textarea name="text" rows="12">{{ .Text }}</textarea></td>
+	</tr>
+	<tr>
+		<th></th>
+		<td>
+			{{ if .Message }}
+				<span class="alert">{{ .Message }}</span><br>
+			{{ end }}
+			<input type="submit" name="action" class="no-double-post" value="Start dscussion">
+		</td>
+	</tr>
+</table>
+</form>
 
 {{ end }}`
 

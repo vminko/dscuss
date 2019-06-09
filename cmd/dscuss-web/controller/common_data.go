@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/config"
 )
@@ -30,8 +31,11 @@ type CommonData struct {
 	OwnerName          string
 	OwnerID            string
 	OwnerShortID       string
+	OwnerInfo          string
+	OwnerRegDate       string
 	NodeName           string
 	PageTitle          string
+	Topic              string
 	CurrentURL         template.URL
 	ShowLogin          bool
 	IsWritingPermitted bool
@@ -51,6 +55,8 @@ func readCommonData(r *http.Request, s *Session, l *dscuss.LoginHandle) *CommonD
 		res.OwnerName = u.Nickname
 		res.OwnerID = u.ID().String()
 		res.OwnerShortID = u.ID().Shorten()
+		res.OwnerInfo = u.Info
+		res.OwnerRegDate = u.RegDate.Format(time.RFC3339)
 		res.IsWritingPermitted = true
 	}
 	if r.URL.Path != "" {

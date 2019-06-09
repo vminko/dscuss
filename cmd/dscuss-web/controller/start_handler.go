@@ -75,9 +75,11 @@ func startHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		return
 	}
 render:
+	cd := readCommonData(r, s, l)
+	cd.PageTitle = "Start new dscussion"
+	cd.Topic = topic
 	view.Render(w, "start.html", map[string]interface{}{
-		"Common":  readCommonData(r, s, l),
-		"Topic":   topic,
+		"Common":  cd,
 		"Subject": subj,
 		"Text":    text,
 		"Message": msg,

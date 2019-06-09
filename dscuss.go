@@ -315,8 +315,8 @@ func (lh *LoginHandle) Unsubscribe(topic subs.Topic) error {
 	return lh.owner.Profile.RemoveSubscription(topic)
 }
 
-func (lh *LoginHandle) ListSubscriptions() string {
-	return lh.owner.Profile.GetSubscriptions().String()
+func (lh *LoginHandle) ListSubscriptions() subs.Subscriptions {
+	return lh.owner.Profile.GetSubscriptions()
 }
 
 func (lh *LoginHandle) MakeModerator(id *entity.ID) error {

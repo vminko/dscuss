@@ -20,14 +20,11 @@ package view
 const loginHTML = `
 {{ define "content" }}
 
+<h2 class="title">Owner authentication</h2>
 <form action="/login" method="POST">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <input type="hidden" name="next" value="{{ .next }}">
 <table class="form">
-	<tr>
-		<th></th>
-		<td>Owner authentication</td>
-	</tr>
 	<tr>
 		<th>Username:</th>
 		<td><input type="text" name="username" required></td>

@@ -41,6 +41,7 @@ func init() {
 	templates.Add(base, "thread", threadHTML)
 	templates.Add(base, "reply", replyHTML)
 	templates.Add(base, "start", startHTML)
+	templates.Add(base, "profile", profileHTML)
 }
 
 func Render(w http.ResponseWriter, tmplName string, data interface{}) {

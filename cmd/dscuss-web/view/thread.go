@@ -26,8 +26,7 @@ const threadHTML = `
 </div>
 {{end}}
 
-<h2 id="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h2>
-<span class="topic">in <a href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
+<h2 class="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h2>
 <div class="message-row">
 	<div class="message-text">{{ .Text }}</div>
 	<div class="dimmed underline">

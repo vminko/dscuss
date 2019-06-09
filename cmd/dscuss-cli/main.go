@@ -604,7 +604,7 @@ func doListSubscriptions(c *ishell.Context) {
 		return
 	}
 	subs := loginHandle.ListSubscriptions()
-	c.Print(subs)
+	c.Print(subs.String())
 }
 
 func doMakeModerator(c *ishell.Context) {

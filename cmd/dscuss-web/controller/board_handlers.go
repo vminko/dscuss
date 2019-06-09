@@ -19,7 +19,6 @@ package controller
 import (
 	"net/http"
 	"regexp"
-	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
@@ -64,19 +63,14 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	for _, msg := range messages {
 		threads = append(threads, RootMessage{})
 		t := &threads[len(threads)-1]
-		t.ID = msg.ID().String()
-		t.Topic = msg.Topic.String()
-		t.Subject = msg.Subject
-		t.Text = msg.Text
-		t.DateWritten = msg.DateWritten.Format(time.RFC3339)
-		t.AuthorID = msg.AuthorID.String()
-		t.AuthorShortID = msg.AuthorID.Shorten()
-		t.AuthorName = userName(l, &msg.AuthorID)
+		t.Assign(msg, l)
 	}
 
+	cd := readCommonData(r, s, l)
+	cd.PageTitle = "Board"
+	cd.Topic = topicStr
 	view.Render(w, "board.html", map[string]interface{}{
-		"Common":  readCommonData(r, s, l),
-		"Topic":   topicStr,
+		"Common":  cd,
 		"Threads": threads,
 	})
 }

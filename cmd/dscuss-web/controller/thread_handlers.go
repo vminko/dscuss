@@ -66,10 +66,12 @@ func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 	tc := ThreadComposer{&t, l}
 	tvis := thread.NewViewingVisitor(&tc)
 	node.View(tvis)
+	cd := readCommonData(r, s, l)
+	cd.PageTitle = t.Subject
+	cd.Topic = t.Topic
 	view.Render(w, "thread.html", map[string]interface{}{
-		"Common":        readCommonData(r, s, l),
+		"Common":        cd,
 		"ID":            t.ID,
-		"Topic":         t.Topic,
 		"Subject":       t.Subject,
 		"Text":          t.Text,
 		"DateWritten":   t.DateWritten,

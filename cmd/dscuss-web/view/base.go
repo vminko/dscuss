@@ -27,7 +27,7 @@ const baseHTML = `
 	<link rel="stylesheet" type="text/css" href="/static/dscuss.css">
 	<title>
 		{{ if .Common.PageTitle }}
-			{{ .Common.PageTitle }}
+			{{ .Common.NodeName }} &mdash; {{ .Common.PageTitle }}
 		{{ else }}
 			{{ .Common.NodeName }}
 		{{ end }}
@@ -39,10 +39,14 @@ const baseHTML = `
 	<div id="header" class="clearfix">
 		<div id="navleft">
 			<a href="/">{{ .Common.NodeName }}</a>
+			{{ if .Common.Topic }}
+				&mdash; <a href="/board?topic=">{{ .Common.Topic }}</a>
+			{{ end }}
 		</div>
 		<div id="navright">
 			{{ if .Common.OwnerName }}
-				{{ .Common.OwnerName }}-{{ .Common.OwnerShortID }} <a href="/logout">Logout</a>
+				<a href="/profile">{{ .Common.OwnerName }}-{{ .Common.OwnerShortID }}</a>
+				<a href="/logout">Logout</a>
 			{{ else }}
 				{{ if .Common.ShowLogin }}
 					<a href="/login?next={{ .Common.CurrentURL }}">Login</a>

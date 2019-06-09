@@ -60,8 +60,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 			return
 		}
 	}
+	cd := readCommonData(r, s, l)
+	cd.PageTitle = "Owner authentication"
 	view.Render(w, "login.html", map[string]interface{}{
-		"Common":  readCommonData(r, s, l),
+		"Common":  cd,
 		"next":    template.URL(url.QueryEscape(redirectURL)),
 		"Message": msg,
 	})

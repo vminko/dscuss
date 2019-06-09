@@ -162,6 +162,7 @@ th, td {
 }
 .form th {
 	text-align: right;
+	vertical-align: top;
 	padding-top: 10px;
 }
 .form td {
@@ -187,7 +188,7 @@ th, td {
 		width: 100%;
 	}
 }
-.form input[type="text"], .form input[type="number"], .form input[type="password"] {
+input[type="text"], input[type="number"], input[type="password"] {
 	width: 100%;
 }
 textarea {
@@ -240,3 +241,5 @@ a, .dimmed, h3, .message p {
 	color: grey;
 }
 `
+
+/* vim: set filetype=css: */

@@ -61,6 +61,13 @@ func CSSHandler(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, static.CSS)
 }
 
+func JavaScriptHandler(w http.ResponseWriter, r *http.Request) {
+	defer InternalServerErrorHandler(w, r)
+	w.Header().Set("Content-Type", "text/javascript")
+	w.Header().Set("Cache-Control", "max-age=31536000, public")
+	io.WriteString(w, static.JavaScript)
+}
+
 func MakeRootHandler(l *dscuss.LoginHandle) http.HandlerFunc {
 	return makeHandler(
 		func(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
@@ -104,6 +111,22 @@ func userName(l *dscuss.LoginHandle, id *entity.ID) string {
 	default:
 		return u.Nickname
 	}
+}
+
+type User struct {
+	ID       string
+	ShortID  string
+	Nickname string
+	Info     string
+	RegDate  string
+}
+
+func (u *User) Assign(eu *entity.User, l *dscuss.LoginHandle) {
+	u.ID = eu.ID().String()
+	u.ShortID = eu.ID().Shorten()
+	u.Nickname = eu.Nickname
+	u.Info = eu.Info
+	u.RegDate = eu.RegDate.Format(time.RFC3339)
 }
 
 type Message struct {

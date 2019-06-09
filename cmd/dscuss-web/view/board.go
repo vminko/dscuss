@@ -22,13 +22,13 @@ const boardHTML = `
 
 {{ if .Common.IsWritingPermitted }}
 <div class="btn-row">
-	<a class="link-btn" href="/start{{ if $.Topic }}?topic={{ $.Topic }}{{ end }}">Start</a>
+	<a class="link-btn" href="/start{{ if $.Common.Topic }}?topic={{ $.Common.Topic }}{{ end }}">Start</a>
 </div>
 {{end}}
 
 <h1> Dscussions in
-{{ if .Topic }}
-topic {{ .Topic }}
+{{ if .Common.Topic }}
+topic {{ .Common.Topic }}
 {{ else }}
 all topics
 {{ end }}
@@ -40,7 +40,7 @@ all topics
 <div class="thread-row" id="thread-{{ .ID }}">
 	<div>
 		<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
-		{{ if not $.Topic }}
+		{{ if not $.Common.Topic }}
 			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
 		{{ end }}
 	</div>
