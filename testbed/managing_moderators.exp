@@ -92,7 +92,7 @@ expect {
 }
 
 say "Making Eve a moderator"
-send "mkmdr jNhpT2bYG/YQR3Dejo69mREhcXVWt0jnx1fE8r1ql7E=\r"
+send "addmdr jNhpT2bYG/YQR3Dejo69mREhcXVWt0jnx1fE8r1ql7E=\r"
 expect "> "
 
 say "Checking updates Adam's list of moderators"

@@ -21,7 +21,6 @@ import (
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
-	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/thread"
 )
 
@@ -59,7 +58,7 @@ func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 	}
 	node, err := l.ListThread(&tid)
 	if err != nil {
-		log.Fatal("Can't list thread: " + err.Error() + ".")
+		panic("Can't list thread: " + err.Error() + ".")
 		return
 	}
 	var t Thread

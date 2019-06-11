@@ -22,7 +22,6 @@ import (
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
-	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/subs"
 )
 
@@ -56,7 +55,7 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		messages, err = l.ListBoard(0, boardSize)
 	}
 	if err != nil {
-		log.Fatal("Can't list board: " + err.Error() + ".")
+		panic("Can't list board: " + err.Error() + ".")
 	}
 
 	var threads []RootMessage

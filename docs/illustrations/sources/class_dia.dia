@@ -15733,7 +15733,7 @@ User#</dia:string>
         </dia:composite>
         <dia:composite type="umloperation">
           <dia:attribute name="name">
-            <dia:string>#MakeModerator#</dia:string>
+            <dia:string>#AddModerator#</dia:string>
           </dia:attribute>
           <dia:attribute name="stereotype">
             <dia:string>##</dia:string>

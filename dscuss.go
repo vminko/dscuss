@@ -319,7 +319,7 @@ func (lh *LoginHandle) ListSubscriptions() subs.Subscriptions {
 	return lh.owner.Profile.GetSubscriptions()
 }
 
-func (lh *LoginHandle) MakeModerator(id *entity.ID) error {
+func (lh *LoginHandle) AddModerator(id *entity.ID) error {
 	has, err := lh.owner.Storage.HasUser(id)
 	if err != nil {
 		log.Errorf("Failed to check if storage contains %s: %v", id.Shorten(), err)

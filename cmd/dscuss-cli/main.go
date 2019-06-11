@@ -114,9 +114,9 @@ var commandList = []*ishell.Cmd{
 		Func: doListSubscriptions,
 	},
 	{
-		Name: "mkmdr",
+		Name: "addmdr",
 		Help: "<id>, make user <id> a moderator",
-		Func: doMakeModerator,
+		Func: doAddModerator,
 	},
 	{
 		Name: "rmmdr",
@@ -607,7 +607,7 @@ func doListSubscriptions(c *ishell.Context) {
 	c.Print(subs.String())
 }
 
-func doMakeModerator(c *ishell.Context) {
+func doAddModerator(c *ishell.Context) {
 	if loginHandle == nil {
 		c.Println("You are not logged in.")
 		return
@@ -623,7 +623,7 @@ func doMakeModerator(c *ishell.Context) {
 		c.Println(idStr + " is not a valid entity ID.")
 		return
 	}
-	err = loginHandle.MakeModerator(&id)
+	err = loginHandle.AddModerator(&id)
 	if err != nil {
 		c.Println("Error making new moderator: " + err.Error() + ".")
 	}

@@ -23,7 +23,6 @@ import (
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
-	"vminko.org/dscuss/log"
 )
 
 func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
@@ -60,15 +59,15 @@ func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	if err == errors.NoSuchEntity {
 		NotFoundHandler(w, r)
 	} else if err != nil {
-		log.Fatalf("Got an error while fetching msg %s from DB: %v",
-			pid.Shorten(), err)
+		panic("Got an error while fetching msg " + pid.Shorten() +
+			" from DB: " + err.Error())
 	}
 	pm.Assign(m, l)
 
 	root, err := l.GetRootMessage(m)
 	if err != nil {
-		log.Fatalf("Got an error while fetching root for msg %s from DB: %v",
-			pid.Shorten(), err)
+		panic("Got an error while fetching root for msg " + pid.Shorten() +
+			" from DB:" + err.Error())
 	}
 	rm.Assign(root, l)
 

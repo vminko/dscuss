@@ -37,7 +37,7 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func BadRequestHandler(w http.ResponseWriter, r *http.Request, msg string) {
-	http.Error(w, "Your browser sent a request that this server could not understand. "+msg,
+	http.Error(w, "Your browser sent a request that this server could not perform. "+msg,
 		http.StatusBadRequest)
 }
 

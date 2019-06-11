@@ -54,7 +54,7 @@ const profileHTML = `
 </form>
 <hr class="sep">
 <span class="subtitle">Moderators</span>
-<form action="/mkmdr" method="POST" enctype="multipart/form-data">
+<form action="/addmdr" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <table>
 	<tr>
