@@ -39,7 +39,7 @@ const profileHTML = `
 {{ range .Subscriptions }}
 	<tr>
 		<td>{{ . }}</td>
-		<td><a href="/unsub?id={{ . }}">Remove</a></td>
+		<td><a href="/unsub?topic={{ . }}">Remove</a></td>
 	</tr>
 {{ end }}
 	<tr>

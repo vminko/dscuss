@@ -566,7 +566,7 @@ func doSubscribe(c *ishell.Context) {
 	}
 	err = loginHandle.Subscribe(topic)
 	if err != nil {
-		c.Printf("Error subscribing to %s: %v\n", topic, err.Error())
+		c.Printf("Error subscribing to %s: %v\n", topic, err)
 		return
 	}
 	c.Println("In order to apply changes you need to logout and login back again.")

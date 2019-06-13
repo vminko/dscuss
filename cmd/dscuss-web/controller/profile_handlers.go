@@ -23,6 +23,7 @@ import (
 	"vminko.org/dscuss/cmd/dscuss-web/view"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
+	"vminko.org/dscuss/subs"
 )
 
 func profileHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
@@ -120,6 +121,65 @@ func removeModeratorHandler(w http.ResponseWriter, r *http.Request, l *dscuss.Lo
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
+func subscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+	if len(r.URL.Query()) != 0 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
+		return
+	}
+	if !s.IsAuthenticated {
+		ForbiddenHandler(w, r)
+		return
+	}
+	topicStr := r.FormValue("topic")
+	topicStr, err := url.QueryUnescape(topicStr)
+	if err != nil {
+		BadRequestHandler(w, r, topicStr+" is not a valid URL-encoded string.")
+		return
+	}
+	topic, err := subs.NewTopic(topicStr)
+	if err != nil {
+		BadRequestHandler(w, r, topicStr+" is not a valid topic string.")
+		return
+	}
+	err = l.Subscribe(topic)
+	if err == errors.AlreadySubscribed {
+		BadRequestHandler(w, r, "Can't add topic '"+topicStr+"': "+err.Error())
+	} else if err != nil {
+		panic("Error subscribing to '" + topicStr + "': " + err.Error())
+	}
+	//c.Println("In order to apply changes you need to restart the backend.")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+func unsubscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+	if len(r.URL.Query()) != 1 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
+		return
+	}
+	if !s.IsAuthenticated {
+		ForbiddenHandler(w, r)
+		return
+	}
+	topicStr := r.URL.Query().Get("topic")
+	topic, err := subs.NewTopic(topicStr)
+	if topic == nil {
+		BadRequestHandler(w, r, "Empty topic string is not acceptable.")
+		return
+	}
+	if err != nil {
+		BadRequestHandler(w, r, topicStr+" is not a valid URL-encoded string.")
+		return
+	}
+	err = l.Unsubscribe(topic)
+	if err == errors.AlreadySubscribed {
+		BadRequestHandler(w, r, "Can't add topic '"+topicStr+"': "+err.Error())
+	} else if err != nil {
+		panic("Failed to unsubscribe from '" + topicStr + "': " + err.Error())
+	}
+	//c.Println("In order to apply changes you need to restart the backend.")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
 func MakeProfileHandler(l *dscuss.LoginHandle) http.HandlerFunc {
 	return makeHandler(profileHandler, l)
 }
@@ -130,4 +190,12 @@ func MakeAddModeratorHandler(l *dscuss.LoginHandle) http.HandlerFunc {
 
 func MakeRemoveModeratorHandler(l *dscuss.LoginHandle) http.HandlerFunc {
 	return makeHandler(removeModeratorHandler, l)
+}
+
+func MakeSubscribeHandler(l *dscuss.LoginHandle) http.HandlerFunc {
+	return makeHandler(subscribeHandler, l)
+}
+
+func MakeUnsubscribeHandler(l *dscuss.LoginHandle) http.HandlerFunc {
+	return makeHandler(unsubscribeHandler, l)
 }
