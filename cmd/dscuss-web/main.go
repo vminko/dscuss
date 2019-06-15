@@ -123,21 +123,22 @@ func main() {
 		return
 	}
 
+	http.HandleFunc("/", controller.MakeRootHandler(loginHandle))
 	http.HandleFunc("/static/dscuss.css", controller.CSSHandler)
 	http.HandleFunc("/static/dscuss.js", controller.JavaScriptHandler)
-	http.HandleFunc("/board", controller.MakeBoardHandler(loginHandle))
 	http.HandleFunc("/login", controller.MakeLoginHandler(loginHandle))
 	http.HandleFunc("/logout", controller.LogoutHandler)
+	http.HandleFunc("/profile", controller.MakeProfileHandler(loginHandle))
+	http.HandleFunc("/board", controller.MakeBoardHandler(loginHandle))
 	http.HandleFunc("/thread", controller.MakeThreadHandler(loginHandle))
 	http.HandleFunc("/reply", controller.MakeReplyHandler(loginHandle))
 	http.HandleFunc("/start", controller.MakeStartHandler(loginHandle))
-	http.HandleFunc("/profile", controller.MakeProfileHandler(loginHandle))
 	http.HandleFunc("/addmdr", controller.MakeAddModeratorHandler(loginHandle))
 	http.HandleFunc("/rmmdr", controller.MakeRemoveModeratorHandler(loginHandle))
 	http.HandleFunc("/sub", controller.MakeSubscribeHandler(loginHandle))
 	http.HandleFunc("/unsub", controller.MakeUnsubscribeHandler(loginHandle))
 	http.HandleFunc("/rmmsg", controller.MakeRemoveMessageHandler(loginHandle))
-	http.HandleFunc("/", controller.MakeRootHandler(loginHandle))
+	http.HandleFunc("/ban", controller.MakeBanHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)
 	http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
