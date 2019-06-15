@@ -62,14 +62,19 @@ func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 		return
 	}
 	var t Thread
-	tc := ThreadComposer{&t, l}
-	tvis := thread.NewViewingVisitor(&tc)
-	node.View(tvis)
+	isFound := false
+	if node != nil {
+		isFound = true
+		tc := ThreadComposer{&t, l}
+		tvis := thread.NewViewingVisitor(&tc)
+		node.View(tvis)
+	}
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = t.Subject
 	cd.Topic = t.Topic
 	view.Render(w, "thread.html", map[string]interface{}{
 		"Common":        cd,
+		"IsFound":       isFound,
 		"ID":            t.ID,
 		"Subject":       t.Subject,
 		"Text":          t.Text,

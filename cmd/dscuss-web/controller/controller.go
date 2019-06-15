@@ -131,6 +131,7 @@ func (u *User) Assign(eu *entity.User, l *dscuss.LoginHandle) {
 
 type Message struct {
 	ID            string
+	ShortID       string
 	Subject       string
 	Text          string
 	DateWritten   string
@@ -141,6 +142,7 @@ type Message struct {
 
 func (m *Message) Assign(em *entity.Message, l *dscuss.LoginHandle) {
 	m.ID = em.ID().String()
+	m.ShortID = em.ID().Shorten()
 	m.Subject = em.Subject
 	m.Text = em.Text
 	m.DateWritten = em.DateWritten.Format(time.RFC3339)
@@ -173,4 +175,9 @@ type ComposedRootMessage struct {
 	Topic   string
 	Subject string
 	Text    string
+}
+
+type Operation struct {
+	Reason  string
+	Comment string
 }

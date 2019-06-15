@@ -136,6 +136,7 @@ func main() {
 	http.HandleFunc("/rmmdr", controller.MakeRemoveModeratorHandler(loginHandle))
 	http.HandleFunc("/sub", controller.MakeSubscribeHandler(loginHandle))
 	http.HandleFunc("/unsub", controller.MakeUnsubscribeHandler(loginHandle))
+	http.HandleFunc("/rmmsg", controller.MakeRemoveMessageHandler(loginHandle))
 	http.HandleFunc("/", controller.MakeRootHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)

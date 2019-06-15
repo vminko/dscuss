@@ -26,6 +26,7 @@ const threadHTML = `
 </div>
 {{end}}
 
+{{ if .IsFound }}
 <h2 class="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h2>
 <div class="message-row">
 	<div class="message-text">{{ .Text }}</div>
@@ -38,6 +39,12 @@ const threadHTML = `
 		{{ end }}
 	</div>
 </div>
+{{ else }}
+<div class="row">
+	<div class="alert">Requested thread was not found.</div>
+	<a href="/reply?id={{ .ID }}">View operations</a> on this thread.
+</div>
+{{ end }}
 
 {{ if .Replies }}
 {{ range .Replies }}
@@ -61,7 +68,6 @@ const threadHTML = `
 	<div class="dimmed">No replies to show.</div>
 </div>
 {{ end }}
-<div id="comment-last"></div>
 
 {{ end }}`
 

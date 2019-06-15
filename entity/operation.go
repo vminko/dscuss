@@ -59,6 +59,10 @@ const (
 	OperationReasonDuplicateStr         string = "Duplicate"
 )
 
+const (
+	MaxOperationCommentLen int = 1024
+)
+
 // Operation is an action performed on a user or a message.
 type Operation struct {
 	UnsignedOperation
