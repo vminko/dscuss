@@ -21,18 +21,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/config"
 )
 
 type CommonData struct {
 	CSRF               string
-	OwnerName          string
-	OwnerID            string
-	OwnerShortID       string
-	OwnerInfo          string
-	OwnerRegDate       string
+	Owner              User
 	NodeName           string
 	PageTitle          string
 	Topic              string
@@ -52,11 +47,7 @@ func readCommonData(r *http.Request, s *Session, l *dscuss.LoginHandle) *CommonD
 	}
 	if s.IsAuthenticated {
 		u := l.GetLoggedUser()
-		res.OwnerName = u.Nickname
-		res.OwnerID = u.ID().String()
-		res.OwnerShortID = u.ID().Shorten()
-		res.OwnerInfo = u.Info
-		res.OwnerRegDate = u.RegDate.Format(time.RFC3339)
+		res.Owner.Assign(u, l)
 		res.IsWritingPermitted = true
 	}
 	if r.URL.Path != "" {

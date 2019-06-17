@@ -32,7 +32,7 @@ const replyHTML = `
 			{{ end }}
 			<div class="message-text">{{ .Parent.Text }}</div>
 			<div class="dimmed underline">
-				by <a href="/user?u={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
+				by <a href="/user?id={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
 				{{ .Parent.DateWritten }}
 			</div>
 		</td>

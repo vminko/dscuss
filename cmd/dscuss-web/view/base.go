@@ -44,8 +44,8 @@ const baseHTML = `
 			{{ end }}
 		</div>
 		<div id="navright">
-			{{ if .Common.OwnerName }}
-				<a href="/profile">{{ .Common.OwnerName }}-{{ .Common.OwnerShortID }}</a>
+			{{ if .Common.Owner.Nickname }}
+				<a href="/profile">{{ .Common.Owner.Nickname }}-{{ .Common.Owner.ShortID }}</a>
 				<a href="/logout">Logout</a>
 			{{ else }}
 				{{ if .Common.ShowLogin }}

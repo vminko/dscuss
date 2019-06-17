@@ -139,6 +139,7 @@ func main() {
 	http.HandleFunc("/unsub", controller.MakeUnsubscribeHandler(loginHandle))
 	http.HandleFunc("/rmmsg", controller.MakeRemoveMessageHandler(loginHandle))
 	http.HandleFunc("/ban", controller.MakeBanHandler(loginHandle))
+	http.HandleFunc("/user", controller.MakeUserHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)
 	http.ListenAndServe(":"+strconv.Itoa(webPort), nil)

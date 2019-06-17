@@ -60,7 +60,7 @@ func profileHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandl
 render:
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Node owner's profile"
-	view.Render(w, "profile.html", map[string]interface{}{
+	view.Render(w, "selfprofile.html", map[string]interface{}{
 		"Common":        cd,
 		"Moderators":    moders,
 		"Subscriptions": subs,

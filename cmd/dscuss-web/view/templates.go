@@ -44,6 +44,7 @@ func init() {
 	templates.Add(base, "profile", profileHTML)
 	templates.Add(base, "rmmsg", rmmsgHTML)
 	templates.Add(base, "ban", banHTML)
+	templates.Add(base, "user", userHTML)
 }
 
 func Render(w http.ResponseWriter, tmplName string, data interface{}) {

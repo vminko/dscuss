@@ -30,7 +30,7 @@ const rmmsgHTML = `
 			<b>{{ .Target.Subject }}</b>
 			<div class="message-text">{{ .Target.Text }}</div>
 			<div class="dimmed underline">
-				by <a href="/user?u={{ .Target.AuthorID }}">{{ .Target.AuthorName }}-{{ .Target.AuthorShortID }}</a>
+				by <a href="/user?id={{ .Target.AuthorID }}">{{ .Target.AuthorName }}-{{ .Target.AuthorShortID }}</a>
 				{{ .Target.DateWritten }}
 			</div>
 		</td>

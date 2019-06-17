@@ -22,10 +22,10 @@ const profileHTML = `
 
 <h2 class="title">Node owner's profile</h1>
 <table class="form">
-	<tr><th>Full ID</th><td>{{ .Common.OwnerID }}</td></tr>
-	<tr><th>Nickname</th><td>{{ .Common.OwnerName }}</td></tr>
-	<tr><th>Additional info</th><td>{{ .Common.OwnerInfo }}</td></tr>
-	<tr><th>Registration date</th><td>{{ .Common.OwnerRegDate }}</td></tr>
+	<tr><th>Full ID</th><td>{{ .Common.Owner.ID }}</td></tr>
+	<tr><th>Nickname</th><td>{{ .Common.Owner.Nickname }}</td></tr>
+	<tr><th>Additional info</th><td>{{ .Common.Owner.Info }}</td></tr>
+	<tr><th>Registration date</th><td>{{ .Common.Owner.RegDate }}</td></tr>
 </table>
 <hr class="sep">
 <span class="subtitle">Subscriptions</span>
