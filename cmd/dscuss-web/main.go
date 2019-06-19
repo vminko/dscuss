@@ -140,6 +140,7 @@ func main() {
 	http.HandleFunc("/rmmsg", controller.MakeRemoveMessageHandler(loginHandle))
 	http.HandleFunc("/ban", controller.MakeBanHandler(loginHandle))
 	http.HandleFunc("/user", controller.MakeUserHandler(loginHandle))
+	http.HandleFunc("/lsop", controller.MakeListOperationsHandler(loginHandle))
 
 	log.Debugf("Starting HTTP server on port %d\n", webPort)
 	http.ListenAndServe(":"+strconv.Itoa(webPort), nil)

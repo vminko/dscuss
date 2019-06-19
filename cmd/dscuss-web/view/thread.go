@@ -33,9 +33,10 @@ const threadHTML = `
 	<div class="dimmed underline">
 		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a> {{ .DateWritten }}
 		{{ if .Common.IsWritingPermitted }}
+		| <a href="/reply?id={{ .ID }}">reply</a>
 		| <a href="/ban?id={{ .AuthorID }}">ban</a>
 		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/reply?id={{ .ID }}">reply</a>
+		| <a href="/lsop?type=msg&id={{ .ID }}">operations</a>
 		{{ end }}
 	</div>
 </div>
@@ -54,11 +55,12 @@ const threadHTML = `
 	<div class="message-text">{{ .Text }}</div>
 	<div class="dimmed underline">
 		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
-		<a href="/lsop?id={{ .ID }}">{{ .DateWritten }}</a>
+		{{ .DateWritten }}
 		{{ if $.Common.IsWritingPermitted }}
+		| <a href="/reply?id={{ .ID }}">reply</a>
 		| <a href="/ban?id={{ .AuthorID }}">ban</a>
 		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/reply?id={{ .ID }}">reply</a>
+		| <a href="/lsop?type=msg&id={{ .ID }}">operations</a>
 		{{ end }}
 	</div>
 </div>

@@ -178,6 +178,25 @@ type ComposedRootMessage struct {
 }
 
 type Operation struct {
-	Reason  string
-	Comment string
+	ID            string
+	ShortID       string
+	Type          string
+	Reason        string
+	Comment       string
+	DatePerformed string
+	AuthorName    string
+	AuthorID      string
+	AuthorShortID string
+}
+
+func (o *Operation) Assign(eo *entity.Operation, l *dscuss.LoginHandle) {
+	o.ID = eo.ID().String()
+	o.ShortID = eo.ID().Shorten()
+	o.Type = eo.OperationType().String()
+	o.Reason = eo.Reason.String()
+	o.Comment = eo.Comment
+	o.DatePerformed = eo.DatePerformed.Format(time.RFC3339)
+	o.AuthorID = eo.AuthorID.String()
+	o.AuthorShortID = eo.AuthorID.Shorten()
+	o.AuthorName = userName(l, &eo.AuthorID)
 }

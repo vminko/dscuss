@@ -17,18 +17,35 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const userHTML = `
+const lsopHTML = `
 {{ define "content" }}
 
-<h2 class="title">Profile of {{ .User.Nickname }}-{{ .User.ShortID }}</h1>
-<table class="form">
-	<tr><th>Full ID</th><td>{{ .User.ID }}</td></tr>
-	<tr><th>Nickname</th><td>{{ .User.Nickname }}</td></tr>
-	<tr><th>Additional info</th><td>{{ .User.Info }}</td></tr>
-	<tr><th>Registration date</th><td>{{ .User.RegDate }}</td></tr>
-</table>
+<h1>{{ .Common.PageTitle }}</h1>
+
+{{ if .Operations }}
+{{ range .Operations }}
 <hr class="sep">
-<div><a href="/lsop?type=user&id={{ .User.ID }}">Show operations</a> on this user.</div>
-{{ end }}`
+<div class="operation-row" id="operation-{{ .ID }}">
+	<div>
+		<b>Operation {{ .Type }}</b><br>
+		Reason: {{ .Reason }}<br>
+	</div>
+	{{ if .Comment }}
+		<div class="comment">{{ .Comment }}</div>
+	{{ end }}
+	<div class="dimmed underline">
+		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
+		{{ .DatePerformed }}
+	</div>
+</div>
+{{ end }}
+{{ else }}
+<div class="row">
+	<div class="dimmed">No operations to show.</div>
+</div>
+{{ end }}
+
+{{ end }}
+`
 
 /* vim: set filetype=html: */

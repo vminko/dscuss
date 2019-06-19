@@ -205,12 +205,12 @@ textarea {
 #subtitle {
 	margin-top: 0px;
 }
-.message-text {
+.message-text, .comment {
 	margin-top: 10px;
 	white-space: pre-wrap;
 	font-family: monospace;
 }
-.message-row, .thread-row {
+.message-row, .thread-row, .operation-row {
 	margin-bottom: 30px;
 }
 .underline, .topic {

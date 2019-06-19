@@ -46,8 +46,8 @@ func userHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, 
 	var u User
 	u.Assign(ent, l)
 	cd := readCommonData(r, s, l)
-	cd.PageTitle = "Node owner's profile"
-	view.Render(w, "profile.html", map[string]interface{}{
+	cd.PageTitle = "Profile of " + u.Nickname + "-" + u.ShortID
+	view.Render(w, "user.html", map[string]interface{}{
 		"Common": cd,
 		"User":   u,
 	})

@@ -735,7 +735,7 @@ func doListOperations(c *ishell.Context) {
 	case "msg":
 		ops, err = loginHandle.ListOperationsOnMessage(&id)
 	default:
-		c.Println(idStr + " is not a valid entity type.")
+		c.Println(entType + " is not a valid entity type.")
 		c.Println("Expected: 'user' or 'msg'")
 		return
 	}
