@@ -20,7 +20,7 @@ package view
 const profileHTML = `
 {{ define "content" }}
 
-<h2 class="title">Node owner's profile</h1>
+<h1 id="title">{{ .Common.PageTitle }}</h1>
 <div class="profile-block">
 	<table class="form">
 		<tr><th>Full ID</th><td>{{ .Common.Owner.ID }}</td></tr>
@@ -33,54 +33,48 @@ const profileHTML = `
 	<hr class="sep">
 	<span class="subtitle">Subscriptions</span>
 	<form action="/sub/add" method="POST" enctype="multipart/form-data">
-	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-	<table>
-		<tr>
-			<th>Topic</th>
-			<th>Action</th>
-		</tr>
-	{{ range .Subscriptions }}
-		<tr>
-			<td>{{ . }}</td>
-			<td><a href="/sub/del?topic={{ . }}">Remove</a></td>
-		</tr>
-	{{ end }}
-		<tr>
-			<th>
-				<input type="text" name="topic" placeholder="Enter new topic...">
-			</th>
-			<th>
-				<input type="submit" name="action" class="no-double-post" value="Subscribe">
-			</th>
-		</tr>
-	</table>
+		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
+		<table>
+			<tr><th>Topic</th><th>Action</th></tr>
+			{{ range .Subscriptions }}
+				<tr>
+					<td>{{ . }}</td>
+					<td><a href="/sub/del?topic={{ . }}">Remove</a></td>
+				</tr>
+			{{ end }}
+			<tr>
+				<th>
+					<input type="text" name="topic" placeholder="Enter new topic...">
+				</th>
+				<th>
+					<input type="submit" name="action" class="no-double-post" value="Subscribe">
+				</th>
+			</tr>
+		</table>
 	</form>
 </div>
 <div class="profile-block">
 	<hr class="sep">
 	<span class="subtitle">Moderators</span>
 	<form action="/moder/add" method="POST" enctype="multipart/form-data">
-	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-	<table>
-		<tr>
-			<th>User</th>
-			<th>Action</th>
-		</tr>
-	{{ range .Moderators }}
-		<tr>
-			<td><a href="/user?id={{ .ID }}">{{ .Nickname }}-{{ .ShortID }}</a></td>
-			<td><a href="/moder/del?id={{ .ID }}">Remove</a></td>
-		</tr>
-	{{ end }}
-		<tr>
-			<td>
-				<input type="text" name="id" placeholder="Enter new full ID...">
-			</td>
-			<td>
-				<input type="submit" name="action" class="no-double-post" value="Add">
-			</td>
-		</tr>
-	</table>
+		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
+		<table>
+			<tr><th>User</th><th>Action</th></tr>
+			{{ range .Moderators }}
+				<tr>
+					<td><a href="/user?id={{ .ID }}">{{ .Nickname }}-{{ .ShortID }}</a></td>
+					<td><a href="/moder/del?id={{ .ID }}">Remove</a></td>
+				</tr>
+			{{ end }}
+			<tr>
+				<td>
+					<input type="text" name="id" placeholder="Enter new full ID...">
+				</td>
+				<td>
+					<input type="submit" name="action" class="no-double-post" value="Add">
+				</td>
+			</tr>
+		</table>
 	</form>
 </div>
 {{ if .Message }}
@@ -88,4 +82,4 @@ const profileHTML = `
 {{ end }}
 {{ end }}`
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

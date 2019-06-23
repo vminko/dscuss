@@ -66,4 +66,4 @@ const baseHTML = `
 </html>
 `
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

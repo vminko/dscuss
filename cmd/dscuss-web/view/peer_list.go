@@ -20,36 +20,35 @@ package view
 const peerListHTML = `
 {{ define "content" }}
 
-<h1>{{ .Common.PageTitle }}</h1>
-
+<h1 id="title">{{ .Common.PageTitle }}</h1>
 {{ if .Peers }}
-{{ range .Peers }}
-<hr class="sep">
-<div class="peer-row" id="peer-{{ .ID }}">
-<table class="form">
-	<tr><th>Nickname</th><td>{{ .Nickname }}</td></tr>
-	<tr><th>ID</th><td>{{ .ID }}</td></tr>
-	<tr><th>State</th><td>{{ .State }}</td></tr>
-	<tr><th>Local address</th><td>{{ .LocalAddr }}</td></tr>
-	<tr><th>Remove address</th><td>{{ .RemoteAddr }}</td></tr>
-	<tr><th>Associated addresses</th><td>{{ .AssociatedAddrs }}</td></tr>
-	<tr>
-		<th>Subscriptions</th>
-		<td><div class="subs">{{ .Subscriptions }}</div></td>
-	</tr>
-</table>
-</div>
-{{ end }}
+	{{ range .Peers }}
+		<hr class="sep">
+		<div class="peer-row" id="peer-{{ .ID }}">
+			<table class="form">
+				<tr><th>Nickname</th><td>{{ .Nickname }}</td></tr>
+				<tr><th>ID</th><td>{{ .ID }}</td></tr>
+				<tr><th>State</th><td>{{ .State }}</td></tr>
+				<tr><th>Local address</th><td>{{ .LocalAddr }}</td></tr>
+				<tr><th>Remove address</th><td>{{ .RemoteAddr }}</td></tr>
+				<tr><th>Associated addresses</th><td>{{ .AssociatedAddrs }}</td></tr>
+				<tr>
+					<th>Subscriptions</th>
+					<td><div class="subs">{{ .Subscriptions }}</div></td>
+				</tr>
+			</table>
+		</div>
+	{{ end }}
 {{ else }}
-<div class="row">
-	<div class="dimmed">There are no peers connected.</div>
-</div>
+	<div class="row">
+		<div class="dimmed">There are no peers connected.</div>
+	</div>
 {{ end }}
-<div>
-	<hr class="sep">
-	<a href="/peer/history">Show peer history</a>.
-</div>
+	<div>
+		<hr class="sep">
+		<a href="/peer/history">Show peer history</a>.
+	</div>
 {{ end }}
 `
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

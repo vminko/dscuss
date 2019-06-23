@@ -88,7 +88,7 @@ func handleBanUser(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 	}
 render:
 	cd := readCommonData(r, s, l)
-	cd.PageTitle = "Ban user #" + tg.ShortID
+	cd.PageTitle = "Banning user " + tg.Nickname + "-" + tg.ShortID
 	view.Render(w, "oper_ban.html", map[string]interface{}{
 		"Common":    cd,
 		"Target":    tg,

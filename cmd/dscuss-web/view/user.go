@@ -20,7 +20,7 @@ package view
 const userHTML = `
 {{ define "content" }}
 
-<h2 class="title">Profile of {{ .User.Nickname }}-{{ .User.ShortID }}</h1>
+<h1 id="title">{{ .Common.PageTitle }}</h1>
 <table class="form">
 	<tr><th>Full ID</th><td>{{ .User.ID }}</td></tr>
 	<tr><th>Nickname</th><td>{{ .User.Nickname }}</td></tr>
@@ -28,7 +28,10 @@ const userHTML = `
 	<tr><th>Registration date</th><td>{{ .User.RegDate }}</td></tr>
 </table>
 <hr class="sep">
-<div><a href="/oper/list?type=user&id={{ .User.ID }}">Show operations</a> on this user.</div>
+<div>
+	<a href="/oper/list?type=user&id={{ .User.ID }}">Show operations</a> on this user.
+</div>
+
 {{ end }}`
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

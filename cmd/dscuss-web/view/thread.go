@@ -21,56 +21,56 @@ const threadHTML = `
 {{ define "content" }}
 
 {{ if .Common.IsWritingPermitted }}
-<div class="btn-row">
-	<a class="link-btn" href="/thread/reply?id={{ .ID }}">Reply</a>
-</div>
+	<div class="btn-row">
+		<a class="link-btn" href="/thread/reply?id={{ .ID }}">Reply</a>
+	</div>
 {{end}}
 
 {{ if .IsFound }}
-<h2 class="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h2>
-<div class="message-row">
-	<div class="message-text">{{ .Text }}</div>
-	<div class="dimmed underline">
-		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a> {{ .DateWritten }}
-		{{ if .Common.IsWritingPermitted }}
-		| <a href="/thread/reply?id={{ .ID }}">reply</a>
-		| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
-		| <a href="/oper/del?id={{ .ID }}">delete</a>
-		| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
-		{{ end }}
+	<h1 id="title"><a href="/thread?id={{ .ID }}">{{ .Subject }}</a></h1>
+	<div class="message-row">
+		<div class="message-text">{{ .Text }}</div>
+		<div class="dimmed underline">
+			by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a> {{ .DateWritten }}
+			{{ if .Common.IsWritingPermitted }}
+				| <a href="/thread/reply?id={{ .ID }}">reply</a>
+				| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
+				| <a href="/oper/del?id={{ .ID }}">delete</a>
+				| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
+			{{ end }}
+		</div>
 	</div>
-</div>
 {{ else }}
-<div class="row">
+	<div class="row">
 	<div class="alert">Requested thread was not found.</div>
-	<a href="/oper/list?id={{ .ID }}">View operations</a> on this thread.
-</div>
+		<a href="/oper/list?id={{ .ID }}">View operations</a> on this thread.
+	</div>
 {{ end }}
 
 {{ if .Replies }}
-{{ range .Replies }}
-<hr class="sep">
-<div class="message-row" id="message-{{ .ID }}">
-	<b>{{ .Subject }}</b>
-	<div class="message-text">{{ .Text }}</div>
-	<div class="dimmed underline">
-		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
-		{{ .DateWritten }}
-		{{ if $.Common.IsWritingPermitted }}
-		| <a href="/thread/reply?id={{ .ID }}">reply</a>
-		| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
-		| <a href="/oper/del?id={{ .ID }}">delete</a>
-		| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
-		{{ end }}
-	</div>
-</div>
-{{ end }}
+	{{ range .Replies }}
+		<hr class="sep">
+		<div class="message-row" id="message-{{ .ID }}">
+			<b>{{ .Subject }}</b>
+			<div class="message-text">{{ .Text }}</div>
+			<div class="dimmed underline">
+				by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
+				{{ .DateWritten }}
+				{{ if $.Common.IsWritingPermitted }}
+					| <a href="/thread/reply?id={{ .ID }}">reply</a>
+					| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
+					| <a href="/oper/del?id={{ .ID }}">delete</a>
+					| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
+				{{ end }}
+			</div>
+		</div>
+	{{ end }}
 {{ else }}
-<div class="row">
-	<div class="dimmed">No replies to show.</div>
-</div>
+	<div class="row">
+		<div class="dimmed">No replies to show.</div>
+	</div>
 {{ end }}
 
 {{ end }}`
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

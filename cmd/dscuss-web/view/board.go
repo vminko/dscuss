@@ -21,42 +21,42 @@ const boardHTML = `
 {{ define "content" }}
 
 {{ if .Common.IsWritingPermitted }}
-<div class="btn-row">
-	<a class="link-btn" href="/thread/create{{ if $.Common.Topic }}?topic={{ $.Common.Topic }}{{ end }}">Start</a>
-</div>
+	<div class="btn-row">
+		<a class="link-btn" href="/thread/create{{ if $.Common.Topic }}?topic={{ $.Common.Topic }}{{ end }}">Start</a>
+	</div>
 {{end}}
 
 <h1> Dscussions in
-{{ if .Common.Topic }}
-topic {{ .Common.Topic }}
-{{ else }}
-all topics
-{{ end }}
+	{{ if .Common.Topic }}
+		topic {{ .Common.Topic }}
+	{{ else }}
+		all topics
+	{{ end }}
 </h1>
 
 {{ if .Threads }}
-{{ range .Threads }}
-<hr class="sep">
-<div class="thread-row" id="thread-{{ .ID }}">
-	<div>
-		<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
-		{{ if not $.Common.Topic }}
-			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
-		{{ end }}
-	</div>
-	<div class="message-text">{{ .Text }}</div>
-	<div class="dimmed underline">
-		by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
-	</div>
-</div>
-{{ end }}
+	{{ range .Threads }}
+		<hr class="sep">
+		<div class="thread-row" id="thread-{{ .ID }}">
+			<div>
+				<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
+				{{ if not $.Common.Topic }}
+					<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
+				{{ end }}
+			</div>
+			<div class="message-text">{{ .Text }}</div>
+			<div class="dimmed underline">
+				by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
+			</div>
+		</div>
+	{{ end }}
 {{ else }}
-<div class="row">
-	<div class="dimmed">No threads to show.</div>
-</div>
+	<div class="row">
+		<div class="dimmed">No threads to show.</div>
+	</div>
 {{ end }}
 
 {{ end }}
 `
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

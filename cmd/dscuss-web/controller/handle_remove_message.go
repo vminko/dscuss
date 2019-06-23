@@ -97,7 +97,7 @@ func handleRemoveMessage(w http.ResponseWriter, r *http.Request, l *dscuss.Login
 	}
 render:
 	cd := readCommonData(r, s, l)
-	cd.PageTitle = "Remove message #" + tg.ShortID
+	cd.PageTitle = "Removing message #" + tg.ShortID
 	cd.Topic = root.Topic.String()
 	view.Render(w, "oper_del.html", map[string]interface{}{
 		"Common":    cd,

@@ -20,32 +20,31 @@ package view
 const operListHTML = `
 {{ define "content" }}
 
-<h1>{{ .Common.PageTitle }}</h1>
-
+<h1 id="title">{{ .Common.PageTitle }}</h1>
 {{ if .Operations }}
-{{ range .Operations }}
-<hr class="sep">
-<div class="operation-row" id="operation-{{ .ID }}">
-	<div>
-		<b>Operation {{ .Type }}</b><br>
-		Reason: {{ .Reason }}<br>
+	{{ range .Operations }}
+	<hr class="sep">
+	<div class="operation-row" id="operation-{{ .ID }}">
+		<div>
+			<b>Operation {{ .Type }}</b><br>
+			Reason: {{ .Reason }}<br>
+		</div>
+		{{ if .Comment }}
+			<div class="comment">{{ .Comment }}</div>
+		{{ end }}
+		<div class="dimmed underline">
+			by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
+			{{ .DatePerformed }}
+		</div>
 	</div>
-	{{ if .Comment }}
-		<div class="comment">{{ .Comment }}</div>
-	{{ end }}
-	<div class="dimmed underline">
-		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
-		{{ .DatePerformed }}
-	</div>
-</div>
 {{ end }}
 {{ else }}
-<div class="row">
-	<div class="dimmed">No operations to show.</div>
-</div>
+	<div class="row">
+		<div class="dimmed">No operations to show.</div>
+	</div>
 {{ end }}
 
 {{ end }}
 `
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

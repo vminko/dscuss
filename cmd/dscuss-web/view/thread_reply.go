@@ -20,44 +20,43 @@ package view
 const threadReplyHTML = `
 {{ define "content" }}
 
-<h2 class="title">Reply in dscussion <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
+<h1 id="title">Reply in dscussion <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h1>
 <form action="/thread/reply" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-<input type="hidden" name="id" value="{{ .Parent.ID }}">
-<table class="form">
-	<tr>
-		<td colspan="2">
-			{{ if .ShowParentSubject }}
-			<b>{{ .Parent.Subject }}</b>
-			{{ end }}
-			<div class="message-text">{{ .Parent.Text }}</div>
-			<div class="dimmed underline">
-				by <a href="/user?id={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
-				{{ .Parent.DateWritten }}
-			</div>
-		</td>
-	</tr>
-	<tr>
-		<th>Subject:</th>
-		<td><input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}"></td>
-	</tr>
-	<tr>
-		<th>Text:</th>
-		<td><textarea name="text" rows="12">{{ .Reply.Text }}</textarea></td>
-	</tr>
-	<tr>
-		<th></th>
-		<td>
-			{{ if .Message }}
-				<span class="alert">{{ .Message }}</span><br>
-			{{ end }}
-			<input type="submit" name="action" class="no-double-post" value="Submit reply">
-		</td>
-	</tr>
-
-</table>
+	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
+	<input type="hidden" name="id" value="{{ .Parent.ID }}">
+	<table class="form">
+		<tr>
+			<td colspan="2">
+				{{ if .ShowParentSubject }}
+					<b>{{ .Parent.Subject }}</b>
+				{{ end }}
+				<div class="message-text">{{ .Parent.Text }}</div>
+				<div class="dimmed underline">
+					by <a href="/user?id={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
+					{{ .Parent.DateWritten }}
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<th>Subject:</th>
+			<td><input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}"></td>
+		</tr>
+		<tr>
+			<th>Text:</th>
+			<td><textarea name="text" rows="12">{{ .Reply.Text }}</textarea></td>
+		</tr>
+		<tr>
+			<th></th>
+			<td>
+				{{ if .Message }}
+					<span class="alert">{{ .Message }}</span><br>
+				{{ end }}
+				<input type="submit" name="action" class="no-double-post" value="Submit reply">
+			</td>
+		</tr>
+	</table>
 </form>
 
 {{ end }}`
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */

@@ -20,29 +20,28 @@ package view
 const peerHistoryHTML = `
 {{ define "content" }}
 
-<h1>{{ .Common.PageTitle }}</h1>
-
+<h1 id="title">{{ .Common.PageTitle }}</h1>
 {{ if .History }}
-{{ range .History }}
-<hr class="sep">
-<div class="history-row" id="peer-{{ .ID }}">
-<table class="form">
-	<tr><th>ID</th><td>{{ .ID }}</td></tr>
-	<tr><th>Disconnected</th><td>{{ .Disconnected }}</td></tr>
-	<tr>
-		<th>Subscriptions</th>
-		<td><div class="subs">{{ .Subscriptions }}</div></td>
-	</tr>
-</table>
-</div>
-{{ end }}
+	{{ range .History }}
+		<hr class="sep">
+		<div class="history-row" id="peer-{{ .ID }}">
+			<table class="form">
+				<tr><th>ID</th><td>{{ .ID }}</td></tr>
+				<tr><th>Disconnected</th><td>{{ .Disconnected }}</td></tr>
+				<tr>
+					<th>Subscriptions</th>
+					<td><div class="subs">{{ .Subscriptions }}</div></td>
+				</tr>
+			</table>
+		</div>
+	{{ end }}
 {{ else }}
-<div class="row">
-	<div class="dimmed">There are no history records.</div>
-</div>
+	<div class="row">
+		<div class="dimmed">There are no history records.</div>
+	</div>
 {{ end }}
 
 {{ end }}
 `
 
-/* vim: set filetype=html: */
+/* vim: set filetype=html tabstop=2: */
