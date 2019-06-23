@@ -204,8 +204,8 @@ textarea {
 #title {
 	margin-bottom: 0px;
 }
-#subtitle {
-	margin-top: 0px;
+.subtitle {
+	font-weight: bold;
 }
 .message-text, .comment {
 	margin-top: 10px;
@@ -215,7 +215,7 @@ textarea {
 .subs {
 	white-space: pre-wrap;
 }
-.message-row, .thread-row, .operation-row, .peer-row, .history-row {
+.message-row, .thread-row, .operation-row, .peer-row, .history-row, .profile-block {
 	margin-bottom: 30px;
 }
 .underline, .topic {

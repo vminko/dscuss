@@ -45,7 +45,10 @@ const peerListHTML = `
 	<div class="dimmed">There are no peers connected.</div>
 </div>
 {{ end }}
-<div><a href="/peer/history">Show peer history</a>.</div>
+<div>
+	<hr class="sep">
+	<a href="/peer/history">Show peer history</a>.
+</div>
 {{ end }}
 `
 

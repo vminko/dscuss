@@ -20,7 +20,7 @@ package view
 const threadReplyHTML = `
 {{ define "content" }}
 
-<h2 class="title">Reply to <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
+<h2 class="title">Reply in dscussion <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
 <form action="/thread/reply" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <input type="hidden" name="id" value="{{ .Parent.ID }}">

@@ -63,6 +63,7 @@ func handleReplyThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHa
 			" from DB: " + err.Error())
 	}
 	pm.Assign(m, l)
+	showSubj = m.IsReply()
 
 	root, err := l.GetRootMessage(m)
 	if err != nil {

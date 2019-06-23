@@ -36,29 +36,29 @@ const baseHTML = `
 </head>
 
 <body>
-	<div id="header" class="clearfix">
-		<div id="navleft">
-			<a href="/">{{ .Common.NodeName }}</a>
-			{{ if .Common.Topic }}
-				&mdash; <a class="headline" href="/board?topic=">{{ .Common.Topic }}</a>
-			{{ end }}
-		</div>
-		<div id="navright">
-			{{ if .Common.Owner.Nickname }}
-				<a class="headline" href="/profile">{{ .Common.Owner.Nickname }}-{{ .Common.Owner.ShortID }}</a>
-				<a class="headline" href="/peer/list">Peers</a>
-				<a class="headline" href="/logout">Logout</a>
-			{{ else }}
-				{{ if .Common.ShowLogin }}
-					<a class="headline" href="/login?next={{ .Common.CurrentURL }}">Login</a>
-				{{ end }}
-			{{ end }}
-		</div>
-	</div>
-	<hr>
 	<div id="container">
+		<div id="header" class="clearfix">
+			<div id="navleft">
+				<a href="/">{{ .Common.NodeName }}</a>
+				{{ if .Common.Topic }}
+					&mdash; <a class="headline" href="/board?topic=">{{ .Common.Topic }}</a>
+				{{ end }}
+			</div>
+			<div id="navright">
+				{{ if .Common.Owner.Nickname }}
+					<a class="headline" href="/profile">{{ .Common.Owner.Nickname }}-{{ .Common.Owner.ShortID }}</a>
+					<a class="headline" href="/peer/list">Peers</a>
+					<a class="headline" href="/logout">Logout</a>
+				{{ else }}
+					{{ if .Common.ShowLogin }}
+						<a class="headline" href="/login?next={{ .Common.CurrentURL }}">Login</a>
+					{{ end }}
+				{{ end }}
+			</div>
+		</div>
+		<hr>
 		<div id="content">
-		{{ block "content" . }}{{ end }}
+			{{ block "content" . }}{{ end }}
 		</div>
 	</div>
 	<script src="/static/dscuss.js"></script>
