@@ -57,7 +57,7 @@ type Info struct {
 	RemoteAddr      string
 	AssociatedAddrs []string
 	Nickname        string
-	StateName       string
+	State           string
 	Subscriptions   []string
 }
 
@@ -233,7 +233,7 @@ func (p *Peer) Info() *Info {
 		RemoteAddr:      p.conn.RemoteAddr(),
 		AssociatedAddrs: p.conn.Addresses(),
 		Nickname:        nick,
-		StateName:       p.State.Name(),
+		State:           p.State.Name(),
 		Subscriptions:   subs,
 	}
 }

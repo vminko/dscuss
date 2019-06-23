@@ -17,32 +17,33 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const banHTML = `
+const threadReplyHTML = `
 {{ define "content" }}
 
-<h2 class="title">Banning user {{ .Target.Nickname }}-{{ .Target.ShortID }}</h2>
-<form action="/ban" method="POST" enctype="multipart/form-data">
+<h2 class="title">Reply to <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
+<form action="/thread/reply" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-<input type="hidden" name="id" value="{{ .Target.ID }}">
+<input type="hidden" name="id" value="{{ .Parent.ID }}">
 <table class="form">
-	<tr><th>Full ID</th><td>{{ .Target.ID }}</td></tr>
-	<tr><th>Nickname</th><td>{{ .Target.Nickname }}</td></tr>
-	<tr><th>Additional info</th><td>{{ .Target.Info }}</td></tr>
-	<tr><th>Registration date</th><td>{{ .Target.RegDate }}</td></tr>
 	<tr>
-		<th>Reason:</th>
-		<td>
-			<select name="reason" >
-				<option value="SPAM">SPAM</option>
-	    			<option value="Offtopic">Off-topic</option>
-	    			<option value="Abuse">Abuse</option>
-	    			<option value="Duplicate">Duplicate</option>
-			</select>
+		<td colspan="2">
+			{{ if .ShowParentSubject }}
+			<b>{{ .Parent.Subject }}</b>
+			{{ end }}
+			<div class="message-text">{{ .Parent.Text }}</div>
+			<div class="dimmed underline">
+				by <a href="/user?id={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
+				{{ .Parent.DateWritten }}
+			</div>
 		</td>
 	</tr>
 	<tr>
-		<th>Comment:</th>
-		<td><textarea name="comment" rows="4" placeholder="Why do you want to do that?">{{ .Reply.Text }}</textarea></td>
+		<th>Subject:</th>
+		<td><input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}"></td>
+	</tr>
+	<tr>
+		<th>Text:</th>
+		<td><textarea name="text" rows="12">{{ .Reply.Text }}</textarea></td>
 	</tr>
 	<tr>
 		<th></th>

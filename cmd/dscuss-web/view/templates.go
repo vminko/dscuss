@@ -39,13 +39,15 @@ func init() {
 	templates.Add(base, "login", loginHTML)
 	templates.Add(base, "board", boardHTML)
 	templates.Add(base, "thread", threadHTML)
-	templates.Add(base, "reply", replyHTML)
-	templates.Add(base, "start", startHTML)
+	templates.Add(base, "thread_reply", threadReplyHTML)
+	templates.Add(base, "thread_create", threadCreateHTML)
 	templates.Add(base, "profile", profileHTML)
-	templates.Add(base, "rmmsg", rmmsgHTML)
-	templates.Add(base, "ban", banHTML)
+	templates.Add(base, "oper_del", operDelHTML)
+	templates.Add(base, "oper_ban", operBanHTML)
+	templates.Add(base, "oper_list", operListHTML)
 	templates.Add(base, "user", userHTML)
-	templates.Add(base, "lsop", lsopHTML)
+	templates.Add(base, "peer_list", peerListHTML)
+	templates.Add(base, "peer_history", peerHistoryHTML)
 }
 
 func Render(w http.ResponseWriter, tmplName string, data interface{}) {

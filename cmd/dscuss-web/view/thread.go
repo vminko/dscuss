@@ -22,7 +22,7 @@ const threadHTML = `
 
 {{ if .Common.IsWritingPermitted }}
 <div class="btn-row">
-	<a class="link-btn" href="/reply?id={{ .ID }}">Reply</a>
+	<a class="link-btn" href="/thread/reply?id={{ .ID }}">Reply</a>
 </div>
 {{end}}
 
@@ -33,17 +33,17 @@ const threadHTML = `
 	<div class="dimmed underline">
 		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a> {{ .DateWritten }}
 		{{ if .Common.IsWritingPermitted }}
-		| <a href="/reply?id={{ .ID }}">reply</a>
-		| <a href="/ban?id={{ .AuthorID }}">ban</a>
-		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/lsop?type=msg&id={{ .ID }}">operations</a>
+		| <a href="/thread/reply?id={{ .ID }}">reply</a>
+		| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
+		| <a href="/oper/del?id={{ .ID }}">delete</a>
+		| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
 		{{ end }}
 	</div>
 </div>
 {{ else }}
 <div class="row">
 	<div class="alert">Requested thread was not found.</div>
-	<a href="/reply?id={{ .ID }}">View operations</a> on this thread.
+	<a href="/oper/list?id={{ .ID }}">View operations</a> on this thread.
 </div>
 {{ end }}
 
@@ -57,10 +57,10 @@ const threadHTML = `
 		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
 		{{ .DateWritten }}
 		{{ if $.Common.IsWritingPermitted }}
-		| <a href="/reply?id={{ .ID }}">reply</a>
-		| <a href="/ban?id={{ .AuthorID }}">ban</a>
-		| <a href="/rmmsg?id={{ .ID }}">delete</a>
-		| <a href="/lsop?type=msg&id={{ .ID }}">operations</a>
+		| <a href="/thread/reply?id={{ .ID }}">reply</a>
+		| <a href="/oper/ban?id={{ .AuthorID }}">ban</a>
+		| <a href="/oper/del?id={{ .ID }}">delete</a>
+		| <a href="/oper/list?type=msg&id={{ .ID }}">operations</a>
 		{{ end }}
 	</div>
 </div>

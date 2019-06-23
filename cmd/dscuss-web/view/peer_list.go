@@ -17,45 +17,35 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const boardHTML = `
+const peerListHTML = `
 {{ define "content" }}
 
-{{ if .Common.IsWritingPermitted }}
-<div class="btn-row">
-	<a class="link-btn" href="/thread/create{{ if $.Common.Topic }}?topic={{ $.Common.Topic }}{{ end }}">Start</a>
-</div>
-{{end}}
+<h1>{{ .Common.PageTitle }}</h1>
 
-<h1> Dscussions in
-{{ if .Common.Topic }}
-topic {{ .Common.Topic }}
-{{ else }}
-all topics
-{{ end }}
-</h1>
-
-{{ if .Threads }}
-{{ range .Threads }}
+{{ if .Peers }}
+{{ range .Peers }}
 <hr class="sep">
-<div class="thread-row" id="thread-{{ .ID }}">
-	<div>
-		<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
-		{{ if not $.Common.Topic }}
-			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
-		{{ end }}
-	</div>
-	<div class="message-text">{{ .Text }}</div>
-	<div class="dimmed underline">
-		by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
-	</div>
+<div class="peer-row" id="peer-{{ .ID }}">
+<table class="form">
+	<tr><th>Nickname</th><td>{{ .Nickname }}</td></tr>
+	<tr><th>ID</th><td>{{ .ID }}</td></tr>
+	<tr><th>State</th><td>{{ .State }}</td></tr>
+	<tr><th>Local address</th><td>{{ .LocalAddr }}</td></tr>
+	<tr><th>Remove address</th><td>{{ .RemoteAddr }}</td></tr>
+	<tr><th>Associated addresses</th><td>{{ .AssociatedAddrs }}</td></tr>
+	<tr>
+		<th>Subscriptions</th>
+		<td><div class="subs">{{ .Subscriptions }}</div></td>
+	</tr>
+</table>
 </div>
 {{ end }}
 {{ else }}
 <div class="row">
-	<div class="dimmed">No threads to show.</div>
+	<div class="dimmed">There are no peers connected.</div>
 </div>
 {{ end }}
-
+<div><a href="/peer/history">Show peer history</a>.</div>
 {{ end }}
 `
 

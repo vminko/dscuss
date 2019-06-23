@@ -25,7 +25,7 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
-func startHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleCreateThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) > 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -78,14 +78,10 @@ render:
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Start new dscussion"
 	cd.Topic = topic
-	view.Render(w, "start.html", map[string]interface{}{
+	view.Render(w, "thread_create.html", map[string]interface{}{
 		"Common":  cd,
 		"Subject": subj,
 		"Text":    text,
 		"Message": msg,
 	})
-}
-
-func MakeStartHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(startHandler, l)
 }

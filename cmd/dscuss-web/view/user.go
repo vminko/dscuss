@@ -28,7 +28,7 @@ const userHTML = `
 	<tr><th>Registration date</th><td>{{ .User.RegDate }}</td></tr>
 </table>
 <hr class="sep">
-<div><a href="/lsop?type=user&id={{ .User.ID }}">Show operations</a> on this user.</div>
+<div><a href="/oper/list?type=user&id={{ .User.ID }}">Show operations</a> on this user.</div>
 {{ end }}`
 
 /* vim: set filetype=html: */

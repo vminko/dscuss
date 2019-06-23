@@ -17,31 +17,28 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const lsopHTML = `
+const peerHistoryHTML = `
 {{ define "content" }}
 
 <h1>{{ .Common.PageTitle }}</h1>
 
-{{ if .Operations }}
-{{ range .Operations }}
+{{ if .History }}
+{{ range .History }}
 <hr class="sep">
-<div class="operation-row" id="operation-{{ .ID }}">
-	<div>
-		<b>Operation {{ .Type }}</b><br>
-		Reason: {{ .Reason }}<br>
-	</div>
-	{{ if .Comment }}
-		<div class="comment">{{ .Comment }}</div>
-	{{ end }}
-	<div class="dimmed underline">
-		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
-		{{ .DatePerformed }}
-	</div>
+<div class="history-row" id="peer-{{ .ID }}">
+<table class="form">
+	<tr><th>ID</th><td>{{ .ID }}</td></tr>
+	<tr><th>Disconnected</th><td>{{ .Disconnected }}</td></tr>
+	<tr>
+		<th>Subscriptions</th>
+		<td><div class="subs">{{ .Subscriptions }}</div></td>
+	</tr>
+</table>
 </div>
 {{ end }}
 {{ else }}
 <div class="row">
-	<div class="dimmed">No operations to show.</div>
+	<div class="dimmed">There are no history records.</div>
 </div>
 {{ end }}
 

@@ -24,7 +24,7 @@ import (
 	"vminko.org/dscuss/errors"
 )
 
-func lsopHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleListOperations(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 2 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -68,12 +68,8 @@ func lsopHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, 
 		t = "message"
 	}
 	cd.PageTitle = "Operations on " + t + " #" + id.Shorten()
-	view.Render(w, "lsop.html", map[string]interface{}{
+	view.Render(w, "oper_list.html", map[string]interface{}{
 		"Common":     cd,
 		"Operations": ops,
 	})
-}
-
-func MakeListOperationsHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(lsopHandler, l)
 }

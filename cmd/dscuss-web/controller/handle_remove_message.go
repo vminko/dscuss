@@ -25,7 +25,7 @@ import (
 	"vminko.org/dscuss/errors"
 )
 
-func removeMessageHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleRemoveMessage(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) > 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -99,14 +99,10 @@ render:
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Remove message #" + tg.ShortID
 	cd.Topic = root.Topic.String()
-	view.Render(w, "rmmsg.html", map[string]interface{}{
+	view.Render(w, "oper_del.html", map[string]interface{}{
 		"Common":    cd,
 		"Target":    tg,
 		"Operation": op,
 		"Message":   msg,
 	})
-}
-
-func MakeRemoveMessageHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(removeMessageHandler, l)
 }

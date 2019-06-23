@@ -86,6 +86,9 @@ a:visited {
 #footer a, #footer a:link, #footer a:hover, #footer a:active, #footer a:visited {
 	color: grey;
 }
+a.headline {
+	padding: 0px 5px;
+}
 .link-btn, .link-btn:link, .link-btn:visited {
 	color: white;
 	background: #07C;
@@ -111,7 +114,6 @@ a:visited {
 .btn:hover {
 	background: #3af;
 	cursor: pointer;
-	cursor: hand;
 }
 .btn-row form, .btn-row a {
 	display: inline-block;
@@ -210,7 +212,10 @@ textarea {
 	white-space: pre-wrap;
 	font-family: monospace;
 }
-.message-row, .thread-row, .operation-row {
+.subs {
+	white-space: pre-wrap;
+}
+.message-row, .thread-row, .operation-row, .peer-row, .history-row {
 	margin-bottom: 30px;
 }
 .underline, .topic {

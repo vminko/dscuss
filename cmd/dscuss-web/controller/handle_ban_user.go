@@ -25,7 +25,7 @@ import (
 	"vminko.org/dscuss/errors"
 )
 
-func banHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleBanUser(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) > 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -60,7 +60,7 @@ func banHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s
 		panic("Got an error while fetching user " + tid.Shorten() +
 			" from DB: " + err.Error())
 	}
-	tg.Assign(u, l)
+	tg.Assign(u)
 
 	if r.Method == "POST" {
 		op.Reason = r.PostFormValue("reason")
@@ -89,14 +89,10 @@ func banHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s
 render:
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Ban user #" + tg.ShortID
-	view.Render(w, "ban.html", map[string]interface{}{
+	view.Render(w, "oper_ban.html", map[string]interface{}{
 		"Common":    cd,
 		"Target":    tg,
 		"Operation": op,
 		"Message":   msg,
 	})
-}
-
-func MakeBanHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(banHandler, l)
 }

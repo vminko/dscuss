@@ -17,33 +17,24 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const replyHTML = `
+const threadCreateHTML = `
 {{ define "content" }}
 
-<h2 class="title">Reply to <a href="/thread?id={{ .Thread.ID }}">{{ .Thread.Subject }}</a></h2>
-<form action="/reply" method="POST" enctype="multipart/form-data">
+<h2 class="title">Start new dscussion</h2>
+<form action="/thread/create" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-<input type="hidden" name="id" value="{{ .Parent.ID }}">
 <table class="form">
 	<tr>
-		<td colspan="2">
-			{{ if .ShowParentSubject }}
-			<b>{{ .Parent.Subject }}</b>
-			{{ end }}
-			<div class="message-text">{{ .Parent.Text }}</div>
-			<div class="dimmed underline">
-				by <a href="/user?id={{ .Parent.AuthorID }}">{{ .Parent.AuthorName }}-{{ .Parent.AuthorShortID }}</a>
-				{{ .Parent.DateWritten }}
-			</div>
-		</td>
+		<th>Topic:</th>
+		<td><input type="text" name="topic" value="{{ .Common.Topic }}"></td>
 	</tr>
 	<tr>
 		<th>Subject:</th>
-		<td><input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}"></td>
+		<td><input type="text" name="subject" value="{{ .Subject }}"></td>
 	</tr>
 	<tr>
 		<th>Text:</th>
-		<td><textarea name="text" rows="12">{{ .Reply.Text }}</textarea></td>
+		<td><textarea name="text" rows="12">{{ .Text }}</textarea></td>
 	</tr>
 	<tr>
 		<th></th>
@@ -51,10 +42,9 @@ const replyHTML = `
 			{{ if .Message }}
 				<span class="alert">{{ .Message }}</span><br>
 			{{ end }}
-			<input type="submit" name="action" class="no-double-post" value="Submit reply">
+			<input type="submit" name="action" class="no-double-post" value="Start dscussion">
 		</td>
 	</tr>
-
 </table>
 </form>
 

@@ -40,16 +40,17 @@ const baseHTML = `
 		<div id="navleft">
 			<a href="/">{{ .Common.NodeName }}</a>
 			{{ if .Common.Topic }}
-				&mdash; <a href="/board?topic=">{{ .Common.Topic }}</a>
+				&mdash; <a class="headline" href="/board?topic=">{{ .Common.Topic }}</a>
 			{{ end }}
 		</div>
 		<div id="navright">
 			{{ if .Common.Owner.Nickname }}
-				<a href="/profile">{{ .Common.Owner.Nickname }}-{{ .Common.Owner.ShortID }}</a>
-				<a href="/logout">Logout</a>
+				<a class="headline" href="/profile">{{ .Common.Owner.Nickname }}-{{ .Common.Owner.ShortID }}</a>
+				<a class="headline" href="/peer/list">Peers</a>
+				<a class="headline" href="/logout">Logout</a>
 			{{ else }}
 				{{ if .Common.ShowLogin }}
-					<a href="/login?next={{ .Common.CurrentURL }}">Login</a>
+					<a class="headline" href="/login?next={{ .Common.CurrentURL }}">Login</a>
 				{{ end }}
 			{{ end }}
 		</div>

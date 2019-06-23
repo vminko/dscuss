@@ -17,24 +17,18 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const rmmsgHTML = `
+const operBanHTML = `
 {{ define "content" }}
 
-<h2 class="title">Removing message {{ .Target.ShortID }}</h2>
-<form action="/rmmsg" method="POST" enctype="multipart/form-data">
+<h2 class="title">Banning user {{ .Target.Nickname }}-{{ .Target.ShortID }}</h2>
+<form action="/ban" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <input type="hidden" name="id" value="{{ .Target.ID }}">
 <table class="form">
-	<tr>
-		<td colspan="2">
-			<b>{{ .Target.Subject }}</b>
-			<div class="message-text">{{ .Target.Text }}</div>
-			<div class="dimmed underline">
-				by <a href="/user?id={{ .Target.AuthorID }}">{{ .Target.AuthorName }}-{{ .Target.AuthorShortID }}</a>
-				{{ .Target.DateWritten }}
-			</div>
-		</td>
-	</tr>
+	<tr><th>Full ID</th><td>{{ .Target.ID }}</td></tr>
+	<tr><th>Nickname</th><td>{{ .Target.Nickname }}</td></tr>
+	<tr><th>Additional info</th><td>{{ .Target.Info }}</td></tr>
+	<tr><th>Registration date</th><td>{{ .Target.RegDate }}</td></tr>
 	<tr>
 		<th>Reason:</th>
 		<td>

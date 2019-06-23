@@ -25,7 +25,7 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
-func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleBoard(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) > 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -72,8 +72,4 @@ func boardHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 		"Common":  cd,
 		"Threads": threads,
 	})
-}
-
-func MakeBoardHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(boardHandler, l)
 }

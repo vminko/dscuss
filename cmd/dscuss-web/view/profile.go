@@ -29,7 +29,7 @@ const profileHTML = `
 </table>
 <hr class="sep">
 <span class="subtitle">Subscriptions</span>
-<form action="/sub" method="POST" enctype="multipart/form-data">
+<form action="/sub/add" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <table>
 	<tr>
@@ -39,7 +39,7 @@ const profileHTML = `
 {{ range .Subscriptions }}
 	<tr>
 		<td>{{ . }}</td>
-		<td><a href="/unsub?topic={{ . }}">Remove</a></td>
+		<td><a href="/sub/del?topic={{ . }}">Remove</a></td>
 	</tr>
 {{ end }}
 	<tr>
@@ -54,7 +54,7 @@ const profileHTML = `
 </form>
 <hr class="sep">
 <span class="subtitle">Moderators</span>
-<form action="/addmdr" method="POST" enctype="multipart/form-data">
+<form action="/moder/add" method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 <table>
 	<tr>
@@ -63,8 +63,8 @@ const profileHTML = `
 	</tr>
 {{ range .Moderators }}
 	<tr>
-		<td><a href="/profile?id={{ .ID }}">{{ .Nickname }}-{{ .ShortID }}</a></td>
-		<td><a href="/rmmdr?id={{ .ID }}">Remove</a></td>
+		<td><a href="/user?id={{ .ID }}">{{ .Nickname }}-{{ .ShortID }}</a></td>
+		<td><a href="/moder/del?id={{ .ID }}">Remove</a></td>
 	</tr>
 {{ end }}
 	<tr>

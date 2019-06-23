@@ -25,7 +25,7 @@ import (
 	"vminko.org/dscuss/errors"
 )
 
-func replyHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleReplyThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -99,7 +99,7 @@ render:
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Reply to " + rm.Subject
 	cd.Topic = rm.Topic
-	view.Render(w, "reply.html", map[string]interface{}{
+	view.Render(w, "thread_reply.html", map[string]interface{}{
 		"Common":            cd,
 		"Thread":            rm,
 		"Parent":            pm,
@@ -107,8 +107,4 @@ render:
 		"ShowParentSubject": showSubj,
 		"Message":           msg,
 	})
-}
-
-func MakeReplyHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(replyHandler, l)
 }

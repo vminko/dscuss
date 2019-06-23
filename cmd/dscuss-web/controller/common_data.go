@@ -47,7 +47,7 @@ func readCommonData(r *http.Request, s *Session, l *dscuss.LoginHandle) *CommonD
 	}
 	if s.IsAuthenticated {
 		u := l.GetLoggedUser()
-		res.Owner.Assign(u, l)
+		res.Owner.Assign(u)
 		res.IsWritingPermitted = true
 	}
 	if r.URL.Path != "" {

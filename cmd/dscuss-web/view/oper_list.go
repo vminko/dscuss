@@ -17,42 +17,31 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package view
 
-const boardHTML = `
+const operListHTML = `
 {{ define "content" }}
 
-{{ if .Common.IsWritingPermitted }}
-<div class="btn-row">
-	<a class="link-btn" href="/thread/create{{ if $.Common.Topic }}?topic={{ $.Common.Topic }}{{ end }}">Start</a>
-</div>
-{{end}}
+<h1>{{ .Common.PageTitle }}</h1>
 
-<h1> Dscussions in
-{{ if .Common.Topic }}
-topic {{ .Common.Topic }}
-{{ else }}
-all topics
-{{ end }}
-</h1>
-
-{{ if .Threads }}
-{{ range .Threads }}
+{{ if .Operations }}
+{{ range .Operations }}
 <hr class="sep">
-<div class="thread-row" id="thread-{{ .ID }}">
+<div class="operation-row" id="operation-{{ .ID }}">
 	<div>
-		<a href="/thread?id={{ .ID }}">{{ .Subject }}</a>
-		{{ if not $.Common.Topic }}
-			<span class="topic">in <a class="topic" href="/board?topic={{ .Topic }}">{{ .Topic }}</a></span>
-		{{ end }}
+		<b>Operation {{ .Type }}</b><br>
+		Reason: {{ .Reason }}<br>
 	</div>
-	<div class="message-text">{{ .Text }}</div>
+	{{ if .Comment }}
+		<div class="comment">{{ .Comment }}</div>
+	{{ end }}
 	<div class="dimmed underline">
-		by {{ .AuthorName }}-{{ .AuthorShortID }} {{ .DateWritten }}
+		by <a href="/user?id={{ .AuthorID }}">{{ .AuthorName }}-{{ .AuthorShortID }}</a>
+		{{ .DatePerformed }}
 	</div>
 </div>
 {{ end }}
 {{ else }}
 <div class="row">
-	<div class="dimmed">No threads to show.</div>
+	<div class="dimmed">No operations to show.</div>
 </div>
 {{ end }}
 

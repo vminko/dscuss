@@ -266,9 +266,9 @@ func printPeerInfo(c *ishell.Context, i int, p *peer.Info, verbose bool) {
 				c.Printf("			%s\n", t)
 			}
 		}
-		c.Printf("State:			%s\n", p.StateName)
+		c.Printf("State:			%s\n", p.State)
 	} else {
-		c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ShortID, p.RemoteAddr, p.StateName)
+		c.Printf("%s-%s (%s) is %s\n", p.Nickname, p.ShortID, p.RemoteAddr, p.State)
 	}
 }
 

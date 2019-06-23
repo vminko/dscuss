@@ -44,7 +44,7 @@ func (tc *ThreadComposer) Handle(n *thread.Node) bool {
 	return true
 }
 
-func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -84,8 +84,4 @@ func threadHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle
 		"AuthorShortID": t.AuthorShortID,
 		"Replies":       t.Replies,
 	})
-}
-
-func MakeThreadHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(threadHandler, l)
 }

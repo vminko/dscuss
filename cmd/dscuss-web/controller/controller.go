@@ -24,12 +24,14 @@ import (
 	"io"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 	"vminko.org/dscuss"
 	"vminko.org/dscuss/cmd/dscuss-web/static"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
+	"vminko.org/dscuss/p2p/peer"
 )
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
@@ -68,18 +70,12 @@ func JavaScriptHandler(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, static.JavaScript)
 }
 
-func MakeRootHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(
-		func(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-			defer InternalServerErrorHandler(w, r)
-			if r.URL.Path != "/" {
-				http.NotFound(w, r)
-				return
-			}
-			http.Redirect(w, r, "/board", http.StatusSeeOther)
-		},
-		l,
-	)
+func RootHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, "/board", http.StatusSeeOther)
 }
 
 func makeHandler(
@@ -101,7 +97,7 @@ func makeHandler(
 	}
 }
 
-func userName(l *dscuss.LoginHandle, id *entity.ID) string {
+func userName(id *entity.ID, l *dscuss.LoginHandle) string {
 	u, err := l.GetUser(id)
 	switch {
 	case err == errors.NoSuchEntity:
@@ -121,7 +117,7 @@ type User struct {
 	RegDate  string
 }
 
-func (u *User) Assign(eu *entity.User, l *dscuss.LoginHandle) {
+func (u *User) Assign(eu *entity.User) {
 	u.ID = eu.ID().String()
 	u.ShortID = eu.ID().Shorten()
 	u.Nickname = eu.Nickname
@@ -148,7 +144,7 @@ func (m *Message) Assign(em *entity.Message, l *dscuss.LoginHandle) {
 	m.DateWritten = em.DateWritten.Format(time.RFC3339)
 	m.AuthorID = em.AuthorID.String()
 	m.AuthorShortID = em.AuthorID.Shorten()
-	m.AuthorName = userName(l, &em.AuthorID)
+	m.AuthorName = userName(&em.AuthorID, l)
 }
 
 type RootMessage struct {
@@ -198,5 +194,40 @@ func (o *Operation) Assign(eo *entity.Operation, l *dscuss.LoginHandle) {
 	o.DatePerformed = eo.DatePerformed.Format(time.RFC3339)
 	o.AuthorID = eo.AuthorID.String()
 	o.AuthorShortID = eo.AuthorID.Shorten()
-	o.AuthorName = userName(l, &eo.AuthorID)
+	o.AuthorName = userName(&eo.AuthorID, l)
+}
+
+type Peer struct {
+	Nickname        string
+	ID              string
+	LocalAddr       string
+	RemoteAddr      string
+	AssociatedAddrs string
+	Subscriptions   string
+	State           string
+}
+
+func (p *Peer) Assign(pi *peer.Info) {
+	p.Nickname = pi.Nickname
+	p.ID = pi.ID
+	p.LocalAddr = pi.LocalAddr
+	p.RemoteAddr = pi.RemoteAddr
+	p.AssociatedAddrs = strings.Join(pi.AssociatedAddrs, ",")
+	p.Subscriptions = strings.Join(pi.Subscriptions, "\n")
+	p.State = pi.State
+}
+
+type PeerHistory struct {
+	ID            string
+	Disconnected  string
+	Subscriptions string
+}
+
+func (ph *PeerHistory) Assign(uh *entity.UserHistory) {
+	ph.ID = uh.ID.String()
+	ph.Disconnected = uh.Disconnected.Format(time.RFC3339)
+	if uh.Subs != nil {
+		ph.Subscriptions = strings.Join(uh.Subs.StringSlice(), "\n")
+	}
+
 }

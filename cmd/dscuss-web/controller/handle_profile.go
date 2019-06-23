@@ -26,13 +26,13 @@ import (
 	"vminko.org/dscuss/subs"
 )
 
-func profileHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	if len(r.URL.Query()) != 0 {
-		BadRequestHandler(w, r, "Wrong number of query parameters")
-		return
-	}
+func handleProfile(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if !s.IsAuthenticated {
 		ForbiddenHandler(w, r)
+		return
+	}
+	if len(r.URL.Query()) != 0 {
+		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
 	}
 	var subs []string
@@ -49,7 +49,7 @@ func profileHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandl
 		}
 		moders = append(moders, User{})
 		m := &moders[len(moders)-1]
-		m.Assign(u, l)
+		m.Assign(u)
 	}
 	var msg string
 	if r.Method == "POST" {
@@ -68,7 +68,7 @@ render:
 	})
 }
 
-func addModeratorHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleAddModerator(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 0 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -98,7 +98,7 @@ func addModeratorHandler(w http.ResponseWriter, r *http.Request, l *dscuss.Login
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
-func removeModeratorHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleDelModerator(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -121,7 +121,7 @@ func removeModeratorHandler(w http.ResponseWriter, r *http.Request, l *dscuss.Lo
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
-func subscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleSubscribe(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 0 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -151,7 +151,7 @@ func subscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHan
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
-func unsubscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleUnsubscribe(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -178,24 +178,4 @@ func unsubscribeHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginH
 	}
 	//c.Println("In order to apply changes you need to restart the backend.")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
-}
-
-func MakeProfileHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(profileHandler, l)
-}
-
-func MakeAddModeratorHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(addModeratorHandler, l)
-}
-
-func MakeRemoveModeratorHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(removeModeratorHandler, l)
-}
-
-func MakeSubscribeHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(subscribeHandler, l)
-}
-
-func MakeUnsubscribeHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(unsubscribeHandler, l)
 }

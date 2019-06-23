@@ -24,7 +24,7 @@ import (
 	"vminko.org/dscuss/errors"
 )
 
-func userHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
+func handleUser(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
 	if len(r.URL.Query()) != 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
@@ -44,15 +44,11 @@ func userHandler(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, 
 			" from DB: " + err.Error())
 	}
 	var u User
-	u.Assign(ent, l)
+	u.Assign(ent)
 	cd := readCommonData(r, s, l)
 	cd.PageTitle = "Profile of " + u.Nickname + "-" + u.ShortID
 	view.Render(w, "user.html", map[string]interface{}{
 		"Common": cd,
 		"User":   u,
 	})
-}
-
-func MakeUserHandler(l *dscuss.LoginHandle) http.HandlerFunc {
-	return makeHandler(userHandler, l)
 }
