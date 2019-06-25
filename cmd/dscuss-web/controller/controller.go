@@ -84,8 +84,8 @@ func makeHandler(
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer InternalServerErrorHandler(w, r)
-		if l == nil {
-			log.Fatal("No user is logged in.")
+		if (l == nil) || !l.IsValid() {
+			panic("No valid Dscuss LoginHandle found.")
 		}
 		s := OpenSession(w, r)
 		if r.Method == "POST" && r.PostFormValue("csrf") != s.CSRFToken {

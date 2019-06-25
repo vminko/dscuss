@@ -202,12 +202,31 @@ func Login(nickname string) (*LoginHandle, error) {
 }
 
 func (lh *LoginHandle) Logout() {
-	if lh != login {
-		log.Fatal("Unknown LoginHandle")
+	if !lh.IsValid() {
+		log.Fatal("Invalid LoginHandle")
 	}
 	login = nil
 	lh.pp.Stop()
 	lh.owner.Close()
+}
+
+func (lh *LoginHandle) Relogin() error {
+	u := lh.GetLoggedUser()
+	nick := u.Nickname
+	lh.Logout()
+
+	newLoginHandle, err := Login(nick)
+	if err != nil {
+		log.Errorf("Failed to log in as %s: %v\n", nick, err)
+		return err
+	}
+	*lh = *newLoginHandle
+	login = lh
+	return nil
+}
+
+func (lh *LoginHandle) IsValid() bool {
+	return (lh != nil) && (lh == login)
 }
 
 func (lh *LoginHandle) GetLoggedUser() *entity.User {

@@ -147,6 +147,10 @@ func handleSubscribe(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHand
 	} else if err != nil {
 		panic("Error subscribing to '" + topicStr + "': " + err.Error())
 	}
+	err = l.Relogin()
+	if err != nil {
+		panic("Failed to relogin: " + err.Error())
+	}
 	//c.Println("In order to apply changes you need to restart the backend.")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
@@ -175,6 +179,10 @@ func handleUnsubscribe(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHa
 		BadRequestHandler(w, r, "Can't add topic '"+topicStr+"': "+err.Error())
 	} else if err != nil {
 		panic("Failed to unsubscribe from '" + topicStr + "': " + err.Error())
+	}
+	err = l.Relogin()
+	if err != nil {
+		panic("Failed to relogin: " + err.Error())
 	}
 	//c.Println("In order to apply changes you need to restart the backend.")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
