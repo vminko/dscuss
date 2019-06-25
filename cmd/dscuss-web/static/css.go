@@ -43,13 +43,6 @@ html, body {
 	padding-top: 20px;
 	padding-bottom: 75px;
 }
-#footer {
-	position: absolute;
-	bottom: 0;
-	width: 100%;
-	height: 60px;
-	text-align: center;
-}
 .clearfix {
 	overflow: auto;
 }
@@ -59,11 +52,6 @@ body {
 	-webkit-font-smoothing: antialiased;
 	padding-left: 10px;
 	padding-right: 10px;
-}
-img {
-	max-width: 100%;
-	display: block;
-	margin: 0 auto;
 }
 a {
 	text-decoration: none;
@@ -83,39 +71,36 @@ a:visited {
 #title a, #title a:link, #title a:hover, #title a:active, #title a:visited {
 	color: #000;
 }
-#footer a, #footer a:link, #footer a:hover, #footer a:active, #footer a:visited {
-	color: grey;
-}
 a.headline {
 	padding: 0px 5px;
 }
 .link-btn, .link-btn:link, .link-btn:visited {
 	color: white;
 	background: #07C;
-	padding: 10px 20px;
+	padding: 5px 10px;
 	text-align: center;
-	width: 150px;
-	margin-left: 20px;
+	width: 120px;
+	margin-left: 0px;
 	font-size: 16px;
 }
 .link-btn:hover {
 	background: #3af;
 }
 .btn {
-	padding: 10px 20px;
+	padding: 5px 10px;
 	background: #07C;
 	font-size: 16px;
 	color: white;
 	border: none;
-	margin-left: 20px;
-	width: 150px;
+	margin-left: 0px;
+	width: 120px;
 	line-height: inherit;
 }
 .btn:hover {
 	background: #3af;
 	cursor: pointer;
 }
-.btn-row form, .btn-row a {
+.btn-row form, .btn-row a, .btn-cell a {
 	display: inline-block;
 }
 .btn-row {
@@ -157,11 +142,6 @@ a.headline {
 th, td {
 	text-align: left;
 }
-@media (min-width: 600px) {
-	.form td {
-		width: 360px;
-	}
-}
 .form th {
 	text-align: right;
 	vertical-align: top;
@@ -169,6 +149,11 @@ th, td {
 }
 .form td {
 	padding-top: 10px;
+}
+@media (min-width: 600px) {
+	.form td {
+		width: 360px;
+	}
 }
 @media (max-width: 599px) {
 	table.form {
@@ -227,7 +212,6 @@ textarea {
 a, .dimmed, h3, .message p {
 	word-wrap: break-word;
 }
-
 .dimmed .link-button {
 	border: none;
   	outline: none;

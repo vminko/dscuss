@@ -42,7 +42,7 @@ const threadCreateHTML = `
 				{{ if .Message }}
 					<span class="alert">{{ .Message }}</span><br>
 				{{ end }}
-				<input type="submit" name="action" class="no-double-post" value="Start dscussion">
+				<input type="submit" name="action" class="btn" value="Start">
 			</td>
 		</tr>
 	</table>

@@ -39,16 +39,16 @@ const profileHTML = `
 			{{ range .Subscriptions }}
 				<tr>
 					<td>{{ . }}</td>
-					<td><a href="/sub/del?topic={{ . }}">Remove</a></td>
+					<td class="btn-cell"><a class="link-btn" href="/sub/del?topic={{ . }}">Remove</a></td>
 				</tr>
 			{{ end }}
 			<tr>
-				<th>
+				<td>
 					<input type="text" name="topic" placeholder="Enter new topic...">
-				</th>
-				<th>
-					<input type="submit" name="action" class="no-double-post" value="Subscribe">
-				</th>
+				</td>
+				<td>
+					<input type="submit" name="action" class="btn" value="Subscribe">
+				</td>
 			</tr>
 		</table>
 	</form>
@@ -63,7 +63,7 @@ const profileHTML = `
 			{{ range .Moderators }}
 				<tr>
 					<td><a href="/user?id={{ .ID }}">{{ .Nickname }}-{{ .ShortID }}</a></td>
-					<td><a href="/moder/del?id={{ .ID }}">Remove</a></td>
+					<td class="btn-cell"><a class="link-btn" href="/moder/del?id={{ .ID }}">Remove</a></td>
 				</tr>
 			{{ end }}
 			<tr>
@@ -71,7 +71,7 @@ const profileHTML = `
 					<input type="text" name="id" placeholder="Enter new full ID...">
 				</td>
 				<td>
-					<input type="submit" name="action" class="no-double-post" value="Add">
+					<input type="submit" name="action" class="btn" value="Add">
 				</td>
 			</tr>
 		</table>

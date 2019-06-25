@@ -50,7 +50,7 @@ const operBanHTML = `
 				{{ if .Message }}
 					<span class="alert">{{ .Message }}</span><br>
 				{{ end }}
-				<input type="submit" name="action" class="no-double-post" value="Submit reply">
+				<input type="submit" name="action" class="btn" value="Submit reply">
 			</td>
 		</tr>
 	</table>

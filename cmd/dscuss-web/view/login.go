@@ -45,7 +45,7 @@ const loginHTML = `
 		{{ end }}
 		<tr>
 			<th></th>
-			<td><input type="submit" value="Login"></td>
+			<td><input type="submit" class="btn" value="Login"></td>
 		</tr>
 	</table>
 </form>

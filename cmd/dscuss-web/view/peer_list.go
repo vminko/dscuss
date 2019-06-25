@@ -46,7 +46,9 @@ const peerListHTML = `
 {{ end }}
 	<div>
 		<hr class="sep">
-		<a href="/peer/history">Show peer history</a>.
+		<div class="btn-cell">
+			<a class="link-btn" href="/peer/history">History</a>
+		</div>
 	</div>
 {{ end }}
 `
