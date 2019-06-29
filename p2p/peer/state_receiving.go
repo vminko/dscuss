@@ -25,8 +25,20 @@ import (
 )
 
 const (
-	// Encapsulates a user entity.
-	MaxPendingEntitiesNum int = 100
+	/* Limits the number of entities in the state buffer.
+	The deepest possible path is the following:
+		RootMessage by UnknownUser(0)
+		 L Reply(1) by UnknownUser(1)
+		   L Reply(2) by UnknwonUser(2)
+		     L ...
+		       L Reply(MaxMessageDepth) by UnknownUser(MaxMessageDepth)
+		         L Operation on Reply(MaxMessageDepth) by UnknownUser(MaxMessageDepth+1)
+	The total number of entities in the path is:
+		Operations; 1 entity
+		Messages:   MaxMessageDepth+1 entities   // RootMessage + Reply*MaxMessageDepth
+		Users:      MaxMessageDepth+2 entities   // UnknownUser*(MaxMessageDepth + 2)
+	*/
+	MaxPendingEntitiesNum int = (entity.MaxMessageDepth + 2) * 2
 )
 
 // StateReceiving implements the entity receiving protocol.
@@ -85,9 +97,15 @@ func (s *StateReceiving) perform() (nextState State, err error) {
 				if len(s.pendingEntities) < MaxPendingEntitiesNum {
 					neededID = e.ID
 				} else {
-					// TBD: limit max depth of threads, then
-					// ban a.AuthorID here
-					return nil, err
+					origEnt := s.pendingEntities[0]
+					authID := s.getEntityAuthor(origEnt)
+					s.banUser(authID, "user exceeded max depth of thread")
+					bErr := &banSenderError{
+						"peer sent entity " + origEnt.ID().String() +
+							" exceeding max depth of thread",
+					}
+					s.banUser(s.p.User.ID(), bErr.Comment)
+					return nil, bErr
 				}
 			case *banSenderError:
 				s.banUser(s.p.User.ID(), e.Comment)
@@ -130,6 +148,18 @@ func (s *StateReceiving) banUser(id *entity.ID, comment string) {
 		//
 		log.Errorf("Failed to put entity %s into the storage: %v", o, err)
 	}
+}
+
+func (s *StateReceiving) getEntityAuthor(ent entity.Entity) *entity.ID {
+	switch e := ent.(type) {
+	case *entity.Message:
+		return &e.AuthorID
+	case *entity.Operation:
+		return &e.AuthorID
+	default:
+		log.Fatalf("BUG: unexpected type of entity: %T", e)
+	}
+	return nil
 }
 
 func (s *StateReceiving) getPendingEntity(id *entity.ID) entity.Entity {

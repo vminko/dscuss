@@ -248,8 +248,22 @@ func (lh *LoginHandle) NewThread(subj, text string, topic subs.Topic) (*entity.M
 	)
 }
 
-func (lh *LoginHandle) NewReply(subj, text string, parent *entity.ID) (*entity.Message, error) {
-	return entity.EmergeMessage(subj, text, lh.owner.User.ID(), parent, lh.owner.Signer, nil)
+func (lh *LoginHandle) NewReply(subj, text string, parentID *entity.ID) (*entity.Message, error) {
+	p, err := lh.owner.Storage.GetMessage(parentID)
+	if err != nil {
+		log.Errorf("Failed to get parent message %s: %v", parentID, err)
+		return nil, err
+	}
+	d, err := lh.owner.Storage.GetMessageDepth(p)
+	if err != nil {
+		log.Errorf("Failed to get depth of message %s: %v", parentID, err)
+		return nil, err
+	}
+	if d >= entity.MaxMessageDepth {
+		log.Errorf("Attempt to violate the thread depth limit by replying to %s", parentID)
+		return nil, errors.MsgDepthExceeded
+	}
+	return entity.EmergeMessage(subj, text, lh.owner.User.ID(), parentID, lh.owner.Signer, nil)
 }
 
 func (lh *LoginHandle) NewOperation(

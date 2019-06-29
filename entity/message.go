@@ -56,8 +56,9 @@ type StoredMessage struct {
 }
 
 const (
-	MaxSubjectLen = 128
-	MaxTextLen    = 1024
+	MaxMessageSubjectLen = 128
+	MaxMessageTextLen    = 1024
+	MaxMessageDepth      = 1024
 )
 
 // EmergeMessage creates a new message. It should be called when owner wants to
@@ -133,11 +134,11 @@ func (um *UnsignedMessage) isValid() bool {
 		log.Debugf("Message %s has invalid ID", um)
 		return false
 	}
-	if len(um.Subject) > MaxSubjectLen {
+	if len(um.Subject) > MaxMessageSubjectLen {
 		log.Debugf("Message %s has too long subject (%d)", um, len(um.Subject))
 		return false
 	}
-	if len(um.Text) > MaxTextLen {
+	if len(um.Text) > MaxMessageTextLen {
 		log.Debugf("Message %s has too long text (%d)", um, len(um.Text))
 		return false
 	}

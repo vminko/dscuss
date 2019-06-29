@@ -30,6 +30,9 @@ import (
 
 const (
 	DefaultTimeout time.Duration = 1 * time.Second
+	// Limits the size of a packet. Anything larger will cause
+	// a decoding error.
+	MaxPacketSize int = 10 * 1024
 )
 
 // Connection is responsible for transferring packets via the network.
@@ -61,7 +64,8 @@ func fixErrClosedConnection(err error) error {
 
 func (c *Connection) ReadFull(timeout time.Duration) (*packet.Packet, error) {
 	c.conn.SetDeadline(time.Now().Add(timeout))
-	d := json.NewDecoder(c.conn)
+	d := json.NewDecoder(limitReader(c.conn, MaxPacketSize))
+	d.DisallowUnknownFields()
 	var p packet.Packet
 	err := d.Decode(&p)
 	if err != nil {
@@ -78,7 +82,7 @@ func (c *Connection) Read() (*packet.Packet, error) {
 func (c *Connection) WriteFull(p *packet.Packet, timeout time.Duration) error {
 	log.Debugf("Sending this packet to %s: %s", c.RemoteAddr(), p.Dump())
 	c.conn.SetDeadline(time.Now().Add(timeout))
-	e := json.NewEncoder(c.conn)
+	e := json.NewEncoder(limitWriter(c.conn, MaxPacketSize))
 	return fixErrClosedConnection(e.Encode(p))
 }
 

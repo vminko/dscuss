@@ -117,6 +117,19 @@ func (s *Storage) GetRoot(m *entity.Message) (*entity.Message, error) {
 	return m, nil
 }
 
+func (s *Storage) GetMessageDepth(m *entity.Message) (int, error) {
+	d := 0
+	for m.IsReply() {
+		p, err := s.db.GetMessage(&m.ParentID)
+		if err != nil {
+			return 0, err
+		}
+		m = p
+		d++
+	}
+	return d, nil
+}
+
 func (s *Storage) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operation, error) {
 	return s.db.GetOperationsOnUser(uid)
 }
