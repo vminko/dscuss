@@ -130,6 +130,10 @@ func (s *Storage) GetMessageDepth(m *entity.Message) (int, error) {
 	return d, nil
 }
 
+func (s *Storage) GetNearMessageID(m *entity.Message, diff time.Duration) (*entity.ID, error) {
+	return s.db.GetNearMessageID(m, diff)
+}
+
 func (s *Storage) GetOperationsOnUser(uid *entity.ID) ([]*entity.Operation, error) {
 	return s.db.GetOperationsOnUser(uid)
 }

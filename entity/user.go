@@ -61,7 +61,12 @@ type UserHistory struct {
 
 const (
 	MaxUsernameLen        = 64
+	EpochTimestamp        = 1546300800000000000 // 2019 Jan 01
 	nicknameRegex  string = "^[a-zA-Z0-9_]+$"
+)
+
+var (
+	Epoch = time.Unix(0, EpochTimestamp)
 )
 
 func IsNicknameValid(nickname string) bool {
@@ -136,6 +141,10 @@ func (uu *UnsignedUser) isValid() bool {
 	if uu.Descriptor.ID != *correctID {
 		log.Debugf("User %s has invalid ID. Expected: %s, Actual: %s",
 			uu, correctID, &uu.Descriptor.ID)
+		return false
+	}
+	if uu.RegDate.Before(Epoch) {
+		log.Debugf("User %s was registered before the Dscuss Epoch", uu)
 		return false
 	}
 	pow := crypto.NewPowFinder(uu.PubKey.EncodeToDER())

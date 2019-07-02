@@ -61,7 +61,10 @@ const (
 
 const (
 	MaxOperationCommentLen int = 1024
+	MinOperationPostDelay      = 1 * time.Minute
 )
+
+var lastOperTimestamp time.Time
 
 // Operation is an action performed on a user or a message.
 type Operation struct {
@@ -205,8 +208,10 @@ func (o *Operation) IsValid(pubKey *crypto.PublicKey) bool {
 	return o.IsUnsignedPartValid() && o.IsSigValid(pubKey)
 }
 
-// EmergeOperation creates a new operation. It should be called when owner wants to
-// perform a new operation. Signature will be created using the provided signer.
+// EmergeOperation creates a new operation. It will be called when owner wants to
+// perform a new operation and automatically by the protocol implementation (for
+// example, for blocking malicious peers).
+// Signature will be created using the provided signer.
 func EmergeOperation(
 	typ OperationType,
 	reason OperationReason,
@@ -215,6 +220,12 @@ func EmergeOperation(
 	objectID *ID,
 	signer *crypto.Signer,
 ) (*Operation, error) {
+	if time.Since(lastOperTimestamp) < MinOperationPostDelay {
+		log.Errorf("Attempt to create an operation violating the limit of the operation post rate")
+		return nil, errors.OperPostRateErr
+	} else {
+		lastOperTimestamp = time.Now()
+	}
 	uo := newUnsignedOperation(typ, reason, comment, authorID, objectID, time.Now())
 	if !uo.isValid() {
 		return nil, errors.WrongArguments

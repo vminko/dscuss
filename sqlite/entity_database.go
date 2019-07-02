@@ -616,9 +616,33 @@ func (d *EntityDatabase) HasMessage(eid *entity.ID) (bool, error) {
 	}
 }
 
+func (d *EntityDatabase) GetNearMessageID(
+	m *entity.Message,
+	diff time.Duration,
+) (*entity.ID, error) {
+	log.Debugf("Checking whether DB contains near messages for %s", m.ID().Shorten())
+	var rawID []byte
+	query := `SELECT Id FROM Messages WHERE Author_id=? and abs(Timestamp-?)<?`
+	db := (*sql.DB)(d)
+	err := db.QueryRow(query, m.AuthorID[:], m.DateWritten, diff).Scan(&rawID)
+	switch {
+	case err == sql.ErrNoRows:
+		return nil, nil
+	case err != nil:
+		log.Errorf("Error fetching message from the database: %v", err)
+		return nil, errors.DBOperFailed
+	default:
+		var id entity.ID
+		if id.ParseSlice(rawID) != nil {
+			log.Error("Can't parse an ID fetched from DB")
+			return nil, errors.Parsing
+		}
+		return &id, nil
+	}
+}
+
 func (d *EntityDatabase) putTag(tag string) error {
 	log.Debugf("Adding tag `%s' to the database", tag)
-
 	query := "INSERT INTO Tags (Name) VALUES (?)"
 	db := (*sql.DB)(d)
 	_, err := db.Exec(query, tag)
@@ -626,7 +650,6 @@ func (d *EntityDatabase) putTag(tag string) error {
 		log.Errorf("Can't execute 'putTag' statement: %s", err.Error())
 		return errors.DBOperFailed
 	}
-
 	return nil
 }
 

@@ -18,6 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 package peer
 
 import (
+	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
 	"vminko.org/dscuss/log"
@@ -141,7 +142,13 @@ func (s *StateReceiving) banUser(id *entity.ID, comment string) {
 		s.p.owner.Signer,
 	)
 	if err != nil {
-		log.Fatalf("Failed to create a new operation: %v", err)
+		if err == errors.OperPostRateErr {
+			// Skip this operation for now.
+			// TBD: make another try after MinOperationPostDelay
+			return
+		} else {
+			log.Fatalf("Failed to create a new operation: %v", err)
+		}
 	}
 	err = s.p.owner.Storage.PutEntity(o, nil)
 	if err != nil {
@@ -197,6 +204,35 @@ func (s *StateReceiving) getPendingMessage(id *entity.ID) *entity.Message {
 		return nil
 	}
 	return m
+}
+
+func (s *StateReceiving) getNearPendingMessageID(
+	m *entity.Message,
+	diff time.Duration,
+) (res *entity.ID) {
+	for _, ent := range s.pendingEntities {
+		switch e := ent.(type) {
+		case *entity.Message:
+			if e.AuthorID != m.AuthorID {
+				continue
+			}
+			if e.DateWritten.After(m.DateWritten) {
+				if e.DateWritten.Sub(m.DateWritten) < diff {
+					res = e.ID()
+				}
+			} else {
+				if m.DateWritten.Sub(e.DateWritten) < diff {
+					res = e.ID()
+				}
+			}
+			if res != nil {
+				log.Debugf("Messages %s and %s are too near",
+					res.Shorten(), m.ID().Shorten())
+				return
+			}
+		}
+	}
+	return nil
 }
 
 func (s *StateReceiving) sendReq(id *entity.ID) error {
@@ -354,7 +390,29 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 		comment := "peer sent message " + m.ID().Shorten() + " with invalid signature"
 		return &banSenderError{comment}
 	}
-	// TBD: check rate of messages posted by u
+	// Protection against disk overflow attack
+	if u.RegDate.After(m.DateWritten) {
+		log.Debugf("RegDate of %s is after than timestamp of his message %s",
+			u.ID().Shorten(), m.ID().Shorten())
+		comment := "RegDate is less than timestamp of " + m.ID().String()
+		return &banIDError{u.ID(), comment}
+	}
+	nearID, err := s.p.owner.Storage.GetNearMessageID(m, entity.MinMessagePostDelay)
+	if err != nil {
+		log.Fatalf("Unexpected error while looking for near messages in the DB: %v", err)
+	}
+	if nearID == nil {
+		nearID = s.getNearPendingMessageID(m, entity.MinMessagePostDelay)
+	}
+	if nearID != nil {
+		log.Debugf("Peer %s violated the limit of the message post rate by posting %s",
+			m.AuthorID, m.ID().Shorten())
+		return &banIDError{
+			&m.AuthorID,
+			m.ID().String() + " and " + nearID.String() +
+				" violate the limit of the message post rate",
+		}
+	}
 	if m.ParentID.IsZero() {
 		if !s.p.owner.Profile.GetSubscriptions().Covers(m.Topic) {
 			log.Infof("Peer %s sent unsolicited Message entity", s.p)

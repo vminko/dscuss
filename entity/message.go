@@ -59,7 +59,10 @@ const (
 	MaxMessageSubjectLen = 128
 	MaxMessageTextLen    = 1024
 	MaxMessageDepth      = 1024
+	MinMessagePostDelay  = 1 * time.Minute
 )
+
+var lastMsgTimestamp time.Time
 
 // EmergeMessage creates a new message. It should be called when owner wants to
 // post a new message. Signature will be created using the provided signer.
@@ -71,6 +74,12 @@ func EmergeMessage(
 	signer *crypto.Signer,
 	topic subs.Topic,
 ) (*Message, error) {
+	if time.Since(lastMsgTimestamp) < MinMessagePostDelay {
+		log.Errorf("Attempt to create a message violating the limit of the message post rate")
+		return nil, errors.MsgPostRateErr
+	} else {
+		lastMsgTimestamp = time.Now()
+	}
 	um := newUnsignedMessage(subject, text, authorID, parentID, time.Now(), topic)
 	if !um.isValid() {
 		return nil, errors.WrongArguments
