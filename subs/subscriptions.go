@@ -26,6 +26,10 @@ import (
 
 type Subscriptions []Topic
 
+const (
+	MaxSubscriptionLen = 32
+)
+
 func (s Subscriptions) AddTopic(t Topic) Subscriptions {
 	if s.Contains(t) {
 		log.Warningf("Attempt to add duplicated topic: '%s'", t)
@@ -96,6 +100,9 @@ func (s Subscriptions) IsValid() bool {
 	if s == nil || len(s) == 0 {
 		return false
 	}
+	if len(s) > MaxSubscriptionLen {
+		return false
+	}
 	for _, t := range s {
 		if !t.IsValid() {
 			return false
@@ -143,8 +150,13 @@ func Read(r io.Reader) (Subscriptions, error) {
 			log.Warningf("Duplicated topic in the subscriptions input: '%s'!",
 				line)
 		} else {
-
-			subs = append(subs, topic)
+			if len(subs) > MaxSubscriptionLen {
+				log.Errorf("The number of topics in the subscriptions exceeds"+
+					" the limit (at line %d)", num)
+				return nil, err
+			} else {
+				subs = append(subs, topic)
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {

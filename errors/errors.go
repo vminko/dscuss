@@ -56,6 +56,7 @@ var (
 	MsgDepthExceeded    = errors.New("the thread depth exceeded the limit")
 	MsgPostRateErr      = errors.New("attempt to violate the limit of the message post rate")
 	OperPostRateErr     = errors.New("attempt to violate the limit of the operation post rate")
+	SubsSizeExceeded    = errors.New("too many topics in the subscriptions")
 )
 
 // TBD: consider https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully

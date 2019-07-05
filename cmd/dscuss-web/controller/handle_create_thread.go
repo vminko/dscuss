@@ -53,11 +53,11 @@ func handleCreateThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginH
 		}
 		subj = r.PostFormValue("subject")
 		text = r.PostFormValue("text")
-		if (subj == "") || (len(subj) > entity.MaxSubjectLen) {
+		if (subj == "") || (len(subj) > entity.MaxMessageSubjectLen) {
 			msg = "Specified subject is unacceptable: empty or too long."
 			goto render
 		}
-		if (text == "") || (len(text) > entity.MaxTextLen) {
+		if (text == "") || (len(text) > entity.MaxMessageTextLen) {
 			msg = "Specified message text is unacceptable: empty or too long."
 			goto render
 		}

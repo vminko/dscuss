@@ -28,7 +28,9 @@ type Topic []string
 
 // TBD: precompile regular expressions for performance benefits
 const (
-	tagRegex string = "^[a-z0-9_]+$"
+	tagRegex         string = "^[a-z0-9_]+$"
+	MaxTagLen               = 24
+	MaxTopicCapacity        = 8
 )
 
 func NewTopic(str string) (Topic, error) {
@@ -40,7 +42,7 @@ func NewTopic(str string) (Topic, error) {
 	t := Topic(strings.Split(str, ","))
 	if !t.IsValid() {
 		log.Warningf("This is not a valid topic string: '%s'", str)
-		return nil, errors.Parsing
+		return nil, errors.WrongArguments
 	}
 	return t, nil
 }
@@ -73,12 +75,15 @@ func (t Topic) ContainsTag(target string) bool {
 
 func isTagValid(tag string) bool {
 	var tagRe = regexp.MustCompile(tagRegex)
-	return tagRe.MatchString(tag)
+	return len(tag) <= MaxTagLen && tagRe.MatchString(tag)
 }
 
 func (t Topic) IsValid() bool {
 	if t != nil && len(t) == 0 {
 		// nil topic is permitted, but empty topic is forbidden
+		return false
+	}
+	if len(t) > MaxTopicCapacity {
 		return false
 	}
 	seen := make(map[string]struct{}, len(t))
