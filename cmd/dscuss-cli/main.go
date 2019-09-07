@@ -55,7 +55,7 @@ var (
 var commandList = []*ishell.Cmd{
 	{
 		Name: "reg",
-		Help: "<nickname> [additional_info], register new user",
+		Help: "register new user",
 		Func: doRegister,
 	},
 	{

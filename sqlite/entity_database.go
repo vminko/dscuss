@@ -622,9 +622,16 @@ func (d *EntityDatabase) GetNearMessageID(
 ) (*entity.ID, error) {
 	log.Debugf("Checking whether DB contains near messages for %s", m.ID().Shorten())
 	var rawID []byte
-	query := `SELECT Id FROM Messages WHERE Author_id=? and abs(Timestamp-?)<?`
+	diffInSec := int64(diff / time.Second)
+	query := `
+	SELECT Id
+	FROM Messages
+	WHERE Author_id=? and
+	      Id!=? and
+	      ABS(CAST(strftime('%s', Timestamp) AS integer) - CAST(strftime('%s', ?) AS integer))<?
+	`
 	db := (*sql.DB)(d)
-	err := db.QueryRow(query, m.AuthorID[:], m.DateWritten, diff).Scan(&rawID)
+	err := db.QueryRow(query, m.AuthorID[:], m.ID()[:], m.DateWritten, diffInSec).Scan(&rawID)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, nil

@@ -153,7 +153,7 @@ th, td {
 }
 @media (min-width: 600px) {
 	.form td {
-		width: 360px;
+		width: 600px;
 	}
 }
 @media (max-width: 599px) {

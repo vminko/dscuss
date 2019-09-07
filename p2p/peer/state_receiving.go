@@ -213,6 +213,9 @@ func (s *StateReceiving) getNearPendingMessageID(
 	for _, ent := range s.pendingEntities {
 		switch e := ent.(type) {
 		case *entity.Message:
+			if *e.ID() == *m.ID() {
+				continue
+			}
 			if e.AuthorID != m.AuthorID {
 				continue
 			}
@@ -406,7 +409,7 @@ func (s *StateReceiving) checkMessage(m *entity.Message) error {
 	}
 	if nearID != nil {
 		log.Debugf("Peer %s violated the limit of the message post rate by posting %s",
-			m.AuthorID, m.ID().Shorten())
+			m.AuthorID.String(), m.ID().Shorten())
 		return &banIDError{
 			&m.AuthorID,
 			m.ID().String() + " and " + nearID.String() +

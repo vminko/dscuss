@@ -13,7 +13,7 @@ Copyright:  (c) 2011-2019 Vitaly Minko
             Creative Commons Attribution-Share Alike 3.0 Unported License
 Web:        http://vminko.org/dscuss
 Sort by:    Date
-Date:       10 Jul 2019
+Date:       31 Aug 2019
 Priority:   4
 
 
@@ -86,10 +86,11 @@ implemented:
 * Database synchronization with other peers.
 * Improved connectivity (bootstrapping via DHT).
 * Web interface.
+* Improved security (flood resistance).
 
 The following additional features are planned for version 0.1:
 
-* Improved security (SPAM resistance, flood resistance).
+* Improved security (SPAM resistance).
 
 
 Dependencies
