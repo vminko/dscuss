@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	DefaultTimeout time.Duration = 1 * time.Second
+	DefaultTimeout time.Duration = 5 * time.Second
 	// Limits the size of a packet. Anything larger will cause
 	// a decoding error.
 	MaxPacketSize int = 10 * 1024

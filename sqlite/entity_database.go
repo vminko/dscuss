@@ -373,7 +373,7 @@ func scanSingleMessageRow(rows *sql.Rows, scanTimeStored bool) (*entity.Message,
 	var encodedSig []byte
 	var rawAuthID []byte
 	var rawParID []byte
-	var topicStr string
+	var topicStr sql.NullString
 	var tmStored time.Time
 	var err error
 	if scanTimeStored {
@@ -419,10 +419,13 @@ func scanSingleMessageRow(rows *sql.Rows, scanTimeStored bool) (*entity.Message,
 	}
 	log.Debugf("Found message id %s", &id)
 
-	topic, err := subs.NewTopic(topicStr)
-	if err != nil {
-		log.Errorf("The topic '%s' fetched from DB is invalid", topicStr)
-		return nil, time.Time{}, errors.InconsistentDB
+	var topic subs.Topic
+	if topicStr.Valid {
+		topic, err = subs.NewTopic(topicStr.String)
+		if err != nil {
+			log.Errorf("The topic '%s' fetched from DB is invalid", topicStr.String)
+			return nil, time.Time{}, errors.InconsistentDB
+		}
 	}
 	m, err := entity.NewMessage(subj, text, &authID, &parID, wrdate, sig, topic)
 	if err != nil {
@@ -520,8 +523,8 @@ func (d *EntityDatabase) GetMessagesStoredAfter(ts time.Time, limit int) ([]*ent
 	       GROUP_CONCAT(Tags.Name),
 	       Messages.TimeStored
 	FROM Messages
-	INNER JOIN Message_Tags on Messages.Id=Message_Tags.Message_id
-	INNER JOIN Tags on Tags.Id=Message_Tags.Tag_id
+	LEFT JOIN Message_Tags on Messages.Id=Message_Tags.Message_id
+	LEFT JOIN Tags on Tags.Id=Message_Tags.Tag_id
 	WHERE Messages.TimeStored>=?
 	GROUP BY Messages.Id
 	ORDER BY Messages.Timestamp ASC
