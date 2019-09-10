@@ -19,6 +19,7 @@ package p2p
 
 import (
 	"sync"
+	"time"
 	"vminko.org/dscuss/log"
 	"vminko.org/dscuss/owner"
 	"vminko.org/dscuss/p2p/peer"
@@ -28,21 +29,21 @@ import (
 // peers and manages peer life cycle. But it has nothing to do with Entity
 // transferring.
 type PeerPool struct {
-	cp            *ConnectionProvider
-	owner         *owner.Owner
-	gonePeerChan  chan *peer.Peer
-	stopPeersChan chan struct{}
-	peers         []*peer.Peer
-	peersMx       sync.RWMutex
-	wg            sync.WaitGroup
+	cp          *ConnectionProvider
+	owner       *owner.Owner
+	stopWorkers chan bool
+	stopPeers   chan struct{}
+	peers       []*peer.Peer
+	peersMx     sync.RWMutex
+	wg          sync.WaitGroup
 }
 
 func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 	return &PeerPool{
-		cp:            cp,
-		owner:         owner,
-		gonePeerChan:  make(chan *peer.Peer),
-		stopPeersChan: make(chan struct{}),
+		cp:          cp,
+		owner:       owner,
+		stopWorkers: make(chan bool, 1),
+		stopPeers:   make(chan struct{}),
 	}
 }
 
@@ -56,7 +57,12 @@ func (pp *PeerPool) Start() {
 
 func (pp *PeerPool) Stop() {
 	log.Debugf("Stopping PeerPool")
+
+	// Stop workers
 	pp.cp.Stop()
+	pp.stopWorkers <- true
+	pp.wg.Wait()
+	log.Debugf("PeerPool stopped workers")
 
 	// Stop peers
 	var wg sync.WaitGroup
@@ -75,25 +81,47 @@ func (pp *PeerPool) Stop() {
 	wg.Wait()
 	log.Debug("PeerPool closed all peers")
 
-	close(pp.gonePeerChan)
-	pp.wg.Wait()
-	log.Debugf("PeerPool stopped")
+	log.Debug("PeerPool is completely stopped")
 }
 
 func (pp *PeerPool) watchNewConnections() {
 	defer pp.wg.Done()
+
 	for conn := range pp.cp.newConnChan() {
 		log.Debugf("New connection appeared, remote addr is %s", conn.RemoteAddr())
 		peer := peer.New(
 			conn,
 			pp.owner,
 			pp, // Validator
-			pp.gonePeerChan,
 		)
 		pp.peersMx.Lock()
 		pp.peers = append(pp.peers, peer)
 		pp.peersMx.Unlock()
 	}
+
+	/*
+		for {
+			select {
+			case conn, ok := <-pp.cp.newConnChan():
+				if !ok {
+					log.Debugf("newConnChan is closed")
+					return
+				}
+				log.Debugf("New connection appeared, remote addr is %s", conn.RemoteAddr())
+				peer := peer.New(
+					conn,
+					pp.owner,
+					pp, // Validator
+				)
+				pp.peersMx.Lock()
+				pp.peers = append(pp.peers, peer)
+				pp.peersMx.Unlock()
+			case <-pp.stopWorkers:
+				return
+			case <-time.After(time.Second):
+			}
+		}
+	*/
 }
 
 func (pp *PeerPool) removePeer(p *peer.Peer) {
@@ -116,11 +144,24 @@ func (pp *PeerPool) removePeer(p *peer.Peer) {
 
 func (pp *PeerPool) watchGonePeers() {
 	defer pp.wg.Done()
-	for cpeer := range pp.gonePeerChan {
-		log.Debugf("Removing peer %s from PP", cpeer)
-		pp.removePeer(cpeer)
-		cpeer.Close()
-		log.Debugf("Peer %s is removed from PP", cpeer)
+	latency := 1 * time.Second
+	ticker := time.NewTicker(latency)
+	for {
+		select {
+		case <-ticker.C:
+			pp.peersMx.Lock()
+			for _, peer := range pp.peers {
+				log.Debugf("Checking if peer %s is gone", peer)
+				if peer.IsGone() {
+					pp.removePeer(peer)
+					peer.Close()
+					log.Debugf("Peer %s is removed from PP", peer)
+				}
+			}
+			pp.peersMx.Unlock()
+		case <-pp.stopWorkers:
+			return
+		}
 	}
 }
 

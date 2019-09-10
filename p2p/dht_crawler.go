@@ -109,7 +109,7 @@ func (dc *DHTCrawler) Stop() {
 	dc.dht.Stop()
 	log.Debug("DHT stopped")
 	dc.wg.Wait()
-	log.Debug("DHTCrawler stoped")
+	log.Debug("DHTCrawler stopped")
 }
 
 func (dc *DHTCrawler) requestAddresses() {

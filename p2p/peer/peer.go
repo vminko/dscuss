@@ -20,6 +20,7 @@ package peer
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 	"vminko.org/dscuss/entity"
 	"vminko.org/dscuss/errors"
@@ -40,6 +41,7 @@ type Peer struct {
 	owner         *owner.Owner
 	validator     Validator
 	goneChan      chan *Peer
+	goneFlag      uint32
 	stopChan      chan struct{}
 	outEntityChan chan entity.Entity
 	wg            sync.WaitGroup
@@ -83,13 +85,11 @@ func New(
 	conn *connection.Connection,
 	owner *owner.Owner,
 	validator Validator,
-	goneChan chan *Peer,
 ) *Peer {
 	p := &Peer{
 		conn:          conn,
 		owner:         owner,
 		validator:     validator,
-		goneChan:      goneChan,
 		stopChan:      make(chan struct{}),
 		outEntityChan: make(chan entity.Entity, outEntityQueueCapacity),
 	}
@@ -99,6 +99,10 @@ func New(
 	go p.run()
 	go p.watchStop()
 	return p
+}
+
+func (p *Peer) IsGone() bool {
+	return atomic.LoadUint32(&p.goneFlag) != 0
 }
 
 func (p *Peer) Close() {
@@ -136,7 +140,7 @@ func (p *Peer) run() {
 				log.Debugf("Connection of peer %s was closed", p)
 			} else {
 				log.Errorf("Error performing '%s' state: %v", p.State.Name(), err)
-				p.goneChan <- p
+				atomic.StoreUint32(&p.goneFlag, 1)
 			}
 			break
 		}
