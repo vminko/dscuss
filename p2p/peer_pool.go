@@ -25,6 +25,51 @@ import (
 	"vminko.org/dscuss/p2p/peer"
 )
 
+type peerList struct {
+	peers []*peer.Peer
+	mx    sync.RWMutex
+}
+
+func (pl *peerList) Len() int {
+	pl.mx.Lock()
+	defer pl.mx.Unlock()
+	return len(pl.peers)
+}
+
+func (pl *peerList) Append(peer *peer.Peer) {
+	pl.mx.Lock()
+	pl.peers = append(pl.peers, peer)
+	pl.mx.Unlock()
+}
+
+func (pl *peerList) Remove(p *peer.Peer) bool {
+	isFound := false
+	pl.mx.Lock()
+	for i, ip := range pl.peers {
+		if ip == p {
+			pl.peers[len(pl.peers)-1], pl.peers[i] = pl.peers[i], pl.peers[len(pl.peers)-1]
+			pl.peers = pl.peers[:len(pl.peers)-1]
+			isFound = true
+			break
+		}
+	}
+	log.Debugf("len(pl.peers) became %d", len(pl.peers))
+	pl.mx.Unlock()
+	return isFound
+}
+
+func (pl *peerList) Range(f func(i int, p *peer.Peer) bool) {
+	pl.mx.RLock()
+	tmp := make([]*peer.Peer, len(pl.peers))
+	copy(tmp, pl.peers)
+	pl.mx.RUnlock()
+	for i, p := range tmp {
+		if !f(i, p) {
+			break
+		}
+	}
+}
+
 // PeerPool is responsible for managing peers. It creates new peers, accounts
 // peers and manages peer life cycle. But it has nothing to do with Entity
 // transferring.
@@ -33,8 +78,7 @@ type PeerPool struct {
 	owner       *owner.Owner
 	stopWorkers chan bool
 	stopPeers   chan struct{}
-	peers       []*peer.Peer
-	peersMx     sync.RWMutex
+	peers       *peerList
 	wg          sync.WaitGroup
 }
 
@@ -44,6 +88,7 @@ func NewPeerPool(cp *ConnectionProvider, owner *owner.Owner) *PeerPool {
 		owner:       owner,
 		stopWorkers: make(chan bool, 1),
 		stopPeers:   make(chan struct{}),
+		peers:       &peerList{},
 	}
 }
 
@@ -66,8 +111,7 @@ func (pp *PeerPool) Stop() {
 
 	// Stop peers
 	var wg sync.WaitGroup
-	pp.peersMx.RLock()
-	for _, p := range pp.peers {
+	pp.peers.Range(func(i int, p *peer.Peer) bool {
 		log.Debugf("PeerPool is closing peer %s", p)
 		wg.Add(1)
 		myP := p
@@ -76,8 +120,8 @@ func (pp *PeerPool) Stop() {
 			wg.Done()
 			log.Debugf("PeerPool closed peer %s", myP)
 		}()
-	}
-	pp.peersMx.RUnlock()
+		return true
+	})
 	wg.Wait()
 	log.Debug("PeerPool closed all peers")
 
@@ -94,9 +138,7 @@ func (pp *PeerPool) watchNewConnections() {
 			pp.owner,
 			pp, // Validator
 		)
-		pp.peersMx.Lock()
-		pp.peers = append(pp.peers, peer)
-		pp.peersMx.Unlock()
+		pp.peers.Append(peer)
 	}
 
 	/*
@@ -124,24 +166,6 @@ func (pp *PeerPool) watchNewConnections() {
 	*/
 }
 
-func (pp *PeerPool) removePeer(p *peer.Peer) {
-	isFound := false
-	pp.peersMx.Lock()
-	for i, ip := range pp.peers {
-		if ip == p {
-			pp.peers[len(pp.peers)-1], pp.peers[i] = pp.peers[i], pp.peers[len(pp.peers)-1]
-			pp.peers = pp.peers[:len(pp.peers)-1]
-			isFound = true
-			break
-		}
-	}
-	log.Debugf("len(pp.peers) became %d", len(pp.peers))
-	pp.peersMx.Unlock()
-	if !isFound {
-		log.Errorf("Failed to remove %s from the PeerPool", p)
-	}
-}
-
 func (pp *PeerPool) watchGonePeers() {
 	defer pp.wg.Done()
 	latency := 1 * time.Second
@@ -149,16 +173,17 @@ func (pp *PeerPool) watchGonePeers() {
 	for {
 		select {
 		case <-ticker.C:
-			pp.peersMx.Lock()
-			for _, peer := range pp.peers {
-				log.Debugf("Checking if peer %s is gone", peer)
-				if peer.IsGone() {
-					pp.removePeer(peer)
-					peer.Close()
-					log.Debugf("Peer %s is removed from PP", peer)
+			pp.peers.Range(func(i int, p *peer.Peer) bool {
+				log.Debugf("Checking if peer %s is gone", p)
+				if p.IsGone() {
+					if !pp.peers.Remove(p) {
+						log.Errorf("Failed to remove %s from the PeerPool", p)
+					}
+					p.Close()
+					log.Debugf("Peer %s is removed from PP", p)
 				}
-			}
-			pp.peersMx.Unlock()
+				return true
+			})
 		case <-pp.stopWorkers:
 			return
 		}
@@ -170,25 +195,25 @@ func (pp *PeerPool) ValidatePeer(newPeer *peer.Peer) bool {
 	if newPid == nil {
 		log.Fatalf("Handshaked peer %s has no ID", newPeer)
 	}
-	pp.peersMx.RLock()
-	defer pp.peersMx.RUnlock()
-	for _, p := range pp.peers {
+	ok := true
+	pp.peers.Range(func(i int, p *peer.Peer) bool {
 		pid := p.ID()
 		if pid != nil && *pid == *newPid && p != newPeer {
 			p.AddAddresses(newPeer.Addresses())
 			newPeer.ClearAddresses()
+			ok = false
 			return false
 		}
-	}
-	return true
+		return true
+	})
+	return ok
 }
 
 func (pp *PeerPool) ListPeers() []*peer.Info {
-	pp.peersMx.RLock()
-	defer pp.peersMx.RUnlock()
-	res := make([]*peer.Info, len(pp.peers))
-	for i, p := range pp.peers {
+	res := make([]*peer.Info, pp.peers.Len())
+	pp.peers.Range(func(i int, p *peer.Peer) bool {
 		res[i] = p.Info()
-	}
+		return true
+	})
 	return res
 }

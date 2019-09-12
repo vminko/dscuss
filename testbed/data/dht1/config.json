@@ -1,6 +1,8 @@
 {
-	"Network": {
+        "Network": {
+                "Address": "127.0.0.1",
                 "Port": 8004,
+                "DHTAddress": "127.0.0.1",
                 "DHTPort": 6881,
                 "AddressProvider": "dht",
                 "MaxInConnCount": 10,

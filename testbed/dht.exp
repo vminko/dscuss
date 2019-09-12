@@ -45,7 +45,7 @@ send "whoami\r"
 expect -re "cain (.*)\r\n"
 
 say "Giving peers some time to perform handshaking"
-sleep 20
+sleep 60
 
 say "Checking whether peers see each other"
 set spawn_id $adam_id
@@ -57,16 +57,18 @@ expect -re "eve-.*? is Idle\r\n"
 set spawn_id $eve_id
 send "lspeers\r"
 expect "There are 2 connected peers:\r\n"
-expect -re "adam-.*? is Idle\r\n" 
-expect -re "cain-.*? is Idle\r\n" 
+expect -re "adam-.*? is Idle\r\n"
+expect -re "cain-.*? is Idle\r\n"
 
 set spawn_id $cain_id
 send "lspeers\r"
 expect "There are 2 connected peers:\r\n"
-expect -re "adam-.*? is Idle\r\n" 
-expect -re "eve-.*? is Idle\r\n" 
+expect -re "adam-.*? is Idle\r\n"
+expect -re "eve-.*? is Idle\r\n"
 
 say "Stopping all peers"
+# Stopping DHT sometimes takes longer than the default timeout of 10 sec
+set timeout 30
 set spawn_id $adam_id
 send "exit\r"
 expect eof

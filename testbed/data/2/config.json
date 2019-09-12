@@ -1,8 +1,8 @@
 {
-	"Network": {
+        "Network": {
                 "Port": 8005,
-		"AddressProvider": "addrlist",
-		"MaxInConnCount": 10,
-		"MaxOutConnCount": 10
-	}
+                "AddressProvider": "addrlist",
+                "MaxInConnCount": 10,
+                "MaxOutConnCount": 10
+        }
 }

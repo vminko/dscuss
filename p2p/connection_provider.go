@@ -46,22 +46,22 @@ func (a *addressMap) Load(key string) (bool, bool) {
 
 func (a *addressMap) Add(key string, value bool) {
 	a.mx.Lock()
-	defer a.mx.Unlock()
 	_, ok := a.m[key]
 	if !ok {
 		a.m[key] = value
 	}
+	a.mx.Unlock()
 }
 
 func (a *addressMap) Change(key string, value bool) {
 	a.mx.Lock()
-	defer a.mx.Unlock()
 	_, ok := a.m[key]
 	if ok {
 		a.m[key] = value
 	} else {
 		log.Errorf("Attempt to change state of unknown address %s", key)
 	}
+	a.mx.Unlock()
 }
 
 func (a *addressMap) Range(f func(key string, value bool) bool) {

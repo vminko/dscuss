@@ -1,10 +1,12 @@
 {
-	"Network": {
+        "Network": {
+                "Address": "127.0.0.1",
                 "Port": 8006,
+                "DHTAddress": "127.0.0.1",
                 "DHTPort": 6883,
-		"DHTBootstrap": "localhost:6881",
-		"AddressProvider": "dht",
-		"MaxInConnCount": 10,
-		"MaxOutConnCount": 10
-	}
+                "DHTBootstrap": "localhost:6881",
+                "AddressProvider": "dht",
+                "MaxInConnCount": 10,
+                "MaxOutConnCount": 10
+        }
 }
