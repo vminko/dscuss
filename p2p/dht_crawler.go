@@ -45,7 +45,7 @@ type DHTCrawler struct {
 }
 
 const (
-	DHTCrawlerTimeout time.Duration = 5 * time.Second
+	DHTCrawlerTimeout time.Duration = 30 * time.Second
 )
 
 func NewDHTCrawler(
@@ -78,8 +78,8 @@ func (dc *DHTCrawler) Start() {
 	cfg := dht.NewConfig()
 	cfg.Address = dc.addr
 	cfg.Port = dc.port
-	cfg.RateLimit = -1
-	cfg.ClientPerMinuteLimit = 10000
+	cfg.RateLimit = 10000
+	cfg.ClientPerMinuteLimit = 1000
 	cfg.DHTRouters = dc.bootstrap
 	cfg.SaveRoutingTable = false
 	log.Debugf("Using these DHTRouters: %s", cfg.DHTRouters)
@@ -115,17 +115,19 @@ func (dc *DHTCrawler) Stop() {
 func (dc *DHTCrawler) requestAddresses() {
 	defer dc.wg.Done()
 	log.Debugf("Starting requestAddresses loop for subs %s", dc.subs)
-	for {
+
+	for tick := time.Tick(DHTCrawlerTimeout); ; {
+		for _, t := range dc.subs {
+			ih := calcInfoHash(t.String())
+			log.Debugf("Requesting addresses for topic %s", t)
+			dc.dht.PeersRequestPort(string(ih), true, dc.advPort)
+		}
 		select {
+		case <-tick:
+			continue
 		case <-dc.stopChan:
 			log.Debug("Leaving requestAddresses")
 			return
-		case <-time.Tick(DHTCrawlerTimeout):
-			for _, t := range dc.subs {
-				ih := calcInfoHash(t.String())
-				log.Debugf("Requesting addresses for topic %s", t)
-				dc.dht.PeersRequestPort(string(ih), true, dc.advPort)
-			}
 		}
 	}
 }

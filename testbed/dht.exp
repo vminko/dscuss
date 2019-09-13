@@ -45,7 +45,7 @@ send "whoami\r"
 expect -re "cain (.*)\r\n"
 
 say "Giving peers some time to perform handshaking"
-sleep 60
+sleep 30
 
 say "Checking whether peers see each other"
 set spawn_id $adam_id

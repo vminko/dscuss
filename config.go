@@ -32,7 +32,6 @@ type NetworkConfig struct {
 	Address         string
 	Port            int
 	AddressProvider string
-	DHTAddress      string
 	DHTPort         int
 	DHTBootstrap    string
 	MaxInConnCount  uint32

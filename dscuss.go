@@ -176,7 +176,7 @@ func Login(nickname string) (*LoginHandle, error) {
 			aps = append(aps, ap)
 		case "dht":
 			ap := p2p.NewDHTCrawler(
-				cfg.Network.DHTAddress,
+				cfg.Network.Address,
 				cfg.Network.DHTPort,
 				cfg.Network.DHTBootstrap,
 				cfg.Network.Port,
