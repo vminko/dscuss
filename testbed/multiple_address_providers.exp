@@ -20,7 +20,7 @@
 source testbed.exp
 
 say "Starting Adam's peer"
-spawn ../main -config "$tmp_dir/dht1"
+spawn ../dscuss-cli -config "$tmp_dir/dht1"
 set adam_id $spawn_id
 expect "Welcome to Dscuss.\r\n"
 send "login adam\r"
@@ -28,7 +28,7 @@ send "whoami\r"
 expect -re "adam (.*)\r\n"
 
 say "Starting Eve's peer"
-spawn ../main -config "$tmp_dir/multi2"
+spawn ../dscuss-cli -config "$tmp_dir/multi2"
 set eve_id $spawn_id
 expect "Welcome to Dscuss.\r\n"
 send "login eve\r"
@@ -36,7 +36,7 @@ send "whoami\r"
 expect -re "eve (.*)\r\n"
 
 say "Starting Cain's peer"
-spawn ../main -config "$tmp_dir/none3"
+spawn ../dscuss-cli -config "$tmp_dir/none3"
 set cain_id $spawn_id
 expect "Welcome to Dscuss.\r\n"
 send "login cain\r"

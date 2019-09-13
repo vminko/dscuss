@@ -21,7 +21,7 @@
 source testbed.exp
 
 say "Starting Adam's peer"
-spawn ../main -config "$tmp_dir/1"
+spawn ../dscuss-cli -config "$tmp_dir/1"
 set adam_id $spawn_id
 expect "> "
 send  "login adam\r"
@@ -37,7 +37,7 @@ send "Testing remove-message operation\r"
 expect "> "
 
 say "Starting Eve's peer"
-spawn ../main -config "$tmp_dir/2"
+spawn ../dscuss-cli -config "$tmp_dir/2"
 set eve_id $spawn_id
 expect "> "
 send "login eve\r"
@@ -48,7 +48,7 @@ send "addmdr 8vBHkCKnH/QiLeN8cXduVLG8BGfAMkiFtwKELEH3Gyc=\r"
 expect "> "
 
 say "Starting Cain's peer"
-spawn ../main -config "$tmp_dir/3"
+spawn ../dscuss-cli -config "$tmp_dir/3"
 set cain_id $spawn_id
 expect "> "
 send "login cain\r"

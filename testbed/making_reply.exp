@@ -21,14 +21,14 @@
 source testbed.exp
 
 say "Starting Adam's peer"
-spawn ../main -config "$tmp_dir/1"
+spawn ../dscuss-cli -config "$tmp_dir/1"
 set adam_id $spawn_id
 expect "> "
 send "login adam\r"
 expect "> "
 
 say "Starting Eve's peer"
-spawn ../main -config "$tmp_dir/2"
+spawn ../dscuss-cli -config "$tmp_dir/2"
 set eve_id $spawn_id
 expect "> "
 send "login eve\r"

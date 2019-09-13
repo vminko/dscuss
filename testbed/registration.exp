@@ -20,7 +20,7 @@
 source testbed.exp
 
 say "Starting Adam's peer"
-spawn ../main -config "$tmp_dir/1"
+spawn ../dscuss-cli -config "$tmp_dir/1"
 expect "Welcome to Dscuss.\r\n"
 
 say "Registering Abel"
