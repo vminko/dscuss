@@ -134,6 +134,9 @@ th, td {
 .form td {
 	padding-top: 10px;
 }
+table.form {
+	width: 800px;
+}
 table.editable {
 	width: 800px;
 }
