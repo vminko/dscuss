@@ -107,23 +107,6 @@ a.headline {
 .btn-row {
 	text-align: right;
 }
-@media (max-width: 599px) {
-	.btn {
-		font-size: 12px;
-		padding: 5px 10px;
-		margin: 10px;
-		width: 100px;
-	}
-	.link-btn, .link-btn:link, .link-btn:visited {
-		font-size: 12px;
-		padding: 5px 10px;
-		margin: 10px;
-		width: 100px;
-	}
-	.btn-row {
-		text-align: center;
-	}
-}
 #navleft {
 	float: left;
 	max-width: 70%;
@@ -151,30 +134,8 @@ th, td {
 .form td {
 	padding-top: 10px;
 }
-@media (min-width: 600px) {
-	.form td {
-		width: 600px;
-	}
-}
-@media (max-width: 599px) {
-	table.form {
-		width: 100%;
-	}
-	.form th {
-		display: block;
-		float: left;
-		text-align: left;
-		max-width: 75%;
-		padding-top: 20px;
-	}
-	.form td {
-		display: block;
-		text-align: right;
-		padding-top: 20px;
-	}
-	.form input[type="submit"] {
-		width: 100%;
-	}
+table.editable {
+	width: 800px;
 }
 input[type="text"], input[type="number"], input[type="password"] {
 	width: 100%;

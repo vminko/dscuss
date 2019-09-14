@@ -34,7 +34,7 @@ const profileHTML = `
 	<span class="subtitle">Subscriptions</span>
 	<form action="/sub/add" method="POST" enctype="multipart/form-data">
 		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-		<table>
+		<table class="editable">
 			<tr><th>Topic</th><th>Action</th></tr>
 			{{ range .Subscriptions }}
 				<tr>
@@ -58,7 +58,7 @@ const profileHTML = `
 	<span class="subtitle">Moderators</span>
 	<form action="/moder/add" method="POST" enctype="multipart/form-data">
 		<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
-		<table>
+		<table class="editable">
 			<tr><th>User</th><th>Action</th></tr>
 			{{ range .Moderators }}
 				<tr>

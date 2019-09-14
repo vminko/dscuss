@@ -35,7 +35,7 @@ const loginHTML = `
 		</tr>
 		<tr>
 			<th></th>
-			<td>How to setup your own Dscuss node: <a href="/help?=setup">Help</a></td>
+			<td>How to setup your own Dscuss node: <a href="http://vminko.org/dscuss/setup">Help</a></td>
 		</tr>
 		{{ if .Message }}
 			<tr>

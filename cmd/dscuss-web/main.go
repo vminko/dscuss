@@ -35,17 +35,16 @@ import (
 )
 
 const (
-	webVersion         string = "0.1"
-	webDefaultPassword string = "qwerty"
-	webPort            int    = 8080
+	webVersion string = "0.1"
+	webPort    int    = 8080
 )
 
 var (
 	argConfig   = flag.String("config", dscuss.DefaultDir, "Directory with config files to use")
 	argVersion  = flag.Bool("version", false, "Display version of the program and exit")
 	argHelp     = flag.Bool("help", false, "Print help message and exit")
-	argUser     = flag.String("user", "adam", "Name of the user to log in as")
-	argPassword = flag.String("password", webDefaultPassword, "Password to protect access to the Web UI")
+	argUser     = flag.String("user", "", "Name of the user to login as")
+	argPassword = flag.String("password", "", "Password to protect access to the Web UI")
 	// Looks like there is no way to pass LoginHandle via ishell.Context.
 	loginHandle *dscuss.LoginHandle
 )
@@ -99,8 +98,12 @@ func main() {
 		fmt.Println(getVersion())
 		return
 	}
-	if *argPassword == webDefaultPassword {
-		fmt.Println("You have to specify a custom password.")
+	if *argPassword == "" {
+		fmt.Println("You have to specify a custom password for WegUI.")
+		return
+	}
+	if *argUser == "" {
+		fmt.Println("You have to specify the name of the user to login as.")
 		return
 	}
 	if len(*argPassword) > controller.MaxPasswordLen {

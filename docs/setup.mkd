@@ -1,0 +1,152 @@
+Title:      How to setup your own Dscuss node
+Summary:    This step-by-step manual describes how to register a new Dscuss user
+            and to login to the network using this user.
+Copyright:  (c) 2019 Vitaly Minko
+            Content is available under GNU Free Documentation License 1.3 and
+            Creative Commons Attribution-Share Alike 3.0 Unported License
+Date:       14 Sep 2019
+Web:        http://vminko.org/dscuss/setup
+
+1. Prepare
+----------
+
+Setup the go development environment: [Getting Started](https://golang.org/doc/install).
+
+2. Get the source code
+----------------------
+
+Create directory for the source code:
+
+    mkdir -p ${GOPATH}/src/vminko.org
+    cd ${GOPATH}/src/vminko.org
+
+Clone the git repository:
+
+    git clone git://vminko.org/dscuss
+
+If you want to get the proof-of-concept version (which is more or less stable),
+then also execute the following command:
+
+    git reset --hard proof-of-concept
+
+Get the dependencies:
+
+        go get github.com/abiosoft/ishell \
+               github.com/mattn/go-sqlite3 \
+               github.com/nictuku/dht \
+               golang.org/x/crypto/scrypt
+
+
+3. Create executable files
+--------------------------
+
+    cd ${GOPATH}/src/vminko.org/dscuss
+
+Compile the CLI program:
+
+    go build -o dscuss-cli cmd/dscuss-cli/main.go
+
+Compile the Web service:
+
+    go build -o dscuss-web cmd/dscuss-web/main.go
+
+
+4. Register new user
+--------------------
+
+Each Dscuss node must be associated with a user. So first of all you need to
+register a new user. In order to do this, start the CLI program. The web UI does
+not provide registration yet.
+
+    $ ./dscuss-cli
+    Starting Dscuss...
+    Welcome to Dscuss.
+
+Register new user using `reg` command. This will take few hours on the first
+production release (each user must calculate proof-of-work), The development
+version has much lower proof-of-work requirements and registering new user takes
+just few seconds.
+
+    > reg
+    Nickname: adam
+    Enter some additional info: I'm the first Dscuss user. Send your PM to adam@paradise.
+    Enter list of topics you are interested in. Each topic is a set of comma separated tags. and end with 'DSC': 
+    p2p,dscuss,devel
+    food,vegetarian,fruits
+    photography,landscape
+    DSC
+    Registering new user. Do not interrupt the process.
+    Otherwise you'll have to remove the user directory manually.
+    User registered successfully.
+    Edit /home/user/.dscuss/addresses.txt in your favorite editor if you want to customize peer addresses.
+
+It's recommended for new users to subscribe to `p2p,dscuss,devel` topic in order
+to establish connection with the special development user (named `bootstrap`).
+
+
+5. Login to the network
+-----------------------
+
+    > login adam
+
+Check connections with other peers. In  case you have subscribed to
+`p2p,dscuss,devel`, you should have at least one connection (with the bootstrap
+peer).
+
+    > lspeers full
+    There is one connected peer:
+    PEER #0
+    Nickname:             bootstrap
+    ID:                   qWvEotv4WBsFNFJa2LN/XMsPaGT7uNSVvNU+KEb0nnE=
+    LocalAddr:            192.168.43.78:57642
+    RemoteAddr:           176.56.48.8:8004
+    AssociatedAddrs:      176.56.48.8:8004,176.56.48.8:8004
+    Subscriptions:        dscuss,devel
+    State:                Idle
+
+6. Using the CLI
+----------------
+ 
+ Dscuss has full featured command-line interface. It's mostly meant for
+ autotesting and debugging. If you prefer a user-friendly interface, try the Web
+ UI.
+
+ To get familiar with all available commands run the `help` command:
+
+    Commands:
+      addmdr        <id>, make user <id> a moderator
+      ban           <id> <reason>, ban user <id> because of <reason>
+      clear         clear the screen
+      exit          exit the program
+      help          display help
+      login         <nickname>, login as user <nickname>
+      logout        logout from the network
+      lsboard       [topic], list a particular topic or all threads on the board
+      lshist        list history of users
+      lsmdr         list the current user's moderators
+      lsop          (user|msg) <id>, list operations on user or message <id>
+      lspeers       list connected peers
+      lssubs        list the current user's subscriptions
+      lsthread      <id>, display a particular thread
+      mkreply       <id>, publish a new reply to message <id>
+      mkthread      start a new thread
+      reg           register new user
+      rmmdr         <id>, remove user <id> from the list of moderators
+      rmmsg         <id> <reason>, remove message <id> because of <reason>
+      sub           <topic>. subscribe to <topic>
+      unsub         <topic>, unsubscribe from <topic>
+      ver           display versions of Dscuss and the CLI
+      whoami        display nickname of the current user
+
+
+7. Using the Web UI
+-------------------
+
+To start the web service, you must specify the peer's user and the password to
+protect access to the Web UI. For example:
+
+    ./dscuss-web -user adam -password qwerty
+
+After that you can view [the web interface](http://127.0.0.1:8080) in the
+browser as a guest user or [Login](http://127.0.0.1:8080/login) as the owner of
+the peer.
