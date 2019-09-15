@@ -21,7 +21,7 @@ const operBanHTML = `
 {{ define "content" }}
 
 <h1 id="title">{{ .Common.PageTitle }}</h1>
-<form action="/ban" method="POST" enctype="multipart/form-data">
+<form action="/oper/ban" method="POST" enctype="multipart/form-data">
 	<input type="hidden" name="csrf" value="{{ .Common.CSRF }}">
 	<input type="hidden" name="id" value="{{ .Target.ID }}">
 	<table class="form">
