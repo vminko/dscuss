@@ -76,7 +76,7 @@ func handleThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle,
 	view.Render(w, "thread.html", map[string]interface{}{
 		"Common":        cd,
 		"IsFound":       isFound,
-		"ID":            t.ID,
+		"ID":            idStr,
 		"Subject":       t.Subject,
 		"Text":          t.Text,
 		"DateWritten":   t.DateWritten,

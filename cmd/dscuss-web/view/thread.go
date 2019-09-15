@@ -43,7 +43,7 @@ const threadHTML = `
 {{ else }}
 	<div class="row">
 	<div class="alert">Requested thread was not found.</div>
-		<a href="/oper/list?id={{ .ID }}">View operations</a> on this thread.
+		<a href="/oper/list?type=msg&id={{ .ID }}">View operations</a> on this thread.
 	</div>
 {{ end }}
 
