@@ -89,10 +89,10 @@ func (dc *DHTCrawler) Start() {
 	if err != nil {
 		log.Fatalf("Failed to create a DHT node: %v", err)
 	}
-	if log.IsDebugEnabled() {
-		dl := &dhtLogger{}
-		dc.dht.DebugLogger = dl
-	}
+	//if log.IsDebugEnabled() {
+	//	dl := &dhtLogger{}
+	//	dc.dht.DebugLogger = dl
+	//}
 	err = dc.dht.Start()
 	if err != nil {
 		log.Fatalf("Failed to start DHT node: %v", err)
