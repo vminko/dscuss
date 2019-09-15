@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	webVersion string = "0.1"
-	webPort    int    = 8080
+	webVersion     string = "0.1"
+	webDefaultPort int    = 8080
 )
 
 var (
@@ -45,6 +45,7 @@ var (
 	argHelp     = flag.Bool("help", false, "Print help message and exit")
 	argUser     = flag.String("user", "", "Name of the user to login as")
 	argPassword = flag.String("password", "", "Password to protect access to the Web UI")
+	argPort     = flag.Int("port", webDefaultPort, "Web UI port to listen on")
 	// Looks like there is no way to pass LoginHandle via ishell.Context.
 	loginHandle *dscuss.LoginHandle
 )
@@ -148,6 +149,6 @@ func main() {
 	http.HandleFunc("/peer/list", controller.ListPeersHandler)
 	http.HandleFunc("/peer/history", controller.PeerHistoryHandler)
 
-	log.Debugf("Starting HTTP server on port %d\n", webPort)
-	http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
+	log.Debugf("Starting HTTP server on port %d\n", *argPort)
+	http.ListenAndServe(":"+strconv.Itoa(*argPort), nil)
 }

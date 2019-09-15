@@ -137,11 +137,17 @@ th, td {
 table.form {
 	width: 800px;
 }
+table.login.form {
+	width: 400px;
+}
 table.editable {
 	width: 800px;
 }
 input[type="text"], input[type="number"], input[type="password"] {
 	width: 100%;
+}
+input.login {
+	width: 200px;
 }
 textarea {
 	width: 100%;

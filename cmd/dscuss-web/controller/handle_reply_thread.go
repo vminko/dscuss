@@ -27,7 +27,7 @@ import (
 )
 
 func handleReplyThread(w http.ResponseWriter, r *http.Request, l *dscuss.LoginHandle, s *Session) {
-	if len(r.URL.Query()) != 1 {
+	if len(r.URL.Query()) > 1 {
 		BadRequestHandler(w, r, "Wrong number of query parameters")
 		return
 	}

@@ -41,7 +41,7 @@ const baseHTML = `
 			<div id="navleft">
 				<a href="/">{{ .Common.NodeName }}</a>
 				{{ if .Common.Topic }}
-					&mdash; <a class="headline" href="/board?topic=">{{ .Common.Topic }}</a>
+					&mdash; <a class="headline" href="/board?topic={{ .Common.Topic }}">{{ .Common.Topic }}</a>
 				{{ end }}
 			</div>
 			<div id="navright">
