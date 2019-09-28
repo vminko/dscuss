@@ -37,7 +37,8 @@ __By the security of the data channels__:
 
 * data channels provide confidentiality, authenticity and integrity of the content
 * data channels provide authenticity and integrity of the content, but not confidentiality
-* data channels do not provide confidentiality, authenticity and integrity of the content
+* data channels provide integrity of the content, but not authenticity or confidentiality
+* data channels provide neither of confidentiality, authenticity and integrity of the content
 
 __By privacy__:
 
