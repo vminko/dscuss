@@ -39,7 +39,7 @@ const threadReplyHTML = `
 		</tr>
 		<tr>
 			<th>Subject:</th>
-			<td><input type="text" name="subject" value="{{ .Reply.Subject }}" placeholder="Re: {{.Parent.Subject}}"></td>
+			<td><input type="text" name="subject" value="Re: {{.Parent.Subject}}"></td>
 		</tr>
 		<tr>
 			<th>Text:</th>
