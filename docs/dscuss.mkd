@@ -134,18 +134,6 @@ You can use the [web interface][cgit] to browse the source code online.
 [cgit]: http://dscuss.org/cgit/dscuss/
 
 
-How to compile
---------------
-
-If you want to compile executable binary named `dscuss` (library with CLI), run:
-
-    go build -o dscuss cmd/dscuss-cli/main.go
-
-Or use this command if you just want to run Dscuss for one time:
-
-    go run cmd/dscuss-cli/main.go
-
-
 Similar projects
 ----------------
 
