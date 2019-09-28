@@ -125,6 +125,9 @@ To fetch the latest source code from the git repository, run the following comma
 
     git clone git://vminko.org/dscuss
 
+GitHub contains the backup Dscuss repository: [github.com/vminko/dscuss][github].
+
+
 If you want to get the proof-of-concept version (which is more or less stable):
 
     git reset --hard proof-of-concept
@@ -132,6 +135,7 @@ If you want to get the proof-of-concept version (which is more or less stable):
 You can use the [web interface][cgit] to browse the source code online.
 
 [cgit]: http://dscuss.org/cgit/dscuss/
+[github]: https://github.com/vminko/dscuss
 
 
 Similar projects
