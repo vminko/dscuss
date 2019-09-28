@@ -100,7 +100,7 @@ func main() {
 		return
 	}
 	if *argPassword == "" {
-		fmt.Println("You have to specify a custom password for WegUI.")
+		fmt.Println("You have to specify a custom password for WebUI.")
 		return
 	}
 	if *argUser == "" {
