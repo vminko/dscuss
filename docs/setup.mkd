@@ -24,10 +24,10 @@ Clone the git repository:
 
     git clone git://vminko.org/dscuss
 
-If you want to get the proof-of-concept version (which is more or less stable),
+If you want to get the version 0.1 (which is more or less stable),
 then also execute the following command:
 
-    git reset --hard proof-of-concept
+    git reset --hard v0.1
 
 Get the dependencies:
 
